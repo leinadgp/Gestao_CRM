@@ -1,25 +1,65 @@
 // src/App.jsx
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { Sidebar } from './componentes/Sidebar';
-import { Home } from './pages/Home';
-import { Contatos } from './pages/Contatos';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Sidebar } from './componentes/Sidebar.jsx';
+import { Home } from './pages/Home.jsx';
+import { Contatos } from './pages/Contatos.jsx';
+import { Login } from './pages/Login.jsx';
+import { Empresas } from './pages/Empresas.jsx';
+import { Funil } from './pages/Funil.jsx';
+
+// === COMPONENTE DE PROTEÇÃO E LAYOUT ===
+// Tudo que ficar aqui dentro só aparece se o usuário estiver logado
+function RotaProtegida({ children }) {
+  const token = localStorage.getItem('token');
+
+  // Se não tem token, joga pra tela de login imediatamente
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Se tem token, renderiza a casca do sistema (Sidebar) e a página solicitada (children)
+  return (
+    <div className="app-container">
+      <Sidebar />
+      <main className="main-content">
+        {children}
+      </main>
+    </div>
+  );
+}
 
 export function App() {
   return (
     <BrowserRouter>
-      <div className="app-container">
-        <Sidebar />
-        
-        <main className="main-content">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/contatos" element={<Contatos />} />
-            {/* As outras rotas criaremos depois */}
-            <Route path="/funil" element={<div><h1 className="page-title">Funil de Vendas</h1></div>} />
-            <Route path="/empresas" element={<div><h1 className="page-title">Empresas</h1></div>} />
-          </Routes>
-        </main>
-      </div>
+      <Routes>
+        {/* Rota Pública (Não tem Sidebar, não tem proteção) */}
+        <Route path="/login" element={<Login />} />
+
+        {/* Rotas Privadas (Envelopadas pelo componente RotaProtegida) */}
+        <Route path="/" element={
+          <RotaProtegida>
+            <Home />
+          </RotaProtegida>
+        } />
+
+        <Route path="/contatos" element={
+          <RotaProtegida>
+            <Contatos />
+          </RotaProtegida>
+        } />
+
+        {/* Futuras rotas */}
+        <Route path="/funil" element={
+          <RotaProtegida>
+            <Funil />
+          </RotaProtegida>
+        } />
+        <Route path="/empresas" element={
+          <RotaProtegida>
+            <Empresas />
+          </RotaProtegida>
+        } />
+      </Routes>
     </BrowserRouter>
   );
 }
