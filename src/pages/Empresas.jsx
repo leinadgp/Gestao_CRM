@@ -140,6 +140,8 @@ export function Empresas() {
             <option value="SC">Santa Catarina (SC)</option>
             <option value="PR">Paraná (PR)</option>
             <option value="SP">São Paulo (SP)</option>
+            <option value="RJ">Rio de Janeiro (RJ)</option>
+            <option value="MS">Mato Grosso do Sul (MS)</option>
           </select>
 
           <button onClick={abrirFormularioNovo} style={{ background: '#28a745', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
