@@ -1,0 +1,20 @@
+/* src/index.css */
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css');
+
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+
+body { background-color: #f0f2f5; color: #333; }
+
+/* Layout Principal (Sidebar na esquerda, Conteúdo na direita) */
+.app-container { display: flex; min-height: 100vh; }
+
+/* Menu Lateral */
+.sidebar { width: 250px; background-color: #1c1e21; color: white; display: flex; flex-direction: column; padding-top: 20px; }
+.sidebar-logo { font-size: 1.5rem; font-weight: bold; text-align: center; margin-bottom: 30px; color: #007bff; }
+.sidebar-nav { display: flex; flex-direction: column; gap: 5px; }
+.sidebar-link { padding: 15px 20px; color: #bbb; text-decoration: none; display: flex; align-items: center; gap: 15px; transition: 0.2s; }
+.sidebar-link:hover, .sidebar-link.active { background-color: #333; color: white; border-left: 4px solid #007bff; }
+
+/* Área de Conteúdo */
+.main-content { flex: 1; padding: 30px; overflow-y: auto; }
+.page-title { margin-bottom: 20px; font-size: 1.8rem; color: #222; }
