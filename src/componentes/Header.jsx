@@ -5,22 +5,40 @@ import { useState, useEffect } from 'react';
 export function Header({ titulo }) {
   const navigate = useNavigate();
   const [nomeUsuario, setNomeUsuario] = useState('Usuário');
-
-  // Esse código lê o Token do seu login e descobre o seu nome automaticamente
+  
+  // Esse código lê o Token do seu login e descobre o seu nome automaticamente (agora com acentos!)
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
       try {
-        const payload = JSON.parse(atob(token.split('.')[1])); // Decodifica o JWT
+        // 1. Pega a parte do payload do JWT
+        const base64Url = token.split('.')[1];
+        
+        // 2. Converte para o formato base64 padrão
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        
+        // 3. A MÁGICA: Converte os caracteres estranhos de volta para UTF-8 (ã, ç, é)
+        const jsonPayload = decodeURIComponent(
+          window.atob(base64).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+          }).join('')
+        );
+        
+        const payload = JSON.parse(jsonPayload); 
+        
+        // Se quiser exibir apenas o primeiro nome (Ex: "Camila" em vez de "Camila Guimarães"), 
+        // mude para: setNomeUsuario(payload.nome.split(' ')[0]);
         setNomeUsuario(payload.nome);
+        
       } catch (error) {
-        console.error('Erro ao ler nome do usuário');
+        console.error('Erro ao ler nome do usuário', error);
       }
     }
   }, []);
 
   function fazerLogout() {
     localStorage.removeItem('token');
+    localStorage.removeItem('perfil'); // Limpa a permissão de Admin/Usuario por segurança
     navigate('/login'); // Chuta o usuário de volta para a tela de login
   }
 

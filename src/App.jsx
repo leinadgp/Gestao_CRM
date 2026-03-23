@@ -6,6 +6,7 @@ import { Contatos } from './pages/Contatos.jsx';
 import { Login } from './pages/Login.jsx';
 import { Empresas } from './pages/Empresas.jsx';
 import { Funil } from './pages/Funil.jsx';
+import { Disparos } from './pages/Disparos.jsx';
 
 // === COMPONENTE DE PROTEÇÃO E LAYOUT ===
 // Tudo que ficar aqui dentro só aparece se o usuário estiver logado
@@ -57,6 +58,11 @@ export function App() {
         <Route path="/empresas" element={
           <RotaProtegida>
             <Empresas />
+          </RotaProtegida>
+        } />
+        <Route path="/disparos" element={
+          <RotaProtegida>
+            <Disparos />
           </RotaProtegida>
         } />
       </Routes>

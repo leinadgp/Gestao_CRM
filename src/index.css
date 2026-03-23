@@ -21,7 +21,7 @@ body {
 
 /* === MENU LATERAL (SIDEBAR) === */
 .sidebar {
-    width: 200px;
+    width:230px;
     background-color: #1c1e21;
     color: white;
     display: flex;
@@ -638,4 +638,107 @@ tr:hover td {
 @keyframes modalSobe {
   from { opacity: 0; transform: translateY(30px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* === PAGINAÇÃO DAS TABELAS === */
+.pagination-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background: #f9fafb;
+  border-top: 1px solid #eaeaea;
+  border-radius: 0 0 8px 8px;
+}
+
+.pagination-info {
+  color: #555;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.pagination-controls {
+  display: flex;
+  gap: 5px;
+}
+
+.btn-page {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  background: #fff;
+  color: #333;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.btn-page:hover:not(:disabled) {
+  background: #007bff;
+  color: #fff;
+  border-color: #007bff;
+}
+
+.btn-page:disabled {
+  background: #f1f1f1;
+  color: #aaa;
+  cursor: not-allowed;
+  border-color: #eee;
+}
+
+/* Container do Select Customizado */
+.custom-select-container {
+  position: relative;
+  width: 100%;
+}
+
+/* O campo onde o usuário digita */
+.custom-select-input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  outline: none;
+  font-size: 0.9rem;
+}
+
+.custom-select-input:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0,123,255,0.1);
+}
+
+/* A lista que aparece embaixo */
+.custom-select-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  max-height: 250px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #ddd;
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+/* Cada item da lista */
+.custom-select-option {
+  padding: 10px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  border-bottom: 1px solid #f8f9fa;
+}
+
+.custom-select-option:hover {
+  background-color: #f0f7ff;
+  color: #007bff;
+}
+
+.custom-select-no-results {
+  padding: 10px;
+  color: #999;
+  text-align: center;
+  font-size: 0.85rem;
 }

@@ -2,6 +2,8 @@
 import { NavLink } from 'react-router-dom';
 
 export function Sidebar() {
+  const perfilUsuario = localStorage.getItem('perfil');
+
   return (
     <aside className="sidebar">
       <div className="sidebar-logo">
@@ -20,6 +22,11 @@ export function Sidebar() {
         <NavLink to="/empresas" className={({ isActive }) => isActive ? "sidebar-link active" : "sidebar-link"}>
           <i className="fa-solid fa-building"></i> Empresas
         </NavLink>
+        {perfilUsuario === 'admin' && (
+          <NavLink to="/disparos" className={({ isActive }) => isActive ? "sidebar-link active" : "sidebar-link"}>
+            <i className="fa-solid fa-user-shield"></i> Disparos em Massa
+          </NavLink>
+        )}
       </nav>
     </aside>
   );

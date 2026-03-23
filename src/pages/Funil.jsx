@@ -1,5 +1,5 @@
 // src/pages/Funil.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { Header } from '../componentes/Header.jsx';
 
@@ -22,11 +22,50 @@ export function Funil() {
   const [etapaId, setEtapaId] = useState('');
   const [observacoes, setObservacoes] = useState('');
 
+  // === ESTADOS DOS DROPDOWNS PESQUISÁVEIS ===
+  const [buscaEmpresaNoModal, setBuscaEmpresaNoModal] = useState('');
+  const [mostrarDropdownEmpresa, setMostrarDropdownEmpresa] = useState(false);
+  const dropdownEmpresaRef = useRef(null);
+
+  const [buscaContatoNoModal, setBuscaContatoNoModal] = useState('');
+  const [mostrarDropdownContato, setMostrarDropdownContato] = useState(false);
+  const dropdownContatoRef = useRef(null);
+
   const API_URL = 'https://server-js-gestao.onrender.com';
 
   useEffect(() => {
     carregarQuadro();
   }, []);
+
+  // Lógica para fechar os dropdowns ao clicar fora
+  useEffect(() => {
+    const handleClickFora = (event) => {
+      // Verifica clique fora do select de Empresa
+      if (dropdownEmpresaRef.current && !dropdownEmpresaRef.current.contains(event.target)) {
+        setMostrarDropdownEmpresa(false);
+        if (empresaId) {
+          const atual = empresas.find(e => e.id === parseInt(empresaId));
+          if (atual) setBuscaEmpresaNoModal(atual.nome);
+        } else {
+          setBuscaEmpresaNoModal('');
+        }
+      }
+
+      // Verifica clique fora do select de Contato
+      if (dropdownContatoRef.current && !dropdownContatoRef.current.contains(event.target)) {
+        setMostrarDropdownContato(false);
+        if (contatoId) {
+          const atual = contatos.find(c => c.id === parseInt(contatoId));
+          if (atual) setBuscaContatoNoModal(atual.nome);
+        } else {
+          setBuscaContatoNoModal('');
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickFora);
+    return () => document.removeEventListener('mousedown', handleClickFora);
+  }, [empresaId, empresas, contatoId, contatos]);
 
   function getHeaders() {
     const token = localStorage.getItem('token');
@@ -53,6 +92,15 @@ export function Funil() {
     }
   }
 
+  // === FILTROS DOS SELECTS ===
+  const empresasFiltradasParaSelect = empresas.filter(e =>
+    e.nome.toLowerCase().includes(buscaEmpresaNoModal.toLowerCase())
+  );
+
+  const contatosFiltradosParaSelect = contatos.filter(c =>
+    c.nome.toLowerCase().includes(buscaContatoNoModal.toLowerCase())
+  );
+
   // === CONTROLE DO MODAL ===
   function abrirModalNovo() {
     setEditandoId(null);
@@ -62,6 +110,8 @@ export function Funil() {
     setContatoId('');
     setObservacoes('');
     setEtapaId(etapas.length > 0 ? etapas[0].id : ''); 
+    setBuscaEmpresaNoModal('');
+    setBuscaContatoNoModal('');
     setMostrarModal(true);
   }
 
@@ -73,6 +123,11 @@ export function Funil() {
     setContatoId(op.contato_id || '');
     setEtapaId(op.etapa_id);
     setObservacoes(op.observacoes || '');
+    
+    // Puxa os nomes já salvos para preencher o campo de busca visualmente
+    setBuscaEmpresaNoModal(op.empresa_nome || '');
+    setBuscaContatoNoModal(op.contato_nome || '');
+    
     setMostrarModal(true);
   }
 
@@ -119,25 +174,18 @@ export function Funil() {
   }
 
   // === LÓGICA DE DRAG AND DROP (ARRASTAR E SOLTAR) ===
-  
-  // 1. Quando começa a arrastar o cartão
   function onDragStart(e, idDoCartao) {
     e.dataTransfer.setData('card_id', idDoCartao.toString());
   }
 
-  // 2. Quando solta o cartão na nova coluna
   async function onDrop(e, idDaNovaEtapa) {
     e.preventDefault();
     const cardId = e.dataTransfer.getData('card_id');
     if (!cardId) return;
 
-    // Acha o cartão que estamos movendo
     const oportunidade = oportunidades.find(op => op.id === parseInt(cardId));
-    
-    // Se soltou na mesma coluna, não faz nada
     if (!oportunidade || oportunidade.etapa_id === idDaNovaEtapa) return; 
 
-    // Atualiza a tela imediatamente (Otimista) para não dar "soquinho" visual
     const oportunidadesAtualizadas = oportunidades.map(op => {
       if (op.id === parseInt(cardId)) {
         return { ...op, etapa_id: idDaNovaEtapa };
@@ -147,7 +195,6 @@ export function Funil() {
     setOportunidades(oportunidadesAtualizadas);
 
     try {
-      // Salva no banco de dados
       await axios.put(`${API_URL}/oportunidades/${cardId}`, {
         ...oportunidade,
         etapa_id: idDaNovaEtapa
@@ -155,7 +202,7 @@ export function Funil() {
     } catch (error) {
       console.error('Erro ao mover cartão', error);
       alert('Erro ao mover o cartão no servidor.');
-      carregarQuadro(); // Se der erro, recarrega a tela para voltar ao original
+      carregarQuadro(); 
     }
   }
 
@@ -191,40 +238,100 @@ export function Funil() {
               <form onSubmit={salvarOportunidade} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                 
                 <div style={{ gridColumn: 'span 2' }}>
-                  <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem' }}>Título da Negociação *</label>
+                  <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>Título da Negociação *</label>
                   <input type="text" value={titulo} onChange={(e) => setTitulo(e.target.value)} required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem' }}>Valor Estimado (R$)</label>
+                  <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>Valor Estimado (R$)</label>
                   <input type="number" step="0.01" value={valor} onChange={(e) => setValor(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem' }}>Etapa do Funil</label>
+                  <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>Etapa do Funil</label>
                   <select value={etapaId} onChange={(e) => setEtapaId(e.target.value)} required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}>
                     {etapas.map(etp => <option key={etp.id} value={etp.id}>{etp.nome}</option>)}
                   </select>
                 </div>
 
+                {/* DROPDOWN PESQUISÁVEL: EMPRESA */}
                 <div>
-                  <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem' }}>Empresa / Prefeitura Alvo</label>
-                  <select value={empresaId} onChange={(e) => setEmpresaId(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}>
-                    <option value="">-- Nenhuma --</option>
-                    {empresas.map(emp => <option key={emp.id} value={emp.id}>{emp.nome}</option>)}
-                  </select>
+                  <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>Empresa / Prefeitura Alvo</label>
+                  <div className="custom-select-container" ref={dropdownEmpresaRef}>
+                    <input
+                      type="text"
+                      className="custom-select-input"
+                      placeholder="🔍 Buscar prefeitura..."
+                      value={buscaEmpresaNoModal}
+                      autoComplete="off"
+                      onFocus={() => { setBuscaEmpresaNoModal(''); setMostrarDropdownEmpresa(true); }}
+                      onChange={(e) => { setBuscaEmpresaNoModal(e.target.value); setMostrarDropdownEmpresa(true); }}
+                    />
+                    {mostrarDropdownEmpresa && (
+                      <div className="custom-select-dropdown">
+                        <div className="custom-select-option" style={{ color: '#dc3545', fontWeight: 'bold', borderBottom: '2px solid #eee' }} onClick={() => { setEmpresaId(''); setBuscaEmpresaNoModal(''); setMostrarDropdownEmpresa(false); }}>
+                          <i className="fa-solid fa-eraser"></i> Sem Vínculo
+                        </div>
+                        {empresasFiltradasParaSelect.length > 0 ? (
+                          empresasFiltradasParaSelect.map(emp => (
+                            <div 
+                              key={emp.id} 
+                              className="custom-select-option" 
+                              style={parseInt(empresaId) === emp.id ? { background: '#e7f3ff', borderLeft: '4px solid #007bff' } : {}}
+                              onClick={() => { setEmpresaId(emp.id); setBuscaEmpresaNoModal(emp.nome); setMostrarDropdownEmpresa(false); }}
+                            >
+                              <strong>{emp.nome}</strong> <span style={{ color: '#999' }}>({emp.estado})</span>
+                              {parseInt(empresaId) === emp.id && <i className="fa-solid fa-check" style={{ float: 'right', color: '#007bff', marginTop: '3px' }}></i>}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="custom-select-no-results">Nenhuma encontrada.</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
+                {/* DROPDOWN PESQUISÁVEL: CONTATO */}
                 <div>
-                  <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem' }}>Contato Principal</label>
-                  <select value={contatoId} onChange={(e) => setContatoId(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}>
-                    <option value="">-- Nenhum --</option>
-                    {contatos.map(cont => <option key={cont.id} value={cont.id}>{cont.nome}</option>)}
-                  </select>
+                  <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>Contato Principal</label>
+                  <div className="custom-select-container" ref={dropdownContatoRef}>
+                    <input
+                      type="text"
+                      className="custom-select-input"
+                      placeholder="🔍 Buscar contato..."
+                      value={buscaContatoNoModal}
+                      autoComplete="off"
+                      onFocus={() => { setBuscaContatoNoModal(''); setMostrarDropdownContato(true); }}
+                      onChange={(e) => { setBuscaContatoNoModal(e.target.value); setMostrarDropdownContato(true); }}
+                    />
+                    {mostrarDropdownContato && (
+                      <div className="custom-select-dropdown">
+                        <div className="custom-select-option" style={{ color: '#dc3545', fontWeight: 'bold', borderBottom: '2px solid #eee' }} onClick={() => { setContatoId(''); setBuscaContatoNoModal(''); setMostrarDropdownContato(false); }}>
+                          <i className="fa-solid fa-eraser"></i> Sem Vínculo
+                        </div>
+                        {contatosFiltradosParaSelect.length > 0 ? (
+                          contatosFiltradosParaSelect.map(cont => (
+                            <div 
+                              key={cont.id} 
+                              className="custom-select-option" 
+                              style={parseInt(contatoId) === cont.id ? { background: '#e7f3ff', borderLeft: '4px solid #007bff' } : {}}
+                              onClick={() => { setContatoId(cont.id); setBuscaContatoNoModal(cont.nome); setMostrarDropdownContato(false); }}
+                            >
+                              <strong>{cont.nome}</strong> <span style={{ color: '#999' }}>- {cont.cargo || 'S/ Cargo'}</span>
+                              {parseInt(contatoId) === cont.id && <i className="fa-solid fa-check" style={{ float: 'right', color: '#007bff', marginTop: '3px' }}></i>}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="custom-select-no-results">Nenhum encontrado.</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div style={{ gridColumn: 'span 2' }}>
-                  <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem' }}>Informações / Observações</label>
+                  <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>Informações / Observações</label>
                   <textarea 
                     value={observacoes} 
                     onChange={(e) => setObservacoes(e.target.value)} 
@@ -234,14 +341,16 @@ export function Funil() {
                   />
                 </div>
 
-                <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
+                <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
                   {editandoId ? (
-                    <button type="button" onClick={deletarOportunidade} style={{ background: '#dc3545', color: '#fff', border: 'none', padding: '10px 15px', borderRadius: '6px', cursor: 'pointer' }}><i className="fa-solid fa-trash"></i> Excluir</button>
+                    <button type="button" onClick={deletarOportunidade} style={{ background: '#dc3545', color: '#fff', border: 'none', padding: '10px 15px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}><i className="fa-solid fa-trash-can"></i> Excluir</button>
                   ) : <div></div>}
                   
                   <div style={{ display: 'flex', gap: '10px' }}>
                     <button type="button" onClick={fecharModal} style={{ background: '#6c757d', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer' }}>Cancelar</button>
-                    <button type="submit" style={{ background: '#007bff', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>Salvar</button>
+                    <button type="submit" style={{ background: '#007bff', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
+                      <i className="fa-solid fa-save"></i> Salvar
+                    </button>
                   </div>
                 </div>
               </form>
@@ -262,7 +371,7 @@ export function Funil() {
                 <div 
                   key={etapa.id} 
                   className="kanban-column"
-                  onDragOver={(e) => e.preventDefault()} /* ESSA LINHA É OBRIGATÓRIA PARA SOLTAR FUNCIONAR */
+                  onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => onDrop(e, etapa.id)}
                 >
                   <div className="kanban-column-header">
