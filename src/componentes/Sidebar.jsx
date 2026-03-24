@@ -13,6 +13,16 @@ export function Sidebar() {
         <NavLink to="/" className={({ isActive }) => isActive ? "sidebar-link active" : "sidebar-link"}>
           <i className="fa-solid fa-house"></i> Home
         </NavLink>
+        {perfilUsuario === 'admin' && (
+          <NavLink to="/dashboard" className={({ isActive }) => isActive ? "sidebar-link active" : "sidebar-link"}>
+            <i className="fa-solid fa-filter"></i> Dashboard
+          </NavLink>
+        )}
+        {perfilUsuario === 'admin' && (
+          <NavLink to="/campanhas" className={({ isActive }) => isActive ? "sidebar-link active" : "sidebar-link"}>
+            <i className="fa-solid fa-filter"></i> Campanhas
+          </NavLink>
+        )}
         <NavLink to="/funil" className={({ isActive }) => isActive ? "sidebar-link active" : "sidebar-link"}>
           <i className="fa-solid fa-filter"></i> Funil de Vendas
         </NavLink>

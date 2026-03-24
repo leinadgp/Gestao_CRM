@@ -7,7 +7,6 @@ export function Empresas() {
   const [empresas, setEmpresas] = useState([]);
   const [carregando, setCarregando] = useState(true);
   
-  // Pegamos o perfil do usuário para esconder/mostrar coisas
   const perfilUsuario = localStorage.getItem('perfil');
 
   // === FILTROS DA TABELA ===
@@ -16,15 +15,21 @@ export function Empresas() {
 
   // Controle de Paginação
   const [paginaAtual, setPaginaAtual] = useState(1);
-  const itensPorPagina = 15; // Quantidade de itens por tela
+  const itensPorPagina = 15;
   
-  // Controle do Formulário
+  // === CONTROLE DO FORMULÁRIO DE CADASTRO/EDIÇÃO ===
   const [mostrarForm, setMostrarForm] = useState(false);
   const [editandoId, setEditandoId] = useState(null);
   const [nome, setNome] = useState('');
   const [estado, setEstado] = useState('');
   const [cidade, setCidade] = useState('');
   const [telefones, setTelefones] = useState('');
+  const [horarioFuncionamento, setHorarioFuncionamento] = useState(''); // NOVO CAMPO
+
+  // === CONTROLE DO MODAL DE DETALHES 360º ===
+  const [mostrarModalDetalhes, setMostrarModalDetalhes] = useState(false);
+  const [carregandoDetalhes, setCarregandoDetalhes] = useState(false);
+  const [detalhesEmpresa, setDetalhesEmpresa] = useState(null);
 
   const API_URL = 'https://server-js-gestao.onrender.com';
 
@@ -35,6 +40,17 @@ export function Empresas() {
   function getHeaders() {
     const token = localStorage.getItem('token');
     return { headers: { Authorization: `Bearer ${token}` } };
+  }
+
+  // Funções de Formatação
+  function formatarData(dataIso) {
+    if (!dataIso) return '-';
+    const data = new Date(dataIso);
+    return data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+
+  function formatarMoeda(valor) {
+    return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   }
 
   async function buscarEmpresas() {
@@ -49,6 +65,21 @@ export function Empresas() {
     }
   }
 
+  // === ABRIR MODAL 360º (DETALHES DA EMPRESA) ===
+  async function abrirDetalhes(id) {
+    setMostrarModalDetalhes(true);
+    setCarregandoDetalhes(true);
+    try {
+      const resposta = await axios.get(`${API_URL}/empresas/${id}/detalhes`, getHeaders());
+      setDetalhesEmpresa(resposta.data);
+    } catch (erro) {
+      alert('Erro ao carregar os detalhes desta prefeitura.');
+      setMostrarModalDetalhes(false);
+    } finally {
+      setCarregandoDetalhes(false);
+    }
+  }
+
   // === LÓGICA DE FILTRAGEM DINÂMICA ===
   const empresasFiltradas = empresas.filter(emp => {
     const termo = buscaGeral.toLowerCase();
@@ -58,23 +89,19 @@ export function Empresas() {
     return matchBusca && matchEstado;
   });
 
-  // === LÓGICA DE ORDENAÇÃO (ESTADO -> CIDADE) SOBRE A LISTA FILTRADA ===
   const empresasOrdenadas = [...empresasFiltradas].sort((a, b) => {
     const estadoA = a.estado || '';
     const estadoB = b.estado || '';
-    if (estadoA === estadoB) {
-      return (a.cidade || '').localeCompare(b.cidade || '');
-    }
+    if (estadoA === estadoB) return (a.cidade || '').localeCompare(b.cidade || '');
     return estadoA.localeCompare(estadoB);
   });
 
-  // === LÓGICA DE PAGINAÇÃO ===
   const totalPaginas = Math.ceil(empresasOrdenadas.length / itensPorPagina);
   const itensAtuais = empresasOrdenadas.slice((paginaAtual - 1) * itensPorPagina, paginaAtual * itensPorPagina);
 
-  // === FUNÇÕES DE CRUD ===
+  // === FUNÇÕES DE CRUD (FORMULÁRIO) ===
   function abrirFormularioNovo() {
-    setEditandoId(null); setNome(''); setEstado(''); setCidade(''); setTelefones('');
+    setEditandoId(null); setNome(''); setEstado(''); setCidade(''); setTelefones(''); setHorarioFuncionamento('');
     setMostrarForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -85,6 +112,7 @@ export function Empresas() {
     setEstado(empresa.estado || ''); 
     setCidade(empresa.cidade || ''); 
     setTelefones(empresa.telefones || '');
+    setHorarioFuncionamento(empresa.horario_funcionamento || '');
     setMostrarForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -95,7 +123,7 @@ export function Empresas() {
 
   async function salvarEmpresa(e) {
     e.preventDefault();
-    const dados = { nome, estado, cidade, telefones };
+    const dados = { nome, estado, cidade, telefones, horario_funcionamento: horarioFuncionamento };
     try {
       if (editandoId) await axios.put(`${API_URL}/empresas/${editandoId}`, dados, getHeaders());
       else await axios.post(`${API_URL}/empresas`, dados, getHeaders());
@@ -114,6 +142,18 @@ export function Empresas() {
     } catch (erro) { 
       alert('Erro ao excluir. Verifique se existem contatos atrelados a esta prefeitura.'); 
     }
+  }
+
+  // === CÁLCULOS DO MODAL DE DETALHES ===
+  let valAndamento = 0, valGanho = 0, valPerdido = 0, totalOportunidades = 0;
+  if (detalhesEmpresa && detalhesEmpresa.oportunidades) {
+    totalOportunidades = detalhesEmpresa.oportunidades.length;
+    detalhesEmpresa.oportunidades.forEach(op => {
+      const v = Number(op.valor) || 0;
+      if (op.status === 'ganho') valGanho += v;
+      else if (op.status === 'perdido') valPerdido += v;
+      else valAndamento += v; // 'aberto' ou outros
+    });
   }
 
   return (
@@ -140,8 +180,6 @@ export function Empresas() {
             <option value="SC">Santa Catarina (SC)</option>
             <option value="PR">Paraná (PR)</option>
             <option value="SP">São Paulo (SP)</option>
-            <option value="RJ">Rio de Janeiro (RJ)</option>
-            <option value="MS">Mato Grosso do Sul (MS)</option>
           </select>
 
           <button onClick={abrirFormularioNovo} style={{ background: '#28a745', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
@@ -158,7 +196,7 @@ export function Empresas() {
             
             <form onSubmit={salvarEmpresa} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
               <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.9rem' }}>Nome *</label>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.9rem' }}>Nome da Prefeitura *</label>
                 <input type="text" value={nome} onChange={(e) => setNome(e.target.value)} required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
               </div>
               <div>
@@ -169,9 +207,13 @@ export function Empresas() {
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.9rem' }}>Cidade</label>
                 <input type="text" value={cidade} onChange={(e) => setCidade(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
               </div>
-              <div style={{ gridColumn: 'span 2' }}>
+              <div>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.9rem' }}>Telefone Geral</label>
                 <input type="text" value={telefones} onChange={(e) => setTelefones(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.9rem' }}>Horário de Funcionamento</label>
+                <input type="text" value={horarioFuncionamento} onChange={(e) => setHorarioFuncionamento(e.target.value)} placeholder="Ex: 08:00 às 17:00" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
               </div>
               <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
                 <button type="button" onClick={fecharFormulario} style={{ background: '#eee', color: '#333', padding: '10px 20px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Cancelar</button>
@@ -183,15 +225,15 @@ export function Empresas() {
           </div>
         )}
 
-        {/* === TABELA DE RESULTADOS === */}
+        {/* === TABELA PRINCIPAL === */}
         <div className="panel" style={{ padding: 0 }}>
           <div className="table-responsive" style={{ padding: '20px' }}>
             <table>
               <thead>
                 <tr>
-                  <th>Nome da Empresa / Prefeitura</th>
-                  <th>Cidade / UF</th>
-                  <th>Telefone</th>
+                  <th>Prefeitura / UF</th>
+                  <th style={{ textAlign: 'center' }}>Negociações</th>
+                  <th style={{ textAlign: 'center' }}>Último Contato</th>
                   <th style={{ textAlign: 'center' }}>Ações</th>
                 </tr>
               </thead>
@@ -203,18 +245,30 @@ export function Empresas() {
                 ) : (
                   itensAtuais.map(empresa => (
                     <tr key={empresa.id}>
-                      <td style={{ fontWeight: 600, color: '#1c1e21' }}>{empresa.nome}</td>
                       <td>
-                        {empresa.cidade || '-'} 
-                        {empresa.estado && <span style={{ color: '#007bff', fontWeight: 'bold' }}> ( {empresa.estado} )</span>}
+                        <div style={{ fontWeight: 600, color: '#1c1e21', fontSize: '1.05rem' }}>{empresa.nome}</div>
+                        <div style={{ fontSize: '0.85rem', color: '#666' }}>
+                          <i className="fa-solid fa-location-dot"></i> {empresa.cidade || '-'} {empresa.estado ? `(${empresa.estado})` : ''}
+                        </div>
                       </td>
-                      <td>{empresa.telefones || '-'}</td>
                       <td style={{ textAlign: 'center' }}>
-                        <button onClick={() => prepararEdicao(empresa)} style={{ background: 'none', border: 'none', color: '#ffc107', cursor: 'pointer', fontSize: '1.2rem', marginRight: '10px' }} title="Editar">
+                        <span style={{ background: '#e9ecef', padding: '4px 10px', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 'bold', color: '#495057' }}>
+                          {empresa.total_negociacoes || 0}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'center', color: '#666', fontSize: '0.9rem' }}>
+                        {formatarData(empresa.ultimo_contato)}
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        {/* Botão de Ver Detalhes (O Olho) */}
+                        <button onClick={() => abrirDetalhes(empresa.id)} style={{ background: 'none', border: 'none', color: '#007bff', cursor: 'pointer', fontSize: '1.2rem', marginRight: '10px' }} title="Visão 360º">
+                          <i className="fa-solid fa-eye"></i>
+                        </button>
+
+                        <button onClick={() => prepararEdicao(empresa)} style={{ background: 'none', border: 'none', color: '#ffc107', cursor: 'pointer', fontSize: '1.2rem', marginRight: '10px' }} title="Editar Dados">
                           <i className="fa-solid fa-pen-to-square"></i>
                         </button>
                         
-                        {/* A MÁGICA DO RBAC AQUI: Só o Admin vê a Lixeira */}
                         {perfilUsuario === 'admin' && (
                           <button onClick={() => deletarEmpresa(empresa.id)} style={{ background: 'none', border: 'none', color: '#dc3545', cursor: 'pointer', fontSize: '1.2rem' }} title="Excluir">
                             <i className="fa-solid fa-trash-can"></i>
@@ -232,28 +286,126 @@ export function Empresas() {
           {!carregando && empresasOrdenadas.length > 0 && (
             <div className="pagination-container">
               <div className="pagination-info">
-                {empresasOrdenadas.length} empresas encontradas
+                {empresasOrdenadas.length} prefeituras encontradas
               </div>
               <div className="pagination-controls">
-                <button className="btn-page" disabled={paginaAtual === 1} onClick={() => setPaginaAtual(1)} title="Primeira">
-                  <i className="fa-solid fa-angles-left"></i>
-                </button>
-                <button className="btn-page" disabled={paginaAtual === 1} onClick={() => setPaginaAtual(paginaAtual - 1)}>
-                  Anterior
-                </button>
+                <button className="btn-page" disabled={paginaAtual === 1} onClick={() => setPaginaAtual(1)}><i className="fa-solid fa-angles-left"></i></button>
+                <button className="btn-page" disabled={paginaAtual === 1} onClick={() => setPaginaAtual(paginaAtual - 1)}>Anterior</button>
                 <span style={{ padding: '0 15px', fontWeight: 'bold' }}>{paginaAtual} de {totalPaginas}</span>
-                <button className="btn-page" disabled={paginaAtual >= totalPaginas} onClick={() => setPaginaAtual(paginaAtual + 1)}>
-                  Próxima
-                </button>
-                <button className="btn-page" disabled={paginaAtual >= totalPaginas} onClick={() => setPaginaAtual(totalPaginas)} title="Última">
-                  <i className="fa-solid fa-angles-right"></i>
-                </button>
+                <button className="btn-page" disabled={paginaAtual >= totalPaginas} onClick={() => setPaginaAtual(paginaAtual + 1)}>Próxima</button>
+                <button className="btn-page" disabled={paginaAtual >= totalPaginas} onClick={() => setPaginaAtual(totalPaginas)}><i className="fa-solid fa-angles-right"></i></button>
               </div>
             </div>
           )}
-
         </div>
       </div>
+
+      {/* ======================================================== */}
+      {/* MODAL 360º: DETALHES COMPLETOS DA EMPRESA E HISTÓRICO    */}
+      {/* ======================================================== */}
+      {mostrarModalDetalhes && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }} onClick={() => setMostrarModalDetalhes(false)}>
+          <div style={{ background: '#f4f7f6', width: '100%', maxWidth: '1000px', height: '90vh', borderRadius: '12px', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 10px 30px rgba(0,0,0,0.3)' }} onClick={e => e.stopPropagation()}>
+            
+            {/* Header do Modal */}
+            <div style={{ background: '#fff', padding: '20px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #ddd' }}>
+              <div>
+                <h2 style={{ margin: 0, color: '#007bff', fontSize: '1.5rem' }}>
+                  <i className="fa-solid fa-building-columns"></i> {detalhesEmpresa?.empresa?.nome || 'Carregando...'}
+                </h2>
+                <p style={{ margin: '5px 0 0 0', color: '#666', fontSize: '0.9rem' }}>
+                  {detalhesEmpresa?.empresa?.cidade} - {detalhesEmpresa?.empresa?.estado}
+                </p>
+              </div>
+              <button onClick={() => setMostrarModalDetalhes(false)} style={{ background: 'none', border: 'none', fontSize: '2rem', cursor: 'pointer', color: '#aaa' }}>&times;</button>
+            </div>
+
+            {/* Corpo Scrollável do Modal */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '30px' }}>
+              {carregandoDetalhes ? (
+                <div style={{ textAlign: 'center', padding: '50px', color: '#666' }}><i className="fa-solid fa-spinner fa-spin fa-2x"></i><br/>Buscando histórico...</div>
+              ) : detalhesEmpresa ? (
+                <>
+                  {/* CARDS DE RESUMO FINANCEIRO */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+                    <div className="panel" style={{ borderTop: '4px solid #007bff', padding: '20px', textAlign: 'center', margin: 0 }}>
+                      <div style={{ color: '#666', fontSize: '0.9rem', fontWeight: 'bold' }}>EM ANDAMENTO ({totalOportunidades})</div>
+                      <div style={{ color: '#007bff', fontSize: '1.6rem', fontWeight: 'bold', marginTop: '10px' }}>{formatarMoeda(valAndamento)}</div>
+                    </div>
+                    <div className="panel" style={{ borderTop: '4px solid #28a745', padding: '20px', textAlign: 'center', margin: 0 }}>
+                      <div style={{ color: '#666', fontSize: '0.9rem', fontWeight: 'bold' }}>TOTAL VENDIDO</div>
+                      <div style={{ color: '#28a745', fontSize: '1.6rem', fontWeight: 'bold', marginTop: '10px' }}>{formatarMoeda(valGanho)}</div>
+                    </div>
+                    <div className="panel" style={{ borderTop: '4px solid #dc3545', padding: '20px', textAlign: 'center', margin: 0 }}>
+                      <div style={{ color: '#666', fontSize: '0.9rem', fontWeight: 'bold' }}>TOTAL PERDIDO</div>
+                      <div style={{ color: '#dc3545', fontSize: '1.6rem', fontWeight: 'bold', marginTop: '10px' }}>{formatarMoeda(valPerdido)}</div>
+                    </div>
+                  </div>
+
+                  {/* GRID: INFORMAÇÕES DA PREFEITURA & CONTATOS VINCULADOS */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', marginBottom: '30px' }}>
+                    
+                    <div className="panel" style={{ margin: 0, padding: '20px' }}>
+                      <h4 style={{ borderBottom: '2px solid #eee', paddingBottom: '10px', marginTop: 0, color: '#333' }}><i className="fa-solid fa-circle-info"></i> Informações Cadastrais</h4>
+                      <p style={{ margin: '10px 0', fontSize: '0.95rem' }}><strong>Telefone:</strong> {detalhesEmpresa.empresa.telefones || 'Não informado'}</p>
+                      <p style={{ margin: '10px 0', fontSize: '0.95rem' }}><strong>Horário de Func.:</strong> {detalhesEmpresa.empresa.horario_funcionamento || 'Não informado'}</p>
+                      <p style={{ margin: '10px 0', fontSize: '0.95rem' }}><strong>Cadastrada em:</strong> {formatarData(detalhesEmpresa.empresa.criado_em)}</p>
+                    </div>
+
+                    <div className="panel" style={{ margin: 0, padding: '20px' }}>
+                      <h4 style={{ borderBottom: '2px solid #eee', paddingBottom: '10px', marginTop: 0, color: '#333' }}><i className="fa-solid fa-address-book"></i> Contatos Vinculados ({detalhesEmpresa.contatos.length})</h4>
+                      <div style={{ maxHeight: '150px', overflowY: 'auto' }}>
+                        {detalhesEmpresa.contatos.length === 0 ? (
+                          <p style={{ color: '#999', fontSize: '0.9rem' }}>Nenhum contato atrelado a esta prefeitura.</p>
+                        ) : (
+                          <ul style={{ padding: 0, margin: 0, listStyle: 'none' }}>
+                            {detalhesEmpresa.contatos.map(c => (
+                              <li key={c.id} style={{ padding: '8px 0', borderBottom: '1px dashed #eee', display: 'flex', justifyContent: 'space-between' }}>
+                                <div>
+                                  <strong style={{ color: '#333', fontSize: '0.95rem' }}>{c.nome}</strong><br/>
+                                  <small style={{ color: '#777' }}>{c.cargo || 'Cargo não definido'}</small>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+
+                  </div>
+
+                  {/* HISTÓRICO DE NEGOCIAÇÕES (LINHA DO TEMPO) */}
+                  <div className="panel" style={{ margin: 0, padding: '20px' }}>
+                    <h4 style={{ borderBottom: '2px solid #eee', paddingBottom: '10px', marginTop: 0, color: '#333' }}><i className="fa-solid fa-clock-rotate-left"></i> Histórico de Negociações e Campanhas</h4>
+                    
+                    {detalhesEmpresa.oportunidades.length === 0 ? (
+                      <p style={{ color: '#999', textAlign: 'center', padding: '20px' }}>Não há histórico de negociações registradas.</p>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' }}>
+                        {detalhesEmpresa.oportunidades.map(op => (
+                          <div key={op.id} style={{ background: '#fff', border: '1px solid #e0e0e0', borderLeft: op.status === 'ganho' ? '4px solid #28a745' : op.status === 'perdido' ? '4px solid #dc3545' : '4px solid #007bff', borderRadius: '6px', padding: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div>
+                              <div style={{ fontWeight: 'bold', fontSize: '1.05rem', color: '#333' }}>{op.titulo}</div>
+                              <div style={{ fontSize: '0.85rem', color: '#666', marginTop: '5px' }}>
+                                {op.campanha_nome ? <><span style={{background: '#e9ecef', padding: '2px 6px', borderRadius: '4px'}}><i className="fa-solid fa-bullhorn"></i> {op.campanha_nome}</span> &bull; </> : ''}
+                                {formatarData(op.criado_em)} &bull; Status: <strong style={{ textTransform: 'uppercase' }}>{op.status}</strong>
+                              </div>
+                            </div>
+                            <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#555' }}>
+                              {formatarMoeda(op.valor)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

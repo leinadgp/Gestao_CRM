@@ -6,10 +6,12 @@ import { Header } from '../componentes/Header.jsx';
 export function Contatos() {
   const [contatos, setContatos] = useState([]);
   const [empresas, setEmpresas] = useState([]);
+  const [oportunidades, setOportunidades] = useState([]); // Para o histórico do contato
   const [carregando, setCarregando] = useState(true);
+  
   const perfilUsuario = localStorage.getItem('perfil');
 
-  // === FILTROS DA TABELA PRINCIPAL ===
+  // === FILTROS DA TABELA ===
   const [buscaGeral, setBuscaGeral] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('');
   const [filtroCargo, setFiltroCargo] = useState('');
@@ -18,15 +20,21 @@ export function Contatos() {
   const [mostrarForm, setMostrarForm] = useState(false);
   const [editandoId, setEditandoId] = useState(null);
   const [nome, setNome] = useState('');
-  const [emails, setEmails] = useState('');
-  const [telefones, setTelefones] = useState('');
   const [cargo, setCargo] = useState('');
   const [empresaId, setEmpresaId] = useState('');
+  
+  // Arrays dinâmicos para múltiplos E-mails e Telefones
+  const [emails, setEmails] = useState(['']);
+  const [telefones, setTelefones] = useState(['']);
 
   // === ESTADOS DO DROPDOWN PESQUISÁVEL (PREFEITURAS) ===
   const [buscaEmpresaNoForm, setBuscaEmpresaNoForm] = useState('');
   const [mostrarDropdown, setMostrarDropdown] = useState(false);
   const dropdownRef = useRef(null);
+
+  // === ESTADOS DO MODAL 360º ===
+  const [mostrarModalDetalhes, setMostrarModalDetalhes] = useState(false);
+  const [detalhesContato, setDetalhesContato] = useState(null);
 
   // Paginação
   const [paginaAtual, setPaginaAtual] = useState(1);
@@ -34,17 +42,13 @@ export function Contatos() {
 
   const API_URL = 'https://server-js-gestao.onrender.com';
 
-  useEffect(() => {
-    carregarDados();
-  }, []);
+  useEffect(() => { carregarDados(); }, []);
 
-  // Lógica para fechar dropdown e restaurar nome se clicar fora
+  // Fecha dropdown se clicar fora
   useEffect(() => {
     const handleClickFora = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setMostrarDropdown(false);
-        
-        // Se houver uma empresa selecionada, volta o nome dela para o campo ao fechar
         if (empresaId) {
           const atual = empresas.find(e => e.id === parseInt(empresaId));
           if (atual) setBuscaEmpresaNoForm(atual.nome);
@@ -65,17 +69,33 @@ export function Contatos() {
   async function carregarDados() {
     setCarregando(true);
     try {
-      const [resC, resE] = await Promise.all([
+      const [resC, resE, resO] = await Promise.all([
         axios.get(`${API_URL}/contatos`, getHeaders()),
-        axios.get(`${API_URL}/empresas`, getHeaders())
+        axios.get(`${API_URL}/empresas`, getHeaders()),
+        axios.get(`${API_URL}/oportunidades`, getHeaders()) // Puxa histórico para a visão 360
       ]);
       setContatos(resC.data);
       setEmpresas(resE.data);
-    } catch (e) {
-      console.error("Erro ao carregar dados", e);
-    } finally {
-      setCarregando(false);
-    }
+      setOportunidades(resO.data);
+    } catch (e) { console.error("Erro ao carregar dados", e); } 
+    finally { setCarregando(false); }
+  }
+
+  // === LÓGICA DE CAMPOS DINÂMICOS (E-MAIL E TELEFONE) ===
+  function adicionarEmail() { setEmails([...emails, '']); }
+  function removerEmail(index) { setEmails(emails.filter((_, i) => i !== index)); }
+  function atualizarEmail(index, valor) {
+    const novos = [...emails];
+    novos[index] = valor;
+    setEmails(novos);
+  }
+
+  function adicionarTelefone() { setTelefones([...telefones, '']); }
+  function removerTelefone(index) { setTelefones(telefones.filter((_, i) => i !== index)); }
+  function atualizarTelefone(index, valor) {
+    const novos = [...telefones];
+    novos[index] = valor;
+    setTelefones(novos);
   }
 
   // === FILTRAGEM DINÂMICA DA TABELA ===
@@ -89,44 +109,51 @@ export function Contatos() {
     return matchBusca && matchEstado && matchCargo;
   });
 
-  // === FILTRAGEM DO SELECT DE EMPRESAS NO FORMULÁRIO ===
-  const empresasFiltradasParaSelect = empresas.filter(e =>
-    e.nome.toLowerCase().includes(buscaEmpresaNoForm.toLowerCase())
-  );
-
+  const empresasFiltradasParaSelect = empresas.filter(e => e.nome.toLowerCase().includes(buscaEmpresaNoForm.toLowerCase()));
   const totalPaginas = Math.ceil(contatosFiltrados.length / itensPorPagina);
   const itensExibidos = contatosFiltrados.slice((paginaAtual - 1) * itensPorPagina, paginaAtual * itensPorPagina);
 
   // === FUNÇÕES DE AÇÃO ===
   function abrirNovo() {
-    setEditandoId(null); setNome(''); setEmails(''); setTelefones(''); setCargo(''); setEmpresaId('');
-    setBuscaEmpresaNoForm(''); setMostrarForm(true);
+    setEditandoId(null); setNome(''); setCargo(''); setEmpresaId(''); setBuscaEmpresaNoForm('');
+    setEmails(['']); setTelefones(['']); // Inicia com 1 campo vazio
+    setMostrarForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function prepararEdicao(c) {
     setEditandoId(c.id);
     setNome(c.nome || '');
-    setEmails(c.emails || '');
-    setTelefones(c.telefones || '');
     setCargo(c.cargo || '');
     setEmpresaId(c.empresa_id || '');
     setBuscaEmpresaNoForm(c.empresa_nome || '');
+    
+    // Carrega os arrays do banco (se vazio, bota 1 campo em branco)
+    setEmails(c.emails_json && c.emails_json.length > 0 ? c.emails_json : ['']);
+    setTelefones(c.telefones_json && c.telefones_json.length > 0 ? c.telefones_json : ['']);
+    
     setMostrarForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   async function salvar(e) {
     e.preventDefault();
-    const dados = { nome, emails, telefones, cargo, empresa_id: empresaId || null };
+    // Limpa campos vazios antes de mandar pro banco
+    const emailsLimpos = emails.filter(e => e.trim() !== '');
+    const telefonesLimpos = telefones.filter(t => t.trim() !== '');
+
+    const dados = { 
+      nome, cargo, empresa_id: empresaId || null, 
+      emails_json: emailsLimpos, 
+      telefones_json: telefonesLimpos 
+    };
+
     try {
       if (editandoId) await axios.put(`${API_URL}/contatos/${editandoId}`, dados, getHeaders());
       else await axios.post(`${API_URL}/contatos`, dados, getHeaders());
       setMostrarForm(false);
       carregarDados();
-    } catch (err) {
-      alert('Erro ao salvar contato.');
-    }
+    } catch (err) { alert('Erro ao salvar contato.'); }
   }
 
   async function excluir(id) {
@@ -134,9 +161,21 @@ export function Contatos() {
     try {
       await axios.delete(`${API_URL}/contatos/${id}`, getHeaders());
       carregarDados();
-    } catch (err) {
-      alert("Erro ao excluir contato.");
-    }
+    } catch (err) { alert("Erro ao excluir contato."); }
+  }
+
+  function abrirDetalhes360(contato) {
+    setDetalhesContato(contato);
+    setMostrarModalDetalhes(true);
+  }
+
+  function formatarData(dataIso) {
+    if (!dataIso) return '-';
+    return new Date(dataIso).toLocaleDateString('pt-BR');
+  }
+
+  function formatarMoeda(valor) {
+    return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   }
 
   return (
@@ -148,19 +187,13 @@ export function Contatos() {
         <div className="panel" style={{ marginBottom: '20px', display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 120px', gap: '15px' }}>
           <div style={{ position: 'relative' }}>
             <i className="fa-solid fa-search" style={{ position: 'absolute', left: '12px', top: '13px', color: '#aaa' }}></i>
-            <input
-              placeholder="Pesquisar Nome, Prefeitura ou Cidade..."
-              value={buscaGeral}
-              onChange={e => { setBuscaGeral(e.target.value); setPaginaAtual(1); }}
-              style={{ width: '100%', padding: '10px 10px 10px 35px', borderRadius: '6px', border: '1px solid #ddd' }}
-            />
+            <input placeholder="Pesquisar Nome, Prefeitura ou Cidade..." value={buscaGeral} onChange={e => { setBuscaGeral(e.target.value); setPaginaAtual(1); }} style={{ width: '100%', padding: '10px 10px 10px 35px', borderRadius: '6px', border: '1px solid #ddd' }} />
           </div>
           <select value={filtroEstado} onChange={e => { setFiltroEstado(e.target.value); setPaginaAtual(1); }} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }}>
             <option value="">Todos Estados</option>
             <option value="RS">Rio Grande do Sul (RS)</option>
             <option value="SC">Santa Catarina (SC)</option>
             <option value="PR">Paraná (PR)</option>
-            <option value="SP">São Paulo (SP)</option>
           </select>
           <select value={filtroCargo} onChange={e => { setFiltroCargo(e.target.value); setPaginaAtual(1); }} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }}>
             <option value="">Todos Cargos</option>
@@ -189,11 +222,6 @@ export function Contatos() {
               </div>
 
               <div>
-                <label style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>E-mail</label>
-                <input type="email" value={emails} onChange={e => setEmails(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }} />
-              </div>
-
-              <div>
                 <label style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>Cargo / Função</label>
                 <select value={cargo} onChange={e => setCargo(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }}>
                   <option value="">Selecione...</option>
@@ -206,30 +234,43 @@ export function Contatos() {
                 </select>
               </div>
 
-              <div>
-                <label style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>WhatsApp</label>
-                <input type="text" value={telefones} onChange={e => setTelefones(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }} />
+              {/* MÚLTIPLOS E-MAILS */}
+              <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '8px', border: '1px solid #eee' }}>
+                <label style={{ fontWeight: 'bold', fontSize: '0.9rem', display: 'flex', justifyContent: 'space-between' }}>
+                  <span><i className="fa-solid fa-envelope"></i> E-mails</span>
+                  <button type="button" onClick={adicionarEmail} style={{ background: 'none', border: 'none', color: '#007bff', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold' }}>+ Adicionar</button>
+                </label>
+                {emails.map((email, index) => (
+                  <div key={index} style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                    <input type="email" value={email} onChange={e => atualizarEmail(index, e.target.value)} placeholder="Ex: email@teste.com" style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #ddd' }} />
+                    {emails.length > 1 && (
+                      <button type="button" onClick={() => removerEmail(index)} style={{ background: '#dc3545', color: '#fff', border: 'none', borderRadius: '6px', padding: '0 12px', cursor: 'pointer' }}><i className="fa-solid fa-trash"></i></button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* MÚLTIPLOS TELEFONES */}
+              <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '8px', border: '1px solid #eee' }}>
+                <label style={{ fontWeight: 'bold', fontSize: '0.9rem', display: 'flex', justifyContent: 'space-between' }}>
+                  <span><i className="fa-brands fa-whatsapp"></i> Telefones</span>
+                  <button type="button" onClick={adicionarTelefone} style={{ background: 'none', border: 'none', color: '#007bff', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold' }}>+ Adicionar</button>
+                </label>
+                {telefones.map((tel, index) => (
+                  <div key={index} style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                    <input type="text" value={tel} onChange={e => atualizarTelefone(index, e.target.value)} placeholder="(XX) 99999-9999" style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #ddd' }} />
+                    {telefones.length > 1 && (
+                      <button type="button" onClick={() => removerTelefone(index)} style={{ background: '#dc3545', color: '#fff', border: 'none', borderRadius: '6px', padding: '0 12px', cursor: 'pointer' }}><i className="fa-solid fa-trash"></i></button>
+                    )}
+                  </div>
+                ))}
               </div>
 
               {/* DROPDOWN PESQUISÁVEL DE PREFEITURAS */}
               <div style={{ gridColumn: 'span 2' }}>
                 <label style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>Vincular Prefeitura</label>
                 <div className="custom-select-container" ref={dropdownRef}>
-                  <input
-                    type="text"
-                    className="custom-select-input"
-                    placeholder="🔍 Clique para pesquisar na lista..."
-                    value={buscaEmpresaNoForm}
-                    autoComplete="off"
-                    onFocus={() => {
-                      setBuscaEmpresaNoForm(''); // Limpa ao clicar
-                      setMostrarDropdown(true);
-                    }}
-                    onChange={(e) => {
-                      setBuscaEmpresaNoForm(e.target.value);
-                      setMostrarDropdown(true);
-                    }}
-                  />
+                  <input type="text" className="custom-select-input" placeholder="🔍 Clique para pesquisar na lista..." value={buscaEmpresaNoForm} autoComplete="off" onFocus={() => { setBuscaEmpresaNoForm(''); setMostrarDropdown(true); }} onChange={(e) => { setBuscaEmpresaNoForm(e.target.value); setMostrarDropdown(true); }} />
                   {mostrarDropdown && (
                     <div className="custom-select-dropdown">
                       <div className="custom-select-option" style={{ color: '#dc3545', fontWeight: 'bold', borderBottom: '2px solid #eee' }} onClick={() => { setEmpresaId(''); setBuscaEmpresaNoForm(''); setMostrarDropdown(false); }}>
@@ -237,16 +278,7 @@ export function Contatos() {
                       </div>
                       {empresasFiltradasParaSelect.length > 0 ? (
                         empresasFiltradasParaSelect.map(emp => (
-                          <div 
-                            key={emp.id} 
-                            className="custom-select-option" 
-                            style={parseInt(empresaId) === emp.id ? { background: '#e7f3ff', borderLeft: '4px solid #007bff' } : {}}
-                            onClick={() => { 
-                              setEmpresaId(emp.id); 
-                              setBuscaEmpresaNoForm(emp.nome); 
-                              setMostrarDropdown(false); 
-                            }}
-                          >
+                          <div key={emp.id} className="custom-select-option" style={parseInt(empresaId) === emp.id ? { background: '#e7f3ff', borderLeft: '4px solid #007bff' } : {}} onClick={() => { setEmpresaId(emp.id); setBuscaEmpresaNoForm(emp.nome); setMostrarDropdown(false); }}>
                             <strong>{emp.nome}</strong> <span style={{ color: '#999' }}>({emp.estado})</span>
                             {parseInt(empresaId) === emp.id && <i className="fa-solid fa-check" style={{ float: 'right', color: '#007bff', marginTop: '3px' }}></i>}
                           </div>
@@ -261,9 +293,7 @@ export function Contatos() {
 
               <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
                 <button type="button" onClick={() => setMostrarForm(false)} style={{ padding: '10px 25px', border: 'none', background: '#eee', borderRadius: '6px', cursor: 'pointer' }}>Cancelar</button>
-                <button type="submit" style={{ padding: '10px 25px', border: 'none', background: '#007bff', color: '#fff', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
-                  <i className="fa-solid fa-save"></i> {editandoId ? 'Atualizar' : 'Salvar'}
-                </button>
+                <button type="submit" style={{ padding: '10px 25px', border: 'none', background: '#007bff', color: '#fff', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}><i className="fa-solid fa-save"></i> {editandoId ? 'Atualizar' : 'Salvar'}</button>
               </div>
             </form>
           </div>
@@ -278,34 +308,44 @@ export function Contatos() {
                   <th>Contato</th>
                   <th>Empresa / UF</th>
                   <th>Cargo</th>
-                  <th>WhatsApp</th>
                   <th style={{ textAlign: 'center' }}>Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {carregando ? (
-                  <tr><td colSpan="5" style={{ textAlign: 'center', padding: '20px' }}>Carregando dados...</td></tr>
+                  <tr><td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>Carregando dados...</td></tr>
                 ) : itensExibidos.length === 0 ? (
-                  <tr><td colSpan="5" style={{ textAlign: 'center', padding: '20px' }}>Nenhum contato encontrado.</td></tr>
+                  <tr><td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>Nenhum contato encontrado.</td></tr>
                 ) : (
                   itensExibidos.map(c => (
                     <tr key={c.id}>
                       <td>
-                        <strong>{c.nome}</strong><br />
-                        <small style={{ color: '#666' }}>{c.emails || 'Sem e-mail'}</small>
+                        <strong style={{ fontSize: '1.05rem', color: '#1c1e21' }}>{c.nome}</strong><br />
+                        <div style={{ display: 'flex', gap: '15px', marginTop: '5px' }}>
+                          <span style={{ color: '#666', fontSize: '0.85rem' }}>
+                            <i className="fa-solid fa-envelope"></i> {c.emails_json && c.emails_json.length > 0 ? c.emails_json[0] : 'S/ E-mail'} 
+                            {c.emails_json && c.emails_json.length > 1 && <span style={{ background: '#e9ecef', padding: '2px 6px', borderRadius: '10px', marginLeft: '5px', fontSize: '0.75rem' }}>+{c.emails_json.length - 1}</span>}
+                          </span>
+                          <span style={{ color: '#666', fontSize: '0.85rem' }}>
+                            <i className="fa-brands fa-whatsapp"></i> {c.telefones_json && c.telefones_json.length > 0 ? c.telefones_json[0] : 'S/ Tel'}
+                            {c.telefones_json && c.telefones_json.length > 1 && <span style={{ background: '#e9ecef', padding: '2px 6px', borderRadius: '10px', marginLeft: '5px', fontSize: '0.75rem' }}>+{c.telefones_json.length - 1}</span>}
+                          </span>
+                        </div>
                       </td>
                       <td>
                         {c.empresa_nome || <span style={{ color: '#ccc' }}>Avulso</span>}
                         {c.estado && <span style={{ color: '#007bff', fontWeight: 'bold' }}> ( {c.estado} )</span>}
                       </td>
                       <td><span className={`badge ${c.cargo}`}>{c.cargo || '-'}</span></td>
-                      <td style={{ fontWeight: '500' }}>{c.telefones || '-'}</td>
                       <td style={{ textAlign: 'center' }}>
-                        <button onClick={() => prepararEdicao(c)} style={{ background: 'none', border: 'none', color: '#ffc107', cursor: 'pointer', fontSize: '1.2rem', marginRight: '10px' }}>
+                        <button onClick={() => abrirDetalhes360(c)} style={{ background: 'none', border: 'none', color: '#007bff', cursor: 'pointer', fontSize: '1.2rem', marginRight: '10px' }} title="Visão 360º">
+                          <i className="fa-solid fa-eye"></i>
+                        </button>
+                        <button onClick={() => prepararEdicao(c)} style={{ background: 'none', border: 'none', color: '#ffc107', cursor: 'pointer', fontSize: '1.2rem', marginRight: '10px' }} title="Editar">
                           <i className="fa-solid fa-pen-to-square"></i>
                         </button>
                         {perfilUsuario === 'admin' && (
-                          <button onClick={() => excluir(c.id)} style={{ background: 'none', border: 'none', color: '#dc3545', cursor: 'pointer', fontSize: '1.2rem' }}>
+                          <button onClick={() => excluir(c.id)} style={{ background: 'none', border: 'none', color: '#dc3545', cursor: 'pointer', fontSize: '1.2rem' }} title="Excluir">
                             <i className="fa-solid fa-trash-can"></i>
                           </button>
                         )}
@@ -320,28 +360,99 @@ export function Contatos() {
           {/* PAGINAÇÃO */}
           {!carregando && contatosFiltrados.length > 0 && (
             <div className="pagination-container">
-              <div className="pagination-info">
-                {contatosFiltrados.length} contatos encontrados
-              </div>
+              <div className="pagination-info">{contatosFiltrados.length} contatos encontrados</div>
               <div className="pagination-controls">
-                <button className="btn-page" disabled={paginaAtual === 1} onClick={() => setPaginaAtual(1)} title="Primeira">
-                  <i className="fa-solid fa-angles-left"></i>
-                </button>
-                <button className="btn-page" disabled={paginaAtual === 1} onClick={() => setPaginaAtual(paginaAtual - 1)}>
-                  Anterior
-                </button>
+                <button className="btn-page" disabled={paginaAtual === 1} onClick={() => setPaginaAtual(1)}><i className="fa-solid fa-angles-left"></i></button>
+                <button className="btn-page" disabled={paginaAtual === 1} onClick={() => setPaginaAtual(paginaAtual - 1)}>Anterior</button>
                 <span style={{ padding: '0 15px', fontWeight: 'bold' }}>{paginaAtual} de {totalPaginas}</span>
-                <button className="btn-page" disabled={paginaAtual >= totalPaginas} onClick={() => setPaginaAtual(paginaAtual + 1)}>
-                  Próxima
-                </button>
-                <button className="btn-page" disabled={paginaAtual >= totalPaginas} onClick={() => setPaginaAtual(totalPaginas)} title="Última">
-                  <i className="fa-solid fa-angles-right"></i>
-                </button>
+                <button className="btn-page" disabled={paginaAtual >= totalPaginas} onClick={() => setPaginaAtual(paginaAtual + 1)}>Próxima</button>
+                <button className="btn-page" disabled={paginaAtual >= totalPaginas} onClick={() => setPaginaAtual(totalPaginas)}><i className="fa-solid fa-angles-right"></i></button>
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* ======================================================== */}
+      {/* MODAL 360º: DETALHES COMPLETOS DO CONTATO                */}
+      {/* ======================================================== */}
+      {mostrarModalDetalhes && detalhesContato && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }} onClick={() => setMostrarModalDetalhes(false)}>
+          <div style={{ background: '#f4f7f6', width: '100%', maxWidth: '800px', maxHeight: '90vh', borderRadius: '12px', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 10px 30px rgba(0,0,0,0.3)' }} onClick={e => e.stopPropagation()}>
+            
+            <div style={{ background: '#fff', padding: '20px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #ddd' }}>
+              <div>
+                <h2 style={{ margin: 0, color: '#007bff', fontSize: '1.5rem' }}>
+                  <i className="fa-solid fa-user-circle"></i> {detalhesContato.nome}
+                </h2>
+                <p style={{ margin: '5px 0 0 0', color: '#666', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                  <i className="fa-solid fa-briefcase"></i> {detalhesContato.cargo || 'Cargo indefinido'} • {detalhesContato.empresa_nome || 'Sem prefeitura vinculada'}
+                </p>
+              </div>
+              <button onClick={() => setMostrarModalDetalhes(false)} style={{ background: 'none', border: 'none', fontSize: '2rem', cursor: 'pointer', color: '#aaa' }}>&times;</button>
+            </div>
+
+            <div style={{ flex: 1, overflowY: 'auto', padding: '30px' }}>
+              
+              {/* GRID DE INFORMAÇÕES PESSOAIS */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '30px' }}>
+                <div className="panel" style={{ margin: 0, padding: '20px', borderTop: '4px solid #17a2b8' }}>
+                  <h4 style={{ borderBottom: '1px solid #eee', paddingBottom: '10px', marginTop: 0 }}><i className="fa-solid fa-envelope"></i> E-mails Cadastrados</h4>
+                  {detalhesContato.emails_json && detalhesContato.emails_json.length > 0 ? (
+                    <ul style={{ paddingLeft: '20px', margin: 0, color: '#444' }}>
+                      {detalhesContato.emails_json.map((em, i) => <li key={i} style={{marginBottom: '5px'}}>{em}</li>)}
+                    </ul>
+                  ) : <span style={{ color: '#999' }}>Nenhum e-mail</span>}
+                </div>
+
+                <div className="panel" style={{ margin: 0, padding: '20px', borderTop: '4px solid #28a745' }}>
+                  <h4 style={{ borderBottom: '1px solid #eee', paddingBottom: '10px', marginTop: 0 }}><i className="fa-brands fa-whatsapp"></i> Telefones Cadastrados</h4>
+                  {detalhesContato.telefones_json && detalhesContato.telefones_json.length > 0 ? (
+                    <ul style={{ paddingLeft: '20px', margin: 0, color: '#444' }}>
+                      {detalhesContato.telefones_json.map((tel, i) => <li key={i} style={{marginBottom: '5px'}}>{tel}</li>)}
+                    </ul>
+                  ) : <span style={{ color: '#999' }}>Nenhum telefone</span>}
+                </div>
+              </div>
+
+              {/* HISTÓRICO DE NEGOCIAÇÕES DESTE CONTATO */}
+              <div className="panel" style={{ margin: 0, padding: '20px' }}>
+                <h4 style={{ borderBottom: '2px solid #eee', paddingBottom: '10px', marginTop: 0, color: '#333' }}>
+                  <i className="fa-solid fa-clock-rotate-left"></i> Histórico de Campanhas / Negociações
+                </h4>
+                
+                {(() => {
+                  // Filtra as negociações que pertencem SÓ a este contato
+                  const opsDoContato = oportunidades.filter(op => op.contato_id === detalhesContato.id);
+                  
+                  if (opsDoContato.length === 0) return <p style={{ color: '#999', textAlign: 'center', padding: '20px' }}>Este contato ainda não participou de nenhuma negociação ou campanha.</p>;
+                  
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' }}>
+                      {opsDoContato.map(op => (
+                        <div key={op.id} style={{ background: '#f8f9fa', border: '1px solid #ddd', borderLeft: op.status === 'ganho' ? '4px solid #28a745' : op.status === 'perdido' ? '4px solid #dc3545' : '4px solid #007bff', borderRadius: '6px', padding: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <div style={{ fontWeight: 'bold', fontSize: '1rem', color: '#333' }}>{op.titulo}</div>
+                            <div style={{ fontSize: '0.85rem', color: '#666', marginTop: '5px' }}>
+                              {op.campanha_nome ? <span style={{background: '#e9ecef', padding: '2px 6px', borderRadius: '4px', marginRight: '8px'}}><i className="fa-solid fa-bullhorn"></i> {op.campanha_nome}</span> : ''}
+                              {formatarData(op.criado_em)} • Status: <strong style={{ textTransform: 'uppercase' }}>{op.status}</strong>
+                            </div>
+                          </div>
+                          <div style={{ fontWeight: 'bold', fontSize: '1.05rem', color: '#555' }}>
+                            {formatarMoeda(op.valor)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
