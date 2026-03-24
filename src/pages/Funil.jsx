@@ -8,6 +8,7 @@ export function Funil() {
   const [oportunidades, setOportunidades] = useState([]);
   const [empresas, setEmpresas] = useState([]);
   const [contatos, setContatos] = useState([]);
+  const [campanhas, setCampanhas] = useState([]); 
   const [carregando, setCarregando] = useState(true);
 
   // Estados do Modal
@@ -363,7 +364,6 @@ export function Funil() {
           <div style={{textAlign: 'center', padding: '50px'}}>Carregando seu Funil de Vendas...</div>
         ) : (
           <div className="kanban-board">
-            
             {etapas.map((etapa, indexEtapa) => {
               const cardsDestaColuna = oportunidades.filter(op => op.etapa_id === etapa.id);
               
@@ -412,11 +412,8 @@ export function Funil() {
                   ))}
                   
                   {cardsDestaColuna.length === 0 && (
-                    <div style={{textAlign: 'center', padding: '20px', color: '#aaa', fontSize: '0.85rem', border: '1px dashed #ddd', borderRadius: '8px'}}>
-                      Solte um negócio aqui
-                    </div>
-                  )}
-                  
+                    <div style={{textAlign: 'center', padding: '20px', color: '#aaa', fontSize: '0.85rem', border: '1px dashed #ddd', borderRadius: '8px'}}>Solte aqui</div>
+                    )}
                 </div>
               )
             })}
