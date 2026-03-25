@@ -152,7 +152,7 @@ export function Empresas() {
       const v = Number(op.valor) || 0;
       if (op.status === 'ganho') valGanho += v;
       else if (op.status === 'perdido') valPerdido += v;
-      else valAndamento += v; // 'aberto' ou outros
+      else valAndamento += v; 
     });
   }
 
@@ -260,7 +260,6 @@ export function Empresas() {
                         {formatarData(empresa.ultimo_contato)}
                       </td>
                       <td style={{ textAlign: 'center' }}>
-                        {/* Botão de Ver Detalhes (O Olho) */}
                         <button onClick={() => abrirDetalhes(empresa.id)} style={{ background: 'none', border: 'none', color: '#007bff', cursor: 'pointer', fontSize: '1.2rem', marginRight: '10px' }} title="Visão 360º">
                           <i className="fa-solid fa-eye"></i>
                         </button>
@@ -374,7 +373,7 @@ export function Empresas() {
 
                   </div>
 
-                  {/* HISTÓRICO DE NEGOCIAÇÕES (LINHA DO TEMPO) */}
+                  {/* HISTÓRICO DE NEGOCIAÇÕES (LINHA DO TEMPO COM COMPRADOR E VENDEDOR) */}
                   <div className="panel" style={{ margin: 0, padding: '20px' }}>
                     <h4 style={{ borderBottom: '2px solid #eee', paddingBottom: '10px', marginTop: 0, color: '#333' }}><i className="fa-solid fa-clock-rotate-left"></i> Histórico de Negociações e Campanhas</h4>
                     
@@ -382,20 +381,32 @@ export function Empresas() {
                       <p style={{ color: '#999', textAlign: 'center', padding: '20px' }}>Não há histórico de negociações registradas.</p>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' }}>
-                        {detalhesEmpresa.oportunidades.map(op => (
-                          <div key={op.id} style={{ background: '#fff', border: '1px solid #e0e0e0', borderLeft: op.status === 'ganho' ? '4px solid #28a745' : op.status === 'perdido' ? '4px solid #dc3545' : '4px solid #007bff', borderRadius: '6px', padding: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div>
-                              <div style={{ fontWeight: 'bold', fontSize: '1.05rem', color: '#333' }}>{op.titulo}</div>
-                              <div style={{ fontSize: '0.85rem', color: '#666', marginTop: '5px' }}>
-                                {op.campanha_nome ? <><span style={{background: '#e9ecef', padding: '2px 6px', borderRadius: '4px'}}><i className="fa-solid fa-bullhorn"></i> {op.campanha_nome}</span> &bull; </> : ''}
-                                {formatarData(op.criado_em)} &bull; Status: <strong style={{ textTransform: 'uppercase' }}>{op.status}</strong>
+                        {detalhesEmpresa.oportunidades.map(op => {
+                          let corBorda = '#007bff'; let bgTag = '#e7f3ff'; let corTag = '#007bff'; let textoTag = 'Em Aberto';
+                          if (op.status === 'ganho') { corBorda = '#28a745'; bgTag = '#e6f4ea'; corTag = '#28a745'; textoTag = 'Vendido'; }
+                          if (op.status === 'perdido') { corBorda = '#dc3545'; bgTag = '#fce8e6'; corTag = '#dc3545'; textoTag = 'Perdido'; }
+
+                          return (
+                            <div key={op.id} style={{ background: '#fff', border: '1px solid #e0e0e0', borderLeft: `4px solid ${corBorda}`, borderRadius: '6px', padding: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                                  <strong style={{ fontSize: '1.05rem', color: '#333' }}>{op.titulo}</strong>
+                                  <span style={{ background: bgTag, color: corTag, padding: '3px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold' }}>{textoTag}</span>
+                                </div>
+                                
+                                <div style={{ fontSize: '0.85rem', color: '#666', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '5px' }}>
+                                  <div><i className="fa-solid fa-graduation-cap"></i> Curso: <strong>{op.campanha_nome || '-'}</strong></div>
+                                  <div><i className="fa-solid fa-user"></i> Comprador: <strong style={{color: '#333'}}>{op.contato_nome || 'Sem Contato'}</strong></div>
+                                  <div><i className="fa-solid fa-user-tie"></i> Vendedor: {op.vendedor_nome || '-'}</div>
+                                  <div><i className="fa-regular fa-calendar"></i> Criado: {formatarData(op.criado_em)}</div>
+                                </div>
+                              </div>
+                              <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#555' }}>
+                                {formatarMoeda(op.valor)}
                               </div>
                             </div>
-                            <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#555' }}>
-                              {formatarMoeda(op.valor)}
-                            </div>
-                          </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     )}
                   </div>

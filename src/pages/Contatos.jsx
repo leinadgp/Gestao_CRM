@@ -6,7 +6,6 @@ import { Header } from '../componentes/Header.jsx';
 export function Contatos() {
   const [contatos, setContatos] = useState([]);
   const [empresas, setEmpresas] = useState([]);
-  const [oportunidades, setOportunidades] = useState([]); // Para o histórico do contato
   const [carregando, setCarregando] = useState(true);
   
   const perfilUsuario = localStorage.getItem('perfil');
@@ -32,9 +31,9 @@ export function Contatos() {
   const [mostrarDropdown, setMostrarDropdown] = useState(false);
   const dropdownRef = useRef(null);
 
-  // === ESTADOS DO MODAL 360º ===
-  const [mostrarModalDetalhes, setMostrarModalDetalhes] = useState(false);
-  const [detalhesContato, setDetalhesContato] = useState(null);
+  // === ESTADOS DO MODAL 360º (RAIO-X) ===
+  const [mostrarModalHist, setMostrarModalHist] = useState(false);
+  const [dadosHistorico, setDadosHistorico] = useState(null);
 
   // Paginação
   const [paginaAtual, setPaginaAtual] = useState(1);
@@ -69,16 +68,23 @@ export function Contatos() {
   async function carregarDados() {
     setCarregando(true);
     try {
-      const [resC, resE, resO] = await Promise.all([
+      const [resC, resE] = await Promise.all([
         axios.get(`${API_URL}/contatos`, getHeaders()),
-        axios.get(`${API_URL}/empresas`, getHeaders()),
-        axios.get(`${API_URL}/oportunidades`, getHeaders()) // Puxa histórico para a visão 360
+        axios.get(`${API_URL}/empresas`, getHeaders())
       ]);
       setContatos(resC.data);
       setEmpresas(resE.data);
-      setOportunidades(resO.data);
     } catch (e) { console.error("Erro ao carregar dados", e); } 
     finally { setCarregando(false); }
+  }
+
+  // === ABRIR RAIO-X DO CONTATO ===
+  async function abrirHistorico(id) {
+    try {
+      const res = await axios.get(`${API_URL}/contatos/${id}/detalhes`, getHeaders());
+      setDadosHistorico(res.data);
+      setMostrarModalHist(true);
+    } catch (error) { alert('Erro ao carregar histórico do contato.'); }
   }
 
   // === LÓGICA DE CAMPOS DINÂMICOS (E-MAIL E TELEFONE) ===
@@ -116,7 +122,7 @@ export function Contatos() {
   // === FUNÇÕES DE AÇÃO ===
   function abrirNovo() {
     setEditandoId(null); setNome(''); setCargo(''); setEmpresaId(''); setBuscaEmpresaNoForm('');
-    setEmails(['']); setTelefones(['']); // Inicia com 1 campo vazio
+    setEmails(['']); setTelefones(['']); 
     setMostrarForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -128,7 +134,6 @@ export function Contatos() {
     setEmpresaId(c.empresa_id || '');
     setBuscaEmpresaNoForm(c.empresa_nome || '');
     
-    // Carrega os arrays do banco (se vazio, bota 1 campo em branco)
     setEmails(c.emails_json && c.emails_json.length > 0 ? c.emails_json : ['']);
     setTelefones(c.telefones_json && c.telefones_json.length > 0 ? c.telefones_json : ['']);
     
@@ -138,7 +143,6 @@ export function Contatos() {
 
   async function salvar(e) {
     e.preventDefault();
-    // Limpa campos vazios antes de mandar pro banco
     const emailsLimpos = emails.filter(e => e.trim() !== '');
     const telefonesLimpos = telefones.filter(t => t.trim() !== '');
 
@@ -162,11 +166,6 @@ export function Contatos() {
       await axios.delete(`${API_URL}/contatos/${id}`, getHeaders());
       carregarDados();
     } catch (err) { alert("Erro ao excluir contato."); }
-  }
-
-  function abrirDetalhes360(contato) {
-    setDetalhesContato(contato);
-    setMostrarModalDetalhes(true);
   }
 
   function formatarData(dataIso) {
@@ -338,8 +337,8 @@ export function Contatos() {
                       </td>
                       <td><span className={`badge ${c.cargo}`}>{c.cargo || '-'}</span></td>
                       <td style={{ textAlign: 'center' }}>
-                        <button onClick={() => abrirDetalhes360(c)} style={{ background: 'none', border: 'none', color: '#007bff', cursor: 'pointer', fontSize: '1.2rem', marginRight: '10px' }} title="Visão 360º">
-                          <i className="fa-solid fa-eye"></i>
+                        <button onClick={() => abrirHistorico(c.id)} style={{ background: 'none', border: 'none', color: '#6f42c1', cursor: 'pointer', fontSize: '1.2rem', marginRight: '10px' }} title="Ficha do Cliente">
+                          <i className="fa-solid fa-address-card"></i>
                         </button>
                         <button onClick={() => prepararEdicao(c)} style={{ background: 'none', border: 'none', color: '#ffc107', cursor: 'pointer', fontSize: '1.2rem', marginRight: '10px' }} title="Editar">
                           <i className="fa-solid fa-pen-to-square"></i>
@@ -374,22 +373,22 @@ export function Contatos() {
       </div>
 
       {/* ======================================================== */}
-      {/* MODAL 360º: DETALHES COMPLETOS DO CONTATO                */}
+      {/* MODAL 360º (RAIO-X): DETALHES COMPLETOS DO CONTATO         */}
       {/* ======================================================== */}
-      {mostrarModalDetalhes && detalhesContato && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }} onClick={() => setMostrarModalDetalhes(false)}>
+      {mostrarModalHist && dadosHistorico && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }} onClick={() => setMostrarModalHist(false)}>
           <div style={{ background: '#f4f7f6', width: '100%', maxWidth: '800px', maxHeight: '90vh', borderRadius: '12px', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 10px 30px rgba(0,0,0,0.3)' }} onClick={e => e.stopPropagation()}>
             
             <div style={{ background: '#fff', padding: '20px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #ddd' }}>
               <div>
-                <h2 style={{ margin: 0, color: '#007bff', fontSize: '1.5rem' }}>
-                  <i className="fa-solid fa-user-circle"></i> {detalhesContato.nome}
+                <h2 style={{ margin: 0, color: '#6f42c1', fontSize: '1.5rem' }}>
+                  <i className="fa-solid fa-user-circle"></i> {dadosHistorico.contato.nome}
                 </h2>
                 <p style={{ margin: '5px 0 0 0', color: '#666', fontSize: '0.9rem', fontWeight: 'bold' }}>
-                  <i className="fa-solid fa-briefcase"></i> {detalhesContato.cargo || 'Cargo indefinido'} • {detalhesContato.empresa_nome || 'Sem prefeitura vinculada'}
+                  <i className="fa-solid fa-briefcase"></i> {dadosHistorico.contato.cargo || 'Cargo indefinido'}
                 </p>
               </div>
-              <button onClick={() => setMostrarModalDetalhes(false)} style={{ background: 'none', border: 'none', fontSize: '2rem', cursor: 'pointer', color: '#aaa' }}>&times;</button>
+              <button onClick={() => setMostrarModalHist(false)} style={{ background: 'none', border: 'none', fontSize: '2rem', cursor: 'pointer', color: '#aaa' }}>&times;</button>
             </div>
 
             <div style={{ flex: 1, overflowY: 'auto', padding: '30px' }}>
@@ -398,18 +397,18 @@ export function Contatos() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '30px' }}>
                 <div className="panel" style={{ margin: 0, padding: '20px', borderTop: '4px solid #17a2b8' }}>
                   <h4 style={{ borderBottom: '1px solid #eee', paddingBottom: '10px', marginTop: 0 }}><i className="fa-solid fa-envelope"></i> E-mails Cadastrados</h4>
-                  {detalhesContato.emails_json && detalhesContato.emails_json.length > 0 ? (
+                  {dadosHistorico.contato.emails_json && dadosHistorico.contato.emails_json.length > 0 ? (
                     <ul style={{ paddingLeft: '20px', margin: 0, color: '#444' }}>
-                      {detalhesContato.emails_json.map((em, i) => <li key={i} style={{marginBottom: '5px'}}>{em}</li>)}
+                      {dadosHistorico.contato.emails_json.map((em, i) => <li key={i} style={{marginBottom: '5px'}}>{em}</li>)}
                     </ul>
                   ) : <span style={{ color: '#999' }}>Nenhum e-mail</span>}
                 </div>
 
                 <div className="panel" style={{ margin: 0, padding: '20px', borderTop: '4px solid #28a745' }}>
                   <h4 style={{ borderBottom: '1px solid #eee', paddingBottom: '10px', marginTop: 0 }}><i className="fa-brands fa-whatsapp"></i> Telefones Cadastrados</h4>
-                  {detalhesContato.telefones_json && detalhesContato.telefones_json.length > 0 ? (
+                  {dadosHistorico.contato.telefones_json && dadosHistorico.contato.telefones_json.length > 0 ? (
                     <ul style={{ paddingLeft: '20px', margin: 0, color: '#444' }}>
-                      {detalhesContato.telefones_json.map((tel, i) => <li key={i} style={{marginBottom: '5px'}}>{tel}</li>)}
+                      {dadosHistorico.contato.telefones_json.map((tel, i) => <li key={i} style={{marginBottom: '5px'}}>{tel}</li>)}
                     </ul>
                   ) : <span style={{ color: '#999' }}>Nenhum telefone</span>}
                 </div>
@@ -418,34 +417,39 @@ export function Contatos() {
               {/* HISTÓRICO DE NEGOCIAÇÕES DESTE CONTATO */}
               <div className="panel" style={{ margin: 0, padding: '20px' }}>
                 <h4 style={{ borderBottom: '2px solid #eee', paddingBottom: '10px', marginTop: 0, color: '#333' }}>
-                  <i className="fa-solid fa-clock-rotate-left"></i> Histórico de Campanhas / Negociações
+                  <i className="fa-solid fa-chart-pie"></i> Histórico de Interações e Compras
                 </h4>
                 
-                {(() => {
-                  // Filtra as negociações que pertencem SÓ a este contato
-                  const opsDoContato = oportunidades.filter(op => op.contato_id === detalhesContato.id);
-                  
-                  if (opsDoContato.length === 0) return <p style={{ color: '#999', textAlign: 'center', padding: '20px' }}>Este contato ainda não participou de nenhuma negociação ou campanha.</p>;
-                  
-                  return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' }}>
-                      {opsDoContato.map(op => (
-                        <div key={op.id} style={{ background: '#f8f9fa', border: '1px solid #ddd', borderLeft: op.status === 'ganho' ? '4px solid #28a745' : op.status === 'perdido' ? '4px solid #dc3545' : '4px solid #007bff', borderRadius: '6px', padding: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                {dadosHistorico.oportunidades.length === 0 ? (
+                  <div style={{ padding: '20px', textAlign: 'center', background: '#f8f9fa', borderRadius: '8px', color: '#999', fontStyle: 'italic' }}>Este contato ainda não possui histórico de negociações no Funil.</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' }}>
+                    {dadosHistorico.oportunidades.map(op => {
+                      let corBorda = '#007bff'; let bgTag = '#e7f3ff'; let corTag = '#007bff'; let textoTag = 'Em Aberto';
+                      if (op.status === 'ganho') { corBorda = '#28a745'; bgTag = '#e6f4ea'; corTag = '#28a745'; textoTag = 'Comprou'; }
+                      if (op.status === 'perdido') { corBorda = '#dc3545'; bgTag = '#fce8e6'; corTag = '#dc3545'; textoTag = 'Desistiu'; }
+
+                      return (
+                        <div key={op.id} style={{ background: '#f8f9fa', border: '1px solid #ddd', borderLeft: `4px solid ${corBorda}`, borderRadius: '6px', padding: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <div>
-                            <div style={{ fontWeight: 'bold', fontSize: '1rem', color: '#333' }}>{op.titulo}</div>
-                            <div style={{ fontSize: '0.85rem', color: '#666', marginTop: '5px' }}>
-                              {op.campanha_nome ? <span style={{background: '#e9ecef', padding: '2px 6px', borderRadius: '4px', marginRight: '8px'}}><i className="fa-solid fa-bullhorn"></i> {op.campanha_nome}</span> : ''}
-                              {formatarData(op.criado_em)} • Status: <strong style={{ textTransform: 'uppercase' }}>{op.status}</strong>
+                            <div style={{ fontWeight: 'bold', fontSize: '1rem', color: '#333', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              {op.titulo}
+                              <span style={{ background: bgTag, color: corTag, padding: '3px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold' }}>{textoTag}</span>
+                            </div>
+                            <div style={{ fontSize: '0.85rem', color: '#666', marginTop: '8px', display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                              {op.campanha_nome && <span><i className="fa-solid fa-graduation-cap"></i> Curso: <strong>{op.campanha_nome}</strong></span>}
+                              <span><i className="fa-solid fa-user-tie"></i> Vendido por: <strong>{op.vendedor_nome || '-'}</strong></span>
+                              <span><i className="fa-regular fa-calendar"></i> Criado em: {formatarData(op.criado_em)}</span>
                             </div>
                           </div>
-                          <div style={{ fontWeight: 'bold', fontSize: '1.05rem', color: '#555' }}>
+                          <div style={{ fontWeight: 'bold', fontSize: '1.2rem', color: '#555' }}>
                             {formatarMoeda(op.valor)}
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  );
-                })()}
+                      )
+                    })}
+                  </div>
+                )}
               </div>
 
             </div>

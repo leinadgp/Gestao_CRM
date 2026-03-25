@@ -8,10 +8,19 @@ export function Dashboard() {
   const [oportunidades, setOportunidades] = useState([]);
   const [campanhas, setCampanhas] = useState([]);
   const [etapasDaCampanha, setEtapasDaCampanha] = useState([]);
+  
+  // Guardamos TODOS os módulos de todas as campanhas para fazer a matemática de contabilidade
+  const [todosModulos, setTodosModulos] = useState([]);
+  const [modulosDaCampanha, setModulosDaCampanha] = useState([]);
+
   const [carregando, setCarregando] = useState(true);
 
-  // Filtro inteligente do Dashboard
   const [filtroCampanha, setFiltroCampanha] = useState('');
+  
+  // Filtro de Mês/Ano (Ex: "2026-03")
+  const dataAtual = new Date();
+  const mesAtualString = `${dataAtual.getFullYear()}-${String(dataAtual.getMonth() + 1).padStart(2, '0')}`;
+  const [mesFiltro, setMesFiltro] = useState(mesAtualString); 
 
   const API_URL = 'https://server-js-gestao.onrender.com';
 
@@ -20,7 +29,6 @@ export function Dashboard() {
     return { headers: { Authorization: `Bearer ${token}` } };
   }
 
-  // 1. Carrega todas as campanhas e oportunidades ao abrir a tela
   useEffect(() => {
     async function carregarDadosBase() {
       setCarregando(true);
@@ -31,6 +39,13 @@ export function Dashboard() {
         ]);
         setOportunidades(resOps.data);
         setCampanhas(resCamp.data);
+
+        // Busca os módulos de TODAS as campanhas para a contabilidade global
+        const promessasModulos = resCamp.data.map(c => axios.get(`${API_URL}/campanhas/${c.id}/modulos`, getHeaders()));
+        const respostasModulos = await Promise.all(promessasModulos);
+        const modulosGlobais = respostasModulos.flatMap(r => r.data);
+        setTodosModulos(modulosGlobais);
+
       } catch (erro) {
         console.error('Erro ao carregar base do dashboard', erro);
       } finally {
@@ -40,22 +55,24 @@ export function Dashboard() {
     carregarDadosBase();
   }, []);
 
-  // 2. Se o usuário escolher uma campanha específica, busca as etapas dela para montar o funil
   useEffect(() => {
-    async function buscarEtapas() {
+    async function buscarEtapasEModulos() {
       if (filtroCampanha) {
         try {
           const resEtapas = await axios.get(`${API_URL}/campanhas/${filtroCampanha}/etapas`, getHeaders());
           setEtapasDaCampanha(resEtapas.data);
+          // Filtra os módulos apenas da campanha selecionada
+          setModulosDaCampanha(todosModulos.filter(m => m.campanha_id === parseInt(filtroCampanha)));
         } catch (erro) {
           console.error(erro);
         }
       } else {
         setEtapasDaCampanha([]);
+        setModulosDaCampanha([]);
       }
     }
-    buscarEtapas();
-  }, [filtroCampanha]);
+    buscarEtapasEModulos();
+  }, [filtroCampanha, todosModulos]);
 
   function formatarMoeda(valor) {
     return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -63,71 +80,148 @@ export function Dashboard() {
 
   function formatarData(dataIso) {
     if (!dataIso) return '-';
-    return new Date(dataIso).toLocaleDateString('pt-BR');
+    const data = new Date(dataIso);
+    data.setMinutes(data.getMinutes() + data.getTimezoneOffset());
+    return data.toLocaleDateString('pt-BR');
   }
 
-  // === FILTRANDO OS DADOS COM BASE NA ESCOLHA DO USUÁRIO ===
-  const opsExibidas = filtroCampanha 
-    ? oportunidades.filter(op => op.campanha_id === parseInt(filtroCampanha))
-    : oportunidades;
+  // =========================================================================
+  // MÁQUINA DE CONTABILIDADE (REGIME DE COMPETÊNCIA - OPÇÃO A)
+  // =========================================================================
+  
+  // 1. Filtra as oportunidades base (Em aberto e Perdidas não mudam)
+  const opsGeraisFiltradas = oportunidades.filter(op => {
+    return filtroCampanha ? op.campanha_id === parseInt(filtroCampanha) : true;
+  });
 
-  // === CÁLCULOS MATEMÁTICOS PARA OS CARDS ===
-  let totalAberto = 0, totalGanho = 0, totalPerdido = 0;
-  let qtdAberto = 0, qtdGanho = 0, qtdPerdido = 0;
+  // 2. "Explode" as oportunidades GANHAS em múltiplas vendas fracionadas
+  let vendasFracionadas = [];
+  
+  opsGeraisFiltradas.forEach(op => {
+    if (op.status !== 'ganho') return; // Só fracionamos a receita ganha
 
-  opsExibidas.forEach(op => {
-    const valor = Number(op.valor) || 0;
-    if (op.status === 'ganho') {
-      totalGanho += valor;
-      qtdGanho++;
-    } else if (op.status === 'perdido') {
-      totalPerdido += valor;
-      qtdPerdido++;
+    let idsMods = [];
+    try { idsMods = typeof op.modulos_ids === 'string' ? JSON.parse(op.modulos_ids) : (op.modulos_ids || []); } catch(e){}
+
+    if (idsMods.length > 0) {
+      // Divide o valor final pelo número de módulos selecionados
+      const valorPorModulo = Number(op.valor) / idsMods.length;
+      
+      idsMods.forEach(idMod => {
+        const infoMod = todosModulos.find(m => m.id === idMod);
+        // A data de competência é a data da aula (evento). Se não tiver, cai na data que vendeu.
+        const dataCompetencia = infoMod?.data_evento || infoMod?.data_inicio_vendas || op.atualizado_em || op.criado_em;
+        
+        vendasFracionadas.push({
+          ...op,
+          valorContabil: valorPorModulo,
+          dataCompetencia: dataCompetencia,
+          modulo_id_fracionado: idMod
+        });
+      });
     } else {
-      totalAberto += valor;
-      qtdAberto++;
+      // Se ganhou mas não marcou módulo, conta como 1 venda integral na data de hoje
+      vendasFracionadas.push({
+        ...op,
+        valorContabil: Number(op.valor),
+        dataCompetencia: op.atualizado_em || op.criado_em,
+        modulo_id_fracionado: null
+      });
     }
   });
 
-  const ticketMedio = qtdGanho > 0 ? (totalGanho / qtdGanho) : 0;
+  // 3. Aplica o Filtro de MÊS nas vendas fracionadas e nas gerais
+  const vendasNoMes = vendasFracionadas.filter(venda => {
+    if (!mesFiltro) return true;
+    const mesAnoVenda = venda.dataCompetencia ? venda.dataCompetencia.substring(0, 7) : '';
+    return mesAnoVenda === mesFiltro;
+  });
 
-  // === MÁGICA DOS GRÁFICOS DINÂMICOS ===
+  let totalGanho = 0;
+  let qtdGanhaCompetencia = vendasNoMes.length; // Agora 1 pessoa comprando 2 módulos = 2 vendas!
+  
+  vendasNoMes.forEach(v => {
+    totalGanho += v.valorContabil;
+  });
+
+  // As métricas de Em Aberto e Perdido continuam usando o formato tradicional (por negócio, não por módulo)
+  let totalAberto = 0, qtdAberto = 0;
+  let totalPerdido = 0, qtdPerdido = 0;
+
+  opsGeraisFiltradas.forEach(op => {
+    // Filtro de mês para Aberto/Perdido (usa a data do negócio mesmo)
+    let passaMes = true;
+    if (mesFiltro) {
+      const dataOp = op.atualizado_em || op.criado_em;
+      passaMes = dataOp ? dataOp.substring(0, 7) === mesFiltro : false;
+    }
+
+    if (passaMes) {
+      if (op.status === 'aberto') {
+        totalAberto += Number(op.valor) || 0;
+        qtdAberto++;
+      } else if (op.status === 'perdido') {
+        totalPerdido += Number(op.valor) || 0;
+        qtdPerdido++;
+      }
+    }
+  });
+
+  const ticketMedio = qtdGanhaCompetencia > 0 ? (totalGanho / qtdGanhaCompetencia) : 0;
+
+  // =========================================================================
+  // GRÁFICOS E RANKING
+  // =========================================================================
+
   let dadosGraficoBarras = [];
   let tituloGraficoBarras = '';
 
   if (filtroCampanha) {
-    // Se escolheu uma campanha: Mostra o Funil (Etapas)
     tituloGraficoBarras = 'Distribuição no Funil (Em Aberto)';
     dadosGraficoBarras = etapasDaCampanha.map(etapa => {
-      const opsNaEtapa = opsExibidas.filter(op => op.etapa_id === etapa.id && op.status === 'aberto');
-      return {
-        nome: etapa.nome,
-        Quantidade: opsNaEtapa.length,
-        Valor: opsNaEtapa.reduce((acc, op) => acc + (Number(op.valor) || 0), 0)
-      };
+      const opsNaEtapa = opsGeraisFiltradas.filter(op => op.etapa_id === etapa.id && op.status === 'aberto');
+      return { nome: etapa.nome, Quantidade: opsNaEtapa.length, Valor: opsNaEtapa.reduce((acc, op) => acc + (Number(op.valor) || 0), 0) };
     });
   } else {
-    // Se "Todas as Campanhas": Compara as campanhas entre si!
-    tituloGraficoBarras = 'Volume em Aberto por Campanha';
+    tituloGraficoBarras = 'Volume em Aberto por Curso';
     dadosGraficoBarras = campanhas.map(camp => {
-      const opsNaCamp = opsExibidas.filter(op => op.campanha_id === camp.id && op.status === 'aberto');
-      return {
-        nome: camp.nome,
-        Quantidade: opsNaCamp.length,
-        Valor: opsNaCamp.reduce((acc, op) => acc + (Number(op.valor) || 0), 0)
-      };
-    }).filter(d => d.Quantidade > 0); // Oculta campanhas zeradas
+      const opsNaCamp = opsGeraisFiltradas.filter(op => op.campanha_id === camp.id && op.status === 'aberto');
+      return { nome: camp.nome, Quantidade: opsNaCamp.length, Valor: opsNaCamp.reduce((acc, op) => acc + (Number(op.valor) || 0), 0) };
+    }).filter(d => d.Quantidade > 0); 
   }
 
-  // === DADOS PARA O GRÁFICO DE PIZZA (STATUS GERAL) ===
   const dadosPizza = [
-    { name: 'Ganhos', value: qtdGanho, color: '#28a745' },
-    { name: 'Perdidos', value: qtdPerdido, color: '#dc3545' },
-    { name: 'Em Aberto', value: qtdAberto, color: '#007bff' }
+    { name: 'Inscrições Ganhas', value: qtdGanhaCompetencia, color: '#28a745' },
+    { name: 'Negócios Perdidos', value: qtdPerdido, color: '#dc3545' },
+    { name: 'Em Negociação', value: qtdAberto, color: '#007bff' }
   ].filter(d => d.value > 0); 
 
-  // Tabela de Vendas Recentes (Filtrada pela campanha selecionada)
-  const ultimasVendas = opsExibidas
+  // Ranking usando o valor Fracionado! Se ele vendeu 2 módulos, ganha 2 pontos e R$ dividido.
+  const rankingVendedores = {};
+  vendasNoMes.forEach(v => {
+    let nomeVendedor = v.vendedor_nome || 'Não Atribuído';
+    if (v.origem_venda === 'landing_page') nomeVendedor = 'Automático (Landing Page)';
+
+    if (!rankingVendedores[nomeVendedor]) {
+      rankingVendedores[nomeVendedor] = { nome: nomeVendedor, total: 0, quantidade: 0 };
+    }
+    rankingVendedores[nomeVendedor].total += v.valorContabil;
+    rankingVendedores[nomeVendedor].quantidade += 1;
+  });
+  const dadosEquipe = Object.values(rankingVendedores).sort((a, b) => b.total - a.total);
+
+  // Vendas por módulo (Gráfico Novo) focado no mês filtrado!
+  const dadosModulos = modulosDaCampanha.map(mod => {
+    // Conta quantas "Vendas Fracionadas" caíram neste módulo
+    const vendasDesteModulo = vendasNoMes.filter(v => v.modulo_id_fracionado === mod.id);
+    return {
+      nome: mod.nome,
+      Inscrições: vendasDesteModulo.length,
+      Receita: vendasDesteModulo.reduce((acc, v) => acc + v.valorContabil, 0)
+    };
+  });
+
+  const ultimasVendas = opsGeraisFiltradas
     .filter(op => op.status === 'ganho')
     .sort((a, b) => new Date(b.atualizado_em || b.criado_em) - new Date(a.atualizado_em || a.criado_em))
     .slice(0, 5);
@@ -138,62 +232,77 @@ export function Dashboard() {
 
       <div className="page-container">
         
-        {/* === TOPO: TÍTULO E FILTRO GLOBAL === */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px', marginBottom: '25px' }}>
           <div>
-            <h2 style={{ color: '#333', margin: 0 }}>Dashboard Gerencial</h2>
+            <h2 style={{ color: '#333', margin: 0 }}>Dashboard de Lançamentos</h2>
             <p style={{ color: '#777', fontSize: '0.9rem', marginTop: '5px' }}>
-              Métricas e conversões baseadas nos seus resultados.
+              Análise financeira por competência (Rateio por Módulo e Mês da Aula).
             </p>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#fff', padding: '8px 15px', borderRadius: '8px', border: '1px solid #ddd', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-            <label style={{ color: '#555', fontWeight: 'bold', fontSize: '0.95rem' }}><i className="fa-solid fa-filter"></i> Analisar:</label>
-            <select 
-              value={filtroCampanha} 
-              onChange={(e) => setFiltroCampanha(e.target.value)}
-              style={{ border: 'none', background: 'transparent', outline: 'none', fontWeight: 'bold', color: '#007bff', cursor: 'pointer', fontSize: '0.95rem' }}
-            >
-              <option value="">Todas as Campanhas (Visão Macro)</option>
-              {campanhas.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-            </select>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#fff', padding: '8px 15px', borderRadius: '8px', border: '1px solid #ddd', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+              <label style={{ color: '#555', fontWeight: 'bold', fontSize: '0.95rem' }}><i className="fa-regular fa-calendar-days"></i> Competência (Aula):</label>
+              <input 
+                type="month" 
+                value={mesFiltro}
+                onChange={(e) => setMesFiltro(e.target.value)}
+                style={{ border: 'none', outline: 'none', background: 'transparent', cursor: 'pointer', color: '#007bff', fontWeight: 'bold' }}
+              />
+              {mesFiltro && (
+                <button onClick={() => setMesFiltro('')} style={{ background: 'none', border: 'none', color: '#dc3545', cursor: 'pointer', marginLeft: '5px' }} title="Limpar Filtro de Mês">
+                  <i className="fa-solid fa-times"></i>
+                </button>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#fff', padding: '8px 15px', borderRadius: '8px', border: '1px solid #ddd', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+              <label style={{ color: '#555', fontWeight: 'bold', fontSize: '0.95rem' }}><i className="fa-solid fa-filter"></i> Curso:</label>
+              <select 
+                value={filtroCampanha} 
+                onChange={(e) => setFiltroCampanha(e.target.value)}
+                style={{ border: 'none', background: 'transparent', outline: 'none', fontWeight: 'bold', color: '#007bff', cursor: 'pointer', fontSize: '0.95rem', maxWidth: '200px' }}
+              >
+                <option value="">Todos (Visão Macro)</option>
+                {campanhas.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+              </select>
+            </div>
           </div>
         </div>
 
         {carregando ? (
           <div style={{ textAlign: 'center', padding: '50px', color: '#666' }}>
-            <i className="fa-solid fa-spinner fa-spin fa-2x"></i><br/>Calculando inteligência...
+            <i className="fa-solid fa-spinner fa-spin fa-2x"></i><br/>Calculando rateio contábil...
           </div>
         ) : (
           <>
-            {/* === 4 CARDS DE DESTAQUE === */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '30px' }}>
               
               <div className="panel" style={{ borderLeft: '5px solid #007bff', padding: '20px', margin: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ color: '#666', fontSize: '0.85rem', fontWeight: 'bold' }}>VALOR NO FUNIL</div>
+                  <div style={{ color: '#666', fontSize: '0.85rem', fontWeight: 'bold' }}>VALOR NEGOCIANDO</div>
                   <i className="fa-solid fa-chart-line" style={{ color: '#007bff', fontSize: '1.2rem' }}></i>
                 </div>
                 <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#333', margin: '10px 0' }}>{formatarMoeda(totalAberto)}</div>
-                <div style={{ fontSize: '0.85rem', color: '#007bff', fontWeight: 'bold' }}>{qtdAberto} negócios negociando</div>
+                <div style={{ fontSize: '0.85rem', color: '#007bff', fontWeight: 'bold' }}>{qtdAberto} negócios em aberto</div>
               </div>
 
-              <div className="panel" style={{ borderLeft: '5px solid #28a745', padding: '20px', margin: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <div className="panel" style={{ borderLeft: '5px solid #28a745', padding: '20px', margin: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', background: '#f4fbf5' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ color: '#666', fontSize: '0.85rem', fontWeight: 'bold' }}>RECEITA GANHA</div>
-                  <i className="fa-solid fa-check-circle" style={{ color: '#28a745', fontSize: '1.2rem' }}></i>
+                  <div style={{ color: '#666', fontSize: '0.85rem', fontWeight: 'bold' }}>RECEITA FRACIONADA</div>
+                  <i className="fa-solid fa-hand-holding-dollar" style={{ color: '#28a745', fontSize: '1.2rem' }}></i>
                 </div>
                 <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#333', margin: '10px 0' }}>{formatarMoeda(totalGanho)}</div>
-                <div style={{ fontSize: '0.85rem', color: '#28a745', fontWeight: 'bold' }}>{qtdGanho} contratos fechados</div>
+                <div style={{ fontSize: '0.85rem', color: '#28a745', fontWeight: 'bold' }}>{qtdGanhaCompetencia} inscrições no mês</div>
               </div>
 
               <div className="panel" style={{ borderLeft: '5px solid #17a2b8', padding: '20px', margin: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ color: '#666', fontSize: '0.85rem', fontWeight: 'bold' }}>TICKET MÉDIO</div>
+                  <div style={{ color: '#666', fontSize: '0.85rem', fontWeight: 'bold' }}>TICKET POR MÓDULO</div>
                   <i className="fa-solid fa-ticket" style={{ color: '#17a2b8', fontSize: '1.2rem' }}></i>
                 </div>
                 <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#333', margin: '10px 0' }}>{formatarMoeda(ticketMedio)}</div>
-                <div style={{ fontSize: '0.85rem', color: '#17a2b8', fontWeight: 'bold' }}>Média de valor por fechamento</div>
+                <div style={{ fontSize: '0.85rem', color: '#17a2b8', fontWeight: 'bold' }}>Média de valor por inscrição</div>
               </div>
 
               <div className="panel" style={{ borderLeft: '5px solid #dc3545', padding: '20px', margin: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
@@ -207,13 +316,37 @@ export function Dashboard() {
 
             </div>
 
-            {/* === ÁREA DE GRÁFICOS === */}
+            {filtroCampanha && modulosDaCampanha.length > 0 && (
+              <div className="panel" style={{ margin: '0 0 30px 0', padding: '20px', borderLeft: '5px solid #722ed1' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                  <div>
+                    <h4 style={{ margin: '0 0 5px 0', color: '#333' }}><i className="fa-solid fa-calendar-days" style={{ color: '#722ed1' }}></i> Fechamentos por Turma / Módulo (No mês selecionado)</h4>
+                    <p style={{ color: '#999', fontSize: '0.85rem', margin: 0 }}>Distribuição da receita e quantidade de inscrições por módulo.</p>
+                  </div>
+                </div>
+                <div style={{ width: '100%', height: 250 }}>
+                  {dadosModulos.every(d => d.Inscrições === 0) ? (
+                    <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa', fontStyle: 'italic' }}>Nenhuma venda fracionada para este mês.</div>
+                  ) : (
+                    <ResponsiveContainer>
+                      <BarChart data={dadosModulos} margin={{ top: 20, right: 30, left: -20, bottom: 5 }} layout="vertical">
+                        <XAxis type="number" allowDecimals={false} />
+                        <YAxis dataKey="nome" type="category" width={150} tick={{ fontSize: 11 }} />
+                        <Tooltip formatter={(value, name) => [name === 'Receita' ? formatarMoeda(value) : value, name]} />
+                        <Bar dataKey="Inscrições" fill="#28a745" radius={[0, 4, 4, 0]} barSize={20} />
+                        <Bar dataKey="Receita" fill="#722ed1" radius={[0, 4, 4, 0]} barSize={20} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px', marginBottom: '30px' }}>
               
-              {/* Gráfico 1: Barras (Funil ou Comparativo) */}
               <div className="panel" style={{ margin: 0, padding: '20px' }}>
                 <h4 style={{ margin: '0 0 5px 0', color: '#333' }}>{tituloGraficoBarras}</h4>
-                <p style={{ color: '#999', fontSize: '0.85rem', marginBottom: '20px' }}>Exibe apenas negociações ativas (não fechadas/perdidas).</p>
+                <p style={{ color: '#999', fontSize: '0.85rem', marginBottom: '20px' }}>Exibe apenas negociações em andamento (Sem Rateio).</p>
                 <div style={{ width: '100%', height: 300 }}>
                   {dadosGraficoBarras.length === 0 ? (
                     <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa', fontStyle: 'italic' }}>Nenhum negócio ativo para exibir.</div>
@@ -225,7 +358,7 @@ export function Dashboard() {
                         <Tooltip formatter={(value, name) => [name === 'Valor' ? formatarMoeda(value) : value, name]} />
                         <Bar dataKey="Quantidade" fill="#007bff" radius={[4, 4, 0, 0]}>
                           {dadosGraficoBarras.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={filtroCampanha ? (index > 2 ? '#ff9800' : '#007bff') : '#722ed1'} />
+                            <Cell key={`cell-${index}`} fill={filtroCampanha ? (index > 2 ? '#ff9800' : '#007bff') : '#17a2b8'} />
                           ))}
                         </Bar>
                       </BarChart>
@@ -234,10 +367,9 @@ export function Dashboard() {
                 </div>
               </div>
 
-              {/* Gráfico 2: Pizza de Taxa de Conversão */}
               <div className="panel" style={{ margin: 0, padding: '20px', display: 'flex', flexDirection: 'column' }}>
-                <h4 style={{ margin: '0 0 5px 0', color: '#333', textAlign: 'center' }}>Efetividade Geral</h4>
-                <p style={{ color: '#999', fontSize: '0.85rem', marginBottom: '20px', textAlign: 'center' }}>Distribuição de resultados dos negócios criados.</p>
+                <h4 style={{ margin: '0 0 5px 0', color: '#333', textAlign: 'center' }}>Efetividade (Por Inscrições)</h4>
+                <p style={{ color: '#999', fontSize: '0.85rem', marginBottom: '20px', textAlign: 'center' }}>Comparativo geral do período filtrado.</p>
                 <div style={{ width: '100%', flex: 1, minHeight: '250px' }}>
                   {dadosPizza.length === 0 ? (
                      <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa', fontStyle: 'italic' }}>Nenhum dado para analisar.</div>
@@ -266,51 +398,86 @@ export function Dashboard() {
 
             </div>
 
-            {/* === TABELA DE VENDAS RECENTES === */}
-            <div className="panel" style={{ margin: 0 }}>
-              <div className="panel-title" style={{ padding: '20px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <i className="fa-solid fa-trophy" style={{ color: '#f1c40f', fontSize: '1.2rem' }}></i> 
-                <span>Últimas Vendas Concluídas {filtroCampanha && <span style={{color: '#999', fontSize: '0.85rem', fontWeight: 'normal'}}>(Nesta campanha)</span>}</span>
-              </div>
-              <div className="table-responsive">
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ background: '#f8f9fa', borderBottom: '2px solid #ddd', textAlign: 'left', color: '#555', fontSize: '0.9rem' }}>
-                      <th style={{ padding: '15px' }}>Negociação</th>
-                      <th style={{ padding: '15px' }}>Prefeitura</th>
-                      {!filtroCampanha && <th style={{ padding: '15px' }}>Campanha</th>}
-                      <th style={{ padding: '15px' }}>Data do Fechamento</th>
-                      <th style={{ padding: '15px', textAlign: 'right' }}>Valor Fechado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {ultimasVendas.length === 0 ? (
-                      <tr><td colSpan={!filtroCampanha ? 5 : 4} style={{ textAlign: 'center', padding: '30px', color: '#999', fontStyle: 'italic' }}>Nenhuma venda concluída para os filtros selecionados.</td></tr>
-                    ) : (
-                      ultimasVendas.map(op => (
-                        <tr key={op.id} style={{ borderBottom: '1px solid #eee' }}>
-                          <td style={{ padding: '15px', fontWeight: 'bold', color: '#333' }}>{op.titulo}</td>
-                          <td style={{ padding: '15px', color: '#555' }}>
-                            {op.empresa_nome ? <><i className="fa-solid fa-building" style={{color:'#aaa', marginRight:'5px'}}></i>{op.empresa_nome}</> : '-'}
-                          </td>
-                          {!filtroCampanha && (
-                            <td style={{ padding: '15px' }}>
-                              <span style={{ background: '#e9ecef', padding: '4px 10px', borderRadius: '12px', fontSize: '0.8rem', color: '#444', fontWeight: 'bold' }}>{op.campanha_nome || 'Avulsa'}</span>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px' }}>
+              
+              <div className="panel" style={{ margin: 0 }}>
+                <div className="panel-title" style={{ padding: '20px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <i className="fa-solid fa-medal" style={{ color: '#007bff', fontSize: '1.2rem' }}></i> 
+                  <span>Ranking de Vendas (Inscrições Rateadas)</span>
+                </div>
+                <div className="table-responsive">
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: '#f8f9fa', borderBottom: '2px solid #ddd', textAlign: 'left', color: '#555', fontSize: '0.9rem' }}>
+                        <th style={{ padding: '15px' }}>Vendedor</th>
+                        <th style={{ padding: '15px', textAlign: 'center' }}>Inscrições</th>
+                        <th style={{ padding: '15px', textAlign: 'right' }}>Receita Gerada</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dadosEquipe.length === 0 ? (
+                        <tr><td colSpan="3" style={{ textAlign: 'center', padding: '30px', color: '#999', fontStyle: 'italic' }}>Nenhuma venda rateada para este mês.</td></tr>
+                      ) : (
+                        dadosEquipe.map((v, index) => (
+                          <tr key={index} style={{ borderBottom: '1px solid #eee' }}>
+                            <td style={{ padding: '15px', fontWeight: 'bold', color: '#333' }}>
+                              {index === 0 && <i className="fa-solid fa-crown" style={{color: '#f1c40f', marginRight: '8px'}}></i>}
+                              {v.nome}
                             </td>
-                          )}
-                          <td style={{ padding: '15px', color: '#777', fontSize: '0.9rem' }}>
-                            <i className="fa-regular fa-calendar" style={{marginRight:'5px'}}></i>
-                            {formatarData(op.atualizado_em || op.criado_em)}
-                          </td>
-                          <td style={{ padding: '15px', textAlign: 'right', fontWeight: 'bold', color: '#28a745', fontSize: '1.05rem' }}>
-                            {formatarMoeda(op.valor)}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                            <td style={{ padding: '15px', textAlign: 'center', color: '#555', fontWeight: 'bold' }}>
+                              <span style={{ background: '#e9ecef', padding: '2px 8px', borderRadius: '12px' }}>{v.quantidade}</span>
+                            </td>
+                            <td style={{ padding: '15px', textAlign: 'right', fontWeight: 'bold', color: '#28a745' }}>
+                              {formatarMoeda(v.total)}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
+
+              <div className="panel" style={{ margin: 0 }}>
+                <div className="panel-title" style={{ padding: '20px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <i className="fa-solid fa-handshake" style={{ color: '#28a745', fontSize: '1.2rem' }}></i> 
+                  <span>Últimos Negócios (Totais) Fechados</span>
+                </div>
+                <div className="table-responsive">
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: '#f8f9fa', borderBottom: '2px solid #ddd', textAlign: 'left', color: '#555', fontSize: '0.9rem' }}>
+                        <th style={{ padding: '15px' }}>Negociação</th>
+                        <th style={{ padding: '15px' }}>Vendedor</th>
+                        <th style={{ padding: '15px', textAlign: 'right' }}>Valor Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ultimasVendas.length === 0 ? (
+                        <tr><td colSpan="3" style={{ textAlign: 'center', padding: '30px', color: '#999', fontStyle: 'italic' }}>Nenhuma venda concluída (sem filtros).</td></tr>
+                      ) : (
+                        ultimasVendas.map(op => (
+                          <tr key={op.id} style={{ borderBottom: '1px solid #eee' }}>
+                            <td style={{ padding: '15px' }}>
+                              <div style={{ fontWeight: 'bold', color: '#333' }}>{op.titulo}</div>
+                              <div style={{ fontSize: '0.8rem', color: '#777', marginTop: '3px' }}>{formatarData(op.atualizado_em || op.criado_em)}</div>
+                            </td>
+                            <td style={{ padding: '15px' }}>
+                              <span style={{ background: '#e7f3ff', color: '#007bff', padding: '4px 10px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'bold' }}>
+                                {op.origem_venda === 'landing_page' ? '🤖 Automático' : (op.vendedor_nome || 'Equipe')}
+                              </span>
+                            </td>
+                            <td style={{ padding: '15px', textAlign: 'right', fontWeight: 'bold', color: '#28a745', fontSize: '1.05rem' }}>
+                              {formatarMoeda(op.valor)}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
             </div>
 
           </>

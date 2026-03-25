@@ -5,158 +5,251 @@ import { Header } from '../componentes/Header.jsx';
 
 export function Campanhas() {
   const [campanhas, setCampanhas] = useState([]);
-  const [carregando, setCarregando] = useState(true);
-  const perfilUsuario = localStorage.getItem('perfil');
-
-  const [mostrarForm, setMostrarForm] = useState(false);
+  const [mostrarModal, setMostrarModal] = useState(false);
   const [editandoId, setEditandoId] = useState(null);
+
   const [nome, setNome] = useState('');
   const [descricao, setDescricao] = useState('');
   
-  // NOVO: Array dinâmico de etapas
-  const [etapasForm, setEtapasForm] = useState(['Lead', 'Contato Feito', 'Proposta Enviada', 'Fechamento']);
+  const [etapas, setEtapas] = useState(['Contato Feito', 'Reunião Agendada', 'Proposta Enviada', 'Em Negociação']);
+  const [novaEtapa, setNovaEtapa] = useState('');
+
+  const [modulos, setModulos] = useState([]);
+  const [modNome, setModNome] = useState('');
+  const [modInicio, setModInicio] = useState('');
+  const [modFim, setModFim] = useState('');
+  const [modEvento, setModEvento] = useState('');
+  const [modValor, setModValor] = useState(''); 
 
   const API_URL = 'https://server-js-gestao.onrender.com';
-
-  useEffect(() => { carregarCampanhas(); }, []);
 
   function getHeaders() {
     const token = localStorage.getItem('token');
     return { headers: { Authorization: `Bearer ${token}` } };
   }
 
+  useEffect(() => { carregarCampanhas(); }, []);
+
   async function carregarCampanhas() {
-    setCarregando(true);
     try {
       const res = await axios.get(`${API_URL}/campanhas`, getHeaders());
-      setCampanhas(res.data);
-    } catch (e) { console.error(e); } finally { setCarregando(false); }
+      const campanhasComModulos = await Promise.all(res.data.map(async (camp) => {
+        const resMods = await axios.get(`${API_URL}/campanhas/${camp.id}/modulos`, getHeaders());
+        return { ...camp, listaModulos: resMods.data };
+      }));
+      setCampanhas(campanhasComModulos);
+    } catch (erro) { console.error('Erro ao buscar campanhas', erro); }
   }
 
-  // === LÓGICA DAS ETAPAS ===
-  function adicionarEtapa() { setEtapasForm([...etapasForm, 'Nova Etapa']); }
-  function removerEtapa(index) { setEtapasForm(etapasForm.filter((_, i) => i !== index)); }
-  function atualizarEtapa(index, valor) {
-    const novoArray = [...etapasForm];
-    novoArray[index] = valor;
-    setEtapasForm(novoArray);
-  }
+  function formatarMoeda(valor) { return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
 
-  function abrirNovo() {
+  function abrirModalNovo() {
     setEditandoId(null); setNome(''); setDescricao('');
-    setEtapasForm(['Lead', 'Contato Feito', 'Proposta Enviada', 'Fechamento']); // Reseta o funil padrão
-    setMostrarForm(true);
+    setEtapas(['Contato Feito', 'Reunião Agendada', 'Proposta Enviada', 'Em Negociação']);
+    setModulos([]); setMostrarModal(true);
   }
 
-  function prepararEdicao(c) {
-    setEditandoId(c.id); setNome(c.nome); setDescricao(c.descricao || '');
-    setEtapasForm([]); // Edição de etapas existentes exigiria painel à parte, mantemos simples
-    setMostrarForm(true);
+  function abrirModalEdicao(camp) {
+    setEditandoId(camp.id); setNome(camp.nome); setDescricao(camp.descricao || '');
+    
+    const modsFormatados = (camp.listaModulos || []).map(m => ({
+      id: m.id, nome: m.nome, valor: m.valor,
+      data_inicio_vendas: m.data_inicio_vendas ? m.data_inicio_vendas.split('T')[0] : '',
+      data_fim_vendas: m.data_fim_vendas ? m.data_fim_vendas.split('T')[0] : '',
+      data_evento: m.data_evento ? m.data_evento.split('T')[0] : ''
+    }));
+    setModulos(modsFormatados); setMostrarModal(true);
   }
 
-  async function salvar(e) {
+  function adicionarEtapa() { if (novaEtapa.trim() !== '') { setEtapas([...etapas, novaEtapa]); setNovaEtapa(''); } }
+  function removerEtapa(index) { const novas = [...etapas]; novas.splice(index, 1); setEtapas(novas); }
+
+  function adicionarModulo() {
+    if (!modNome.trim()) return alert('O nome do módulo é obrigatório.');
+    setModulos([...modulos, { 
+      nome: modNome, valor: modValor ? parseFloat(modValor) : 0,
+      data_inicio_vendas: modInicio || null, data_fim_vendas: modFim || null, data_evento: modEvento || null 
+    }]);
+    setModNome(''); setModInicio(''); setModFim(''); setModEvento(''); setModValor('');
+  }
+
+  function removerModulo(index) { const novos = [...modulos]; novos.splice(index, 1); setModulos(novos); }
+
+  // === NOVO: ATUALIZAR MÓDULO EXISTENTE NA LISTA ===
+  function atualizarModuloNaLista(index, campo, valorCampo) {
+    const novos = [...modulos];
+    novos[index][campo] = campo === 'valor' ? (parseFloat(valorCampo) || 0) : valorCampo;
+    setModulos(novos);
+  }
+
+  async function salvarCampanha(e) {
     e.preventDefault();
+    if (!editandoId && etapas.length === 0) return alert('Adicione pelo menos uma etapa para o funil.');
     try {
-      if (editandoId) {
-        await axios.put(`${API_URL}/campanhas/${editandoId}`, { nome, descricao }, getHeaders());
-      } else {
-        // Envia as etapas atreladas na hora da CRIAÇÃO
-        await axios.post(`${API_URL}/campanhas`, { nome, descricao, etapas: etapasForm.filter(e => e.trim() !== '') }, getHeaders());
-      }
-      setMostrarForm(false);
-      carregarCampanhas();
-    } catch (err) { alert('Erro ao salvar campanha.'); }
+      if (editandoId) await axios.put(`${API_URL}/campanhas/${editandoId}`, { nome, descricao, modulos }, getHeaders());
+      else await axios.post(`${API_URL}/campanhas`, { nome, descricao, etapas, modulos }, getHeaders());
+      setMostrarModal(false); carregarCampanhas();
+    } catch (erro) { alert('Erro ao salvar campanha.'); }
   }
 
-  async function excluir(id) {
-    if (!window.confirm("Deseja excluir esta campanha? Os funis e oportunidades dela serão afetados.")) return;
-    try {
-      await axios.delete(`${API_URL}/campanhas/${id}`, getHeaders());
-      carregarCampanhas();
-    } catch (err) { alert("Erro ao excluir. Pode haver negociações atreladas."); }
+  async function deletarCampanha(id) {
+    if(!window.confirm('Excluir esta Campanha/Curso?')) return;
+    try { await axios.delete(`${API_URL}/campanhas/${id}`, getHeaders()); carregarCampanhas(); } 
+    catch (error) { console.error(error); }
+  }
+
+  function formatarDataBR(dataIso) {
+    if (!dataIso) return '-';
+    const data = new Date(dataIso);
+    data.setMinutes(data.getMinutes() + data.getTimezoneOffset());
+    return data.toLocaleDateString('pt-BR');
   }
 
   return (
     <div>
-      <Header titulo="Gestão de Campanhas e Funis" />
+      <Header titulo="Gestão de Cursos / Campanhas" />
+
       <div className="page-container">
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <div>
-            <h2 style={{ color: '#333', margin: 0 }}>Múltiplos Funis (Campanhas)</h2>
-            <p style={{ color: '#777', fontSize: '0.9rem' }}>Crie campanhas e defina as etapas personalizadas para cada uma.</p>
+            <h2 style={{ margin: 0, color: '#333' }}>Cursos e Lançamentos</h2>
+            <p style={{ color: '#777', fontSize: '0.9rem', marginTop: '5px' }}>Configure os cursos, módulos e preços.</p>
           </div>
-          <button onClick={abrirNovo} style={{ background: '#007bff', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
-            <i className="fa-solid fa-layer-group"></i> Nova Campanha
+          <button onClick={abrirModalNovo} style={{ background: '#007bff', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
+            <i className="fa-solid fa-plus"></i> Novo Curso
           </button>
         </div>
 
-        {mostrarForm && (
-          <div className="panel" style={{ borderLeft: '5px solid #007bff', marginBottom: '20px' }}>
-            <h3>{editandoId ? 'Editar Dados da Campanha' : 'Criar Campanha e Construir Funil'}</h3>
-            <form onSubmit={salvar} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-              <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ fontWeight: 'bold' }}>Nome da Campanha / Curso *</label>
-                <input type="text" value={nome} onChange={e => setNome(e.target.value)} required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '20px' }}>
+          {campanhas.map(camp => (
+            <div 
+              key={camp.id} className="panel" onClick={() => abrirModalEdicao(camp)} 
+              style={{ padding: '20px', position: 'relative', cursor: 'pointer', transition: 'transform 0.2s', border: '1px solid transparent' }}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.border = '1px solid #007bff'; e.currentTarget.style.boxShadow = '0 6px 12px rgba(0,0,0,0.1)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.border = '1px solid transparent'; e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)'; }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <h3 style={{ margin: '0 0 10px 0', color: '#007bff' }}><i className="fa-solid fa-graduation-cap"></i> {camp.nome}</h3>
+                <button onClick={(e) => { e.stopPropagation(); deletarCampanha(camp.id); }} style={{ background: 'none', border: 'none', color: '#dc3545', cursor: 'pointer', padding: '5px' }} title="Excluir Curso">
+                  <i className="fa-solid fa-trash"></i>
+                </button>
               </div>
-              <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ fontWeight: 'bold' }}>Descrição / Objetivo</label>
-                <textarea value={descricao} onChange={e => setDescricao(e.target.value)} rows="2" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }} />
-              </div>
-
-              {/* CONSTRUTOR DE FUNIL (Só aparece ao criar nova) */}
-              {!editandoId && (
-                <div style={{ gridColumn: 'span 2', background: '#f8f9fa', padding: '20px', borderRadius: '8px', border: '1px solid #eee' }}>
-                  <label style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#333', display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
-                    <span><i className="fa-solid fa-filter"></i> Etapas do Funil Desta Campanha</span>
-                    <button type="button" onClick={adicionarEtapa} style={{ background: '#28a745', color: '#fff', border: 'none', padding: '5px 15px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem' }}>+ Adicionar Etapa</button>
-                  </label>
-                  
-                  <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '10px' }}>
-                    {etapasForm.map((etapa, index) => (
-                      <div key={index} style={{ minWidth: '200px', background: '#fff', border: '1px solid #ccc', borderRadius: '6px', padding: '10px', position: 'relative' }}>
-                        <div style={{ fontSize: '0.8rem', color: '#999', marginBottom: '5px', fontWeight: 'bold' }}>ETAPA {index + 1}</div>
-                        <input type="text" value={etapa} onChange={e => atualizarEtapa(index, e.target.value)} style={{ width: '100%', border: 'none', borderBottom: '2px solid #007bff', outline: 'none', fontWeight: 'bold', color: '#333' }} />
-                        {etapasForm.length > 1 && (
-                          <button type="button" onClick={() => removerEtapa(index)} style={{ position: 'absolute', top: '5px', right: '5px', background: 'none', border: 'none', color: '#dc3545', cursor: 'pointer' }}><i className="fa-solid fa-times"></i></button>
-                        )}
+              <p style={{ color: '#555', fontSize: '0.9rem', minHeight: '40px' }}>{camp.descricao || 'Sem descrição definida.'}</p>
+              
+              <div style={{ marginTop: '15px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
+                <h4 style={{ margin: '0 0 10px 0', color: '#333', fontSize: '0.85rem' }}><i className="fa-solid fa-calendar-days"></i> Turmas / Módulos ({camp.listaModulos?.length || 0})</h4>
+                {camp.listaModulos?.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {camp.listaModulos.map(mod => (
+                      <div key={mod.id} style={{ background: '#f8f9fa', padding: '8px 12px', borderRadius: '6px', fontSize: '0.8rem', borderLeft: '3px solid #28a745', display: 'flex', justifyContent: 'space-between' }}>
+                        <div>
+                          <strong style={{ color: '#333', display: 'block' }}>{mod.nome}</strong>
+                          <div style={{ color: '#666', marginTop: '4px' }}>Aula: {formatarDataBR(mod.data_evento)}</div>
+                        </div>
+                        <div style={{ fontWeight: 'bold', color: '#28a745' }}>{formatarMoeda(mod.valor)}</div>
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
-
-              <div style={{ gridColumn: 'span 2', display: 'flex', gap: '10px', justifyContent: 'flex-end', borderTop: '1px solid #eee', paddingTop: '15px' }}>
-                <button type="button" onClick={() => setMostrarForm(false)} style={{ padding: '10px 20px', border: 'none', background: '#eee', borderRadius: '6px' }}>Cancelar</button>
-                <button type="submit" style={{ padding: '10px 20px', border: 'none', background: '#007bff', color: '#fff', borderRadius: '6px', fontWeight: 'bold' }}><i className="fa-solid fa-save"></i> Salvar Campanha</button>
+                ) : (
+                  <span style={{ fontSize: '0.8rem', color: '#999', fontStyle: 'italic' }}>Nenhum módulo cadastrado.</span>
+                )}
               </div>
-            </form>
+            </div>
+          ))}
+        </div>
+
+        {mostrarModal && (
+          <div className="modal-overlay" onClick={() => setMostrarModal(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '30px', borderRadius: '12px' }}>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #eee', paddingBottom: '10px' }}>
+                <h3 style={{ margin: 0 }}>{editandoId ? 'Editar Curso Base' : 'Configurar Novo Curso/Campanha'}</h3>
+                <button onClick={() => setMostrarModal(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer' }}>&times;</button>
+              </div>
+
+              <form onSubmit={salvarCampanha}>
+                <div style={{ marginBottom: '15px' }}>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.9rem' }}>Nome do Curso/Campanha *</label>
+                  <input type="text" value={nome} onChange={e => setNome(e.target.value)} required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+                </div>
+                
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.9rem' }}>Descrição Breve</label>
+                  <textarea value={descricao} onChange={e => setDescricao(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', resize: 'vertical' }} rows="2"></textarea>
+                </div>
+
+                <div style={{ background: '#f4fbf5', padding: '20px', borderRadius: '8px', border: '1px solid #c3e6cb', marginBottom: '20px' }}>
+                  <h4 style={{ margin: '0 0 15px 0', color: '#28a745' }}><i className="fa-solid fa-calendar-days"></i> Gerenciar Módulos e Preços</h4>
+                  
+                  {/* === ADICIONAR NOVO MÓDULO === */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr auto', gap: '10px', alignItems: 'end', marginBottom: '15px', paddingBottom: '15px', borderBottom: '2px dashed #c3e6cb' }}>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Novo Módulo</label>
+                      <input type="text" value={modNome} onChange={e => setModNome(e.target.value)} placeholder="Nome" style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#007bff' }}>Preço (R$)</label>
+                      <input type="number" step="0.01" value={modValor} onChange={e => setModValor(e.target.value)} placeholder="0.00" style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #007bff', background: '#e7f3ff' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Início Vendas</label>
+                      <input type="date" value={modInicio} onChange={e => setModInicio(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Fim Vendas</label>
+                      <input type="date" value={modFim} onChange={e => setModFim(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Data da Aula</label>
+                      <input type="date" value={modEvento} onChange={e => setModEvento(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }} />
+                    </div>
+                    <button type="button" onClick={adicionarModulo} style={{ padding: '9px', background: '#28a745', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>+ ADD</button>
+                  </div>
+
+                  {/* === LISTA DE MÓDULOS EDITÁVEIS === */}
+                  {modulos.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <label style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#555' }}>Módulos Cadastrados (Edite direto abaixo):</label>
+                      {modulos.map((mod, index) => (
+                        <div key={index} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr auto', gap: '10px', alignItems: 'center', background: '#fff', padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }}>
+                          <input type="text" value={mod.nome} onChange={e => atualizarModuloNaLista(index, 'nome', e.target.value)} style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }} title="Nome do Módulo" />
+                          <input type="number" step="0.01" value={mod.valor} onChange={e => atualizarModuloNaLista(index, 'valor', e.target.value)} style={{ width: '100%', padding: '6px', border: '1px solid #007bff', borderRadius: '4px', background: '#e7f3ff' }} title="Preço" />
+                          <input type="date" value={mod.data_inicio_vendas || ''} onChange={e => atualizarModuloNaLista(index, 'data_inicio_vendas', e.target.value)} style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }} title="Início" />
+                          <input type="date" value={mod.data_fim_vendas || ''} onChange={e => atualizarModuloNaLista(index, 'data_fim_vendas', e.target.value)} style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }} title="Fim" />
+                          <input type="date" value={mod.data_evento || ''} onChange={e => atualizarModuloNaLista(index, 'data_evento', e.target.value)} style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px' }} title="Aula" />
+                          <button type="button" onClick={() => removerModulo(index)} style={{ background: 'none', border: 'none', color: '#dc3545', cursor: 'pointer', fontSize: '1.2rem' }}><i className="fa-solid fa-times-circle"></i></button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {!editandoId && (
+                  <div style={{ background: '#f8f9fa', padding: '20px', borderRadius: '8px', border: '1px solid #eee', marginBottom: '20px' }}>
+                    <h4 style={{ margin: '0 0 15px 0', color: '#007bff' }}><i className="fa-solid fa-list-ol"></i> Etapas do Funil</h4>
+                    <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+                      <input type="text" value={novaEtapa} onChange={e => setNovaEtapa(e.target.value)} style={{ flex: 1, padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} onKeyDown={e => { if(e.key === 'Enter') { e.preventDefault(); adicionarEtapa(); }}} />
+                      <button type="button" onClick={adicionarEtapa} style={{ background: '#6c757d', color: '#fff', border: 'none', padding: '0 20px', borderRadius: '6px', cursor: 'pointer' }}>Adicionar</button>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {etapas.map((etp, index) => (
+                        <div key={index} style={{ display: 'flex', justifyContent: 'space-between', background: '#fff', padding: '10px 15px', borderRadius: '6px', border: '1px solid #ddd', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 'bold', color: '#555' }}><span style={{ color: '#007bff', marginRight: '10px' }}>{index + 1}.</span> {etp}</span>
+                          <button type="button" onClick={() => removerEtapa(index)} style={{ background: 'none', border: 'none', color: '#dc3545', cursor: 'pointer' }}><i className="fa-solid fa-times"></i></button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+                  <button type="button" onClick={() => setMostrarModal(false)} style={{ background: '#eee', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', color: '#333' }}>Cancelar</button>
+                  <button type="submit" style={{ background: '#007bff', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>Salvar Curso & Estrutura</button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
-
-        <div className="panel" style={{ padding: '0' }}>
-          <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: '#f8f9fa', borderBottom: '2px solid #ddd' }}>
-                <th style={{ padding: '15px' }}>Campanha / Funil</th>
-                <th style={{ padding: '15px' }}>Descrição</th>
-                <th style={{ padding: '15px', textAlign: 'center' }}>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {carregando ? <tr><td colSpan="3" style={{textAlign:'center', padding:'20px'}}>Carregando...</td></tr> : 
-               campanhas.map(c => (
-                <tr key={c.id} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={{ padding: '15px', fontWeight: 'bold', color: '#007bff' }}><i className="fa-solid fa-bullhorn"></i> {c.nome}</td>
-                  <td style={{ padding: '15px', color: '#666' }}>{c.descricao || '-'}</td>
-                  <td style={{ padding: '15px', textAlign: 'center' }}>
-                    <button onClick={() => prepararEdicao(c)} style={{ background: 'none', border: 'none', color: '#ffc107', cursor: 'pointer', fontSize: '1.2rem', marginRight: '10px' }}><i className="fa-solid fa-pen-to-square"></i></button>
-                    {perfilUsuario === 'admin' && <button onClick={() => excluir(c.id)} style={{ background: 'none', border: 'none', color: '#dc3545', cursor: 'pointer', fontSize: '1.2rem' }}><i className="fa-solid fa-trash-can"></i></button>}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
       </div>
     </div>
   );
