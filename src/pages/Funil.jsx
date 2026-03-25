@@ -9,31 +9,33 @@ export function Funil() {
   const [empresas, setEmpresas] = useState([]);
   const [contatos, setContatos] = useState([]);
   const [campanhas, setCampanhas] = useState([]); 
-  const [carregando, setCarregando] = useState(true);
+  const [carregando, setCarregando] = useState(false);
 
   const [filtroCampanha, setFiltroCampanha] = useState('');
 
-  // Estados do Modal
+  // Estados do Modal Principal
   const [mostrarModal, setMostrarModal] = useState(false);
   const [editandoId, setEditandoId] = useState(null);
   
-  // Campos do Formulário
   const [titulo, setTitulo] = useState('');
   const [valor, setValor] = useState('');
   const [empresaId, setEmpresaId] = useState('');
   const [contatoId, setContatoId] = useState('');
   const [etapaId, setEtapaId] = useState('');
   const [observacoes, setObservacoes] = useState('');
-  const [campanhaId, setCampanhaId] = useState(''); 
   const [statusOp, setStatusOp] = useState('aberto');
 
-  // === ESTADOS DO HISTÓRICO DE NOTAS ===
   const [notas, setNotas] = useState([]);
   const [novaNota, setNovaNota] = useState('');
   const [editandoNotaId, setEditandoNotaId] = useState(null); 
   const [textoNotaEditada, setTextoNotaEditada] = useState(''); 
 
-  // Estados dos Dropdowns
+  // Estados para a Criação Rápida de Contato
+  const [mostrarCriarContato, setMostrarCriarContato] = useState(false);
+  const [inlineNome, setInlineNome] = useState('');
+  const [inlineCargo, setInlineCargo] = useState('');
+  const [inlineTelefone, setInlineTelefone] = useState('');
+
   const [buscaEmpresaNoModal, setBuscaEmpresaNoModal] = useState('');
   const [mostrarDropdownEmpresa, setMostrarDropdownEmpresa] = useState(false);
   const dropdownEmpresaRef = useRef(null);
@@ -42,9 +44,46 @@ export function Funil() {
   const [mostrarDropdownContato, setMostrarDropdownContato] = useState(false);
   const dropdownContatoRef = useRef(null);
 
+  const boardRef = useRef(null);
+  const isDown = useRef(false);
+  const startX = useRef(0);
+  const scrollLeft = useRef(0);
+
+  // === CORREÇÃO DO BUG: Impede arrastar a tela se clicar num cartão ===
+  function onBoardMouseDown(e) {
+    if (e.target.closest('.kanban-card')) return; // A MÁGICA ESTÁ NESTA LINHA!
+
+    isDown.current = true;
+    if (boardRef.current) {
+      boardRef.current.style.cursor = 'grabbing';
+      startX.current = e.pageX - boardRef.current.offsetLeft;
+      scrollLeft.current = boardRef.current.scrollLeft;
+    }
+  }
+
+  function onBoardMouseLeave() { isDown.current = false; if (boardRef.current) boardRef.current.style.cursor = 'auto'; }
+  function onBoardMouseUp() { isDown.current = false; if (boardRef.current) boardRef.current.style.cursor = 'auto'; }
+
+  function onBoardMouseMove(e) {
+    if (!isDown.current) return;
+    e.preventDefault();
+    const x = e.pageX - boardRef.current.offsetLeft;
+    const walk = (x - startX.current) * 1.5; 
+    if (boardRef.current) { boardRef.current.scrollLeft = scrollLeft.current - walk; }
+  }
+
   const API_URL = 'https://server-js-gestao.onrender.com';
 
-  useEffect(() => { carregarQuadro(); }, []);
+  useEffect(() => { carregarDadosBase(); }, []);
+
+  useEffect(() => {
+    if (filtroCampanha) {
+      carregarFunilDaCampanha(filtroCampanha);
+    } else {
+      setEtapas([]);
+      setOportunidades([]);
+    }
+  }, [filtroCampanha]);
 
   useEffect(() => {
     const handleClickFora = (event) => {
@@ -72,21 +111,29 @@ export function Funil() {
     return { headers: { Authorization: `Bearer ${token}` } };
   }
 
-  async function carregarQuadro() {
-    setCarregando(true);
+  async function carregarDadosBase() {
     try {
-      const [resE, resO, resEmp, resC, resCamp] = await Promise.all([
-        axios.get(`${API_URL}/etapas`, getHeaders()),
-        axios.get(`${API_URL}/oportunidades`, getHeaders()),
+      const [resEmp, resC, resCamp] = await Promise.all([
         axios.get(`${API_URL}/empresas`, getHeaders()),
         axios.get(`${API_URL}/contatos`, getHeaders()),
         axios.get(`${API_URL}/campanhas`, getHeaders()) 
       ]);
-      setEtapas(resE.data);
-      setOportunidades(resO.data);
       setEmpresas(resEmp.data);
       setContatos(resC.data);
       setCampanhas(resCamp.data);
+    } catch (erro) { console.error(erro); }
+  }
+
+  async function carregarFunilDaCampanha(campanhaId) {
+    setCarregando(true);
+    try {
+      const resEtapas = await axios.get(`${API_URL}/campanhas/${campanhaId}/etapas`, getHeaders());
+      setEtapas(resEtapas.data);
+
+      const resOps = await axios.get(`${API_URL}/oportunidades`, getHeaders());
+      const opsDestaCampanha = resOps.data.filter(op => op.campanha_id === parseInt(campanhaId));
+      setOportunidades(opsDestaCampanha);
+
     } catch (erro) { console.error(erro); } finally { setCarregando(false); }
   }
 
@@ -106,15 +153,8 @@ export function Funil() {
     } catch (e) { alert('Erro ao adicionar nota.'); }
   }
 
-  function iniciarEdicaoNota(nota) {
-    setEditandoNotaId(nota.id);
-    setTextoNotaEditada(nota.nota);
-  }
-
-  function cancelarEdicaoNota() {
-    setEditandoNotaId(null);
-    setTextoNotaEditada('');
-  }
+  function iniciarEdicaoNota(nota) { setEditandoNotaId(nota.id); setTextoNotaEditada(nota.nota); }
+  function cancelarEdicaoNota() { setEditandoNotaId(null); setTextoNotaEditada(''); }
 
   async function salvarNotaEditada(id) {
     if (!textoNotaEditada.trim()) return;
@@ -127,11 +167,43 @@ export function Funil() {
 
   const oportunidadesExibidas = filtroCampanha ? oportunidades.filter(op => op.campanha_id === parseInt(filtroCampanha)) : oportunidades;
   const empresasFiltradasParaSelect = empresas.filter(e => e.nome.toLowerCase().includes(buscaEmpresaNoModal.toLowerCase()));
-  const contatosFiltradosParaSelect = contatos.filter(c => c.nome.toLowerCase().includes(buscaContatoNoModal.toLowerCase()));
+  
+  let baseContatosFiltrados = contatos;
+  if (empresaId) {
+    baseContatosFiltrados = contatos.filter(c => c.empresa_id === parseInt(empresaId));
+  }
+  const contatosFiltradosParaSelect = baseContatosFiltrados.filter(c => c.nome.toLowerCase().includes(buscaContatoNoModal.toLowerCase()));
+
+  async function salvarContatoInline(e) {
+    e.preventDefault();
+    try {
+      const payload = {
+        nome: inlineNome,
+        cargo: inlineCargo,
+        empresa_id: empresaId || null, 
+        telefones_json: inlineTelefone ? [inlineTelefone] : [],
+        emails_json: []
+      };
+      
+      const res = await axios.post(`${API_URL}/contatos`, payload, getHeaders());
+      const novoContato = res.data;
+      
+      setContatos([...contatos, novoContato]);
+      
+      setContatoId(novoContato.id);
+      setBuscaContatoNoModal(novoContato.nome);
+      
+      setMostrarCriarContato(false);
+    } catch (err) {
+      alert("Erro ao criar contato.");
+    }
+  }
 
   function abrirModalNovo() {
+    if (!filtroCampanha) { alert("Selecione uma campanha no topo da tela antes de criar uma negociação!"); return; }
+    
     setEditandoId(null); setTitulo(''); setValor(''); setEmpresaId(''); setContatoId(''); setObservacoes('');
-    setCampanhaId(''); setStatusOp('aberto'); setEtapaId(etapas.length > 0 ? etapas[0].id : ''); 
+    setStatusOp('aberto'); setEtapaId(etapas.length > 0 ? etapas[0].id : ''); 
     setBuscaEmpresaNoModal(''); setBuscaContatoNoModal('');
     setNotas([]); setNovaNota(''); 
     cancelarEdicaoNota(); 
@@ -142,7 +214,7 @@ export function Funil() {
     setEditandoId(op.id); setTitulo(op.titulo); setValor(op.valor);
     setEmpresaId(op.empresa_id || ''); setContatoId(op.contato_id || '');
     setEtapaId(op.etapa_id); setObservacoes(op.observacoes || '');
-    setCampanhaId(op.campanha_id || ''); setStatusOp(op.status || 'aberto');
+    setStatusOp(op.status || 'aberto');
     setBuscaEmpresaNoModal(op.empresa_nome || ''); setBuscaContatoNoModal(op.contato_nome || '');
     
     setNotas([]); 
@@ -166,14 +238,15 @@ export function Funil() {
     const dados = {
       titulo, valor: valorFormatado, empresa_id: empresaId || null, 
       contato_id: contatoId || null, etapa_id: etapaId, observacoes,
-      campanha_id: campanhaId, status: statusOp
+      campanha_id: filtroCampanha, 
+      status: statusOp
     };
 
     try {
       if (editandoId) await axios.put(`${API_URL}/oportunidades/${editandoId}`, dados, getHeaders());
       else await axios.post(`${API_URL}/oportunidades`, dados, getHeaders());
       fecharModal();
-      carregarQuadro();
+      carregarFunilDaCampanha(filtroCampanha); 
     } catch (erro) { alert('Erro ao salvar oportunidade.'); }
   }
 
@@ -181,7 +254,7 @@ export function Funil() {
     if(!window.confirm('Excluir este negócio? O histórico de notas também será apagado.')) return;
     try {
       await axios.delete(`${API_URL}/oportunidades/${editandoId}`, getHeaders());
-      fecharModal(); carregarQuadro();
+      fecharModal(); carregarFunilDaCampanha(filtroCampanha);
     } catch (error) { console.error(error); }
   }
 
@@ -203,8 +276,10 @@ export function Funil() {
 
     try {
       await axios.put(`${API_URL}/oportunidades/${cardId}`, { ...oportunidade, etapa_id: idDaNovaEtapa }, getHeaders());
-    } catch (error) { carregarQuadro(); }
+    } catch (error) { carregarFunilDaCampanha(filtroCampanha); }
   }
+
+  const campanhaSelecionadaObj = campanhas.find(c => c.id === parseInt(filtroCampanha));
 
   return (
     <div>
@@ -214,33 +289,38 @@ export function Funil() {
         
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
           <div>
-            <h2 style={{ color: '#333', margin: 0 }}>Pipeline B2B / Governo</h2>
-            <p style={{ color: '#777', fontSize: '0.9rem', marginTop: '5px' }}>Arraste os cartões entre as colunas ou clique para editar.</p>
+            <h2 style={{ color: '#333', margin: 0 }}>Gestão de Pipeline</h2>
+            <p style={{ color: '#777', fontSize: '0.9rem', marginTop: '5px' }}>Selecione um Funil / Campanha abaixo para trabalhar.</p>
           </div>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f8f9fa', padding: '5px 10px', borderRadius: '8px', border: '1px solid #ddd' }}>
-              <label style={{ color: '#555', fontWeight: 'bold', fontSize: '0.9rem' }}><i className="fa-solid fa-filter"></i> Campanha:</label>
-              <select value={filtroCampanha} onChange={(e) => setFiltroCampanha(e.target.value)} style={{ border: 'none', background: 'transparent', outline: 'none', fontWeight: 'bold', color: '#007bff', cursor: 'pointer' }}>
-                <option value="">Todas as Campanhas</option>
-                {campanhas.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#007bff', padding: '8px 15px', borderRadius: '8px', border: '1px solid #0056b3', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+              <label style={{ color: '#fff', fontWeight: 'bold', fontSize: '1rem' }}><i className="fa-solid fa-layer-group"></i> Funil Ativo:</label>
+              <select value={filtroCampanha} onChange={(e) => setFiltroCampanha(e.target.value)} style={{ border: 'none', background: 'transparent', outline: 'none', fontWeight: 'bold', color: '#fff', cursor: 'pointer', fontSize: '1rem' }}>
+                <option value="" style={{ color: '#333' }}>-- Selecione um Curso/Campanha --</option>
+                {campanhas.map(c => <option key={c.id} value={c.id} style={{ color: '#333' }}>{c.nome}</option>)}
               </select>
             </div>
-            <button onClick={abrirModalNovo} style={{ background: '#007bff', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
-              <i className="fa-solid fa-plus-circle"></i>  Nova Oportunidade
-            </button>
+            
+            {filtroCampanha && (
+              <button onClick={abrirModalNovo} style={{ background: '#28a745', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                <i className="fa-solid fa-plus-circle"></i>  Nova Oportunidade
+              </button>
+            )}
           </div>
         </div>
 
         {mostrarModal && (
-          /* AQUI ESTÁ A CORREÇÃO: alignItems: 'center' (padrão) com padding 20px no overlay e overflowY: 'auto' no modal-content */
           <div className="modal-overlay" onClick={fecharModal} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-            
-            {/* O modal agora respeita a altura da tela (maxHeight 90vh) e rola internamente (overflowY) */}
             <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '30px', borderRadius: '12px' }}>
               
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #eee', paddingBottom: '10px' }}>
-                <h3 style={{ color: '#333', margin: 0 }}>{editandoId ? 'Editar Negócio' : 'Criar Novo Negócio'}</h3>
+                <div>
+                  <h3 style={{ color: '#333', margin: 0 }}>{editandoId ? 'Editar Negócio' : 'Criar Novo Negócio'}</h3>
+                  <div style={{ fontSize: '0.85rem', color: '#007bff', fontWeight: 'bold', marginTop: '5px' }}>
+                    <i className="fa-solid fa-bullhorn"></i> Vinculado à campanha: {campanhaSelecionadaObj?.nome}
+                  </div>
+                </div>
                 <button onClick={fecharModal} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#999', padding: 0 }}>&times;</button>
               </div>
               
@@ -257,8 +337,8 @@ export function Funil() {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>Etapa do Funil *</label>
-                  <select value={etapaId} onChange={(e) => setEtapaId(e.target.value)} required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}>
+                  <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>Etapa no Funil *</label>
+                  <select value={etapaId} onChange={(e) => setEtapaId(e.target.value)} required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #007bff', background: '#f8f9fa' }}>
                     {etapas.map(etp => <option key={etp.id} value={etp.id}>{etp.nome}</option>)}
                   </select>
                 </div>
@@ -272,21 +352,18 @@ export function Funil() {
                   </select>
                 </div>
 
-                <div>
-                  <label style={{ display: 'block', marginBottom: '5px', color: '#dc3545', fontSize: '0.9rem', fontWeight: 'bold' }}>Vincular a Campanha *</label>
-                  <select value={campanhaId} onChange={(e) => setCampanhaId(e.target.value)} required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '2px solid #007bff', background: '#f8f9fa' }}>
-                    <option value="" disabled>-- Selecione --</option>
-                    {campanhas.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                  </select>
-                </div>
+                {/* Preenche a lacuna do grid */}
+                <div></div>
 
                 <div>
                   <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>Prefeitura Alvo</label>
                   <div className="custom-select-container" ref={dropdownEmpresaRef}>
-                    <input type="text" className="custom-select-input" placeholder="🔍 Buscar prefeitura..." value={buscaEmpresaNoModal} autoComplete="off" onFocus={() => { setBuscaEmpresaNoModal(''); setMostrarDropdownEmpresa(true); }} onChange={(e) => { setBuscaEmpresaNoModal(e.target.value); setMostrarDropdownEmpresa(true); }} />
+                    <input type="text" className="custom-select-input" placeholder="🔍 Buscar prefeitura..." value={buscaEmpresaNoModal} autoComplete="off" onFocus={() => { setBuscaEmpresaNoModal(''); setMostrarDropdownEmpresa(true); }} onChange={(e) => { setBuscaEmpresaNoModal(e.target.value); setMostrarDropdownEmpresa(true); 
+                    if(e.target.value === '') { setEmpresaId(''); setContatoId(''); setBuscaContatoNoModal(''); }
+                    }} />
                     {mostrarDropdownEmpresa && (
                       <div className="custom-select-dropdown">
-                        <div className="custom-select-option" style={{ color: '#dc3545', fontWeight: 'bold' }} onClick={() => { setEmpresaId(''); setBuscaEmpresaNoModal(''); setMostrarDropdownEmpresa(false); }}><i className="fa-solid fa-eraser"></i> Limpar</div>
+                        <div className="custom-select-option" style={{ color: '#dc3545', fontWeight: 'bold' }} onClick={() => { setEmpresaId(''); setBuscaEmpresaNoModal(''); setContatoId(''); setBuscaContatoNoModal(''); setMostrarDropdownEmpresa(false); }}><i className="fa-solid fa-eraser"></i> Limpar Seleção</div>
                         {empresasFiltradasParaSelect.map(emp => (
                           <div key={emp.id} className="custom-select-option" onClick={() => { setEmpresaId(emp.id); setBuscaEmpresaNoModal(emp.nome); setMostrarDropdownEmpresa(false); }}>{emp.nome}</div>
                         ))}
@@ -296,15 +373,42 @@ export function Funil() {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>Contato Principal</label>
+                  <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                    Contato Principal {empresaId && <span style={{ color: '#28a745', fontSize: '0.75rem' }}>(Filtrado)</span>}
+                  </label>
                   <div className="custom-select-container" ref={dropdownContatoRef}>
-                    <input type="text" className="custom-select-input" placeholder="🔍 Buscar contato..." value={buscaContatoNoModal} autoComplete="off" onFocus={() => { setBuscaContatoNoModal(''); setMostrarDropdownContato(true); }} onChange={(e) => { setBuscaContatoNoModal(e.target.value); setMostrarDropdownContato(true); }} />
+                    <input type="text" className="custom-select-input" placeholder={empresaId ? "🔍 Buscar contato desta prefeitura..." : "🔍 Buscar contato..."} value={buscaContatoNoModal} autoComplete="off" onFocus={() => { setBuscaContatoNoModal(''); setMostrarDropdownContato(true); }} onChange={(e) => { setBuscaContatoNoModal(e.target.value); setMostrarDropdownContato(true); }} />
+                    
                     {mostrarDropdownContato && (
                       <div className="custom-select-dropdown">
-                        <div className="custom-select-option" style={{ color: '#dc3545', fontWeight: 'bold' }} onClick={() => { setContatoId(''); setBuscaContatoNoModal(''); setMostrarDropdownContato(false); }}><i className="fa-solid fa-eraser"></i> Limpar</div>
-                        {contatosFiltradosParaSelect.map(cont => (
-                          <div key={cont.id} className="custom-select-option" onClick={() => { setContatoId(cont.id); setBuscaContatoNoModal(cont.nome); setMostrarDropdownContato(false); }}>{cont.nome}</div>
-                        ))}
+                        <div className="custom-select-option" style={{ color: '#dc3545', fontWeight: 'bold' }} onClick={() => { setContatoId(''); setBuscaContatoNoModal(''); setMostrarDropdownContato(false); }}><i className="fa-solid fa-eraser"></i> Limpar Seleção</div>
+                        
+                        {contatosFiltradosParaSelect.length > 0 ? (
+                          contatosFiltradosParaSelect.map(cont => (
+                            <div key={cont.id} className="custom-select-option" onClick={() => { setContatoId(cont.id); setBuscaContatoNoModal(cont.nome); setMostrarDropdownContato(false); }}>
+                              <strong style={{ color: '#333' }}>{cont.nome}</strong>
+                              {cont.cargo && <span style={{ color: '#888', fontSize: '0.85rem', marginLeft: '6px' }}>- {cont.cargo}</span>}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="custom-select-no-results" style={{ fontStyle: 'italic', color: '#888' }}>
+                            Nenhum contato encontrado {empresaId ? 'nesta prefeitura' : ''}.
+                          </div>
+                        )}
+
+                        <div 
+                          className="custom-select-option" 
+                          style={{ borderTop: '1px solid #eee', background: '#e7f3ff', color: '#007bff', fontWeight: 'bold', textAlign: 'center' }}
+                          onClick={() => {
+                            setMostrarDropdownContato(false);
+                            setInlineNome(buscaContatoNoModal);
+                            setInlineCargo('');
+                            setInlineTelefone('');
+                            setMostrarCriarContato(true);
+                          }}
+                        >
+                          <i className="fa-solid fa-user-plus"></i> + Adicionar Novo Contato
+                        </div>
                       </div>
                     )}
                   </div>
@@ -381,40 +485,88 @@ export function Funil() {
           </div>
         )}
 
-        {/* === O QUADRO KANBAN === */}
-        {carregando ? (
-          <div style={{textAlign: 'center', padding: '50px'}}>A carregar o Funil de Vendas...</div>
+        {/* MINI-MODAL PARA CRIAÇÃO DE CONTATO RÁPIDO */}
+        {mostrarCriarContato && (
+          <div className="modal-overlay" style={{ zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', background: 'rgba(0,0,0,0.8)' }}>
+            <div className="modal-content" style={{ maxWidth: '400px', width: '100%', padding: '25px', borderRadius: '12px' }}>
+              <h3 style={{ marginTop: 0, color: '#333' }}>
+                <i className="fa-solid fa-user-plus" style={{ color: '#007bff' }}></i> Cadastro Rápido
+              </h3>
+              
+              {empresaId ? (
+                <p style={{ fontSize: '0.85rem', color: '#28a745', fontWeight: 'bold', marginBottom: '15px' }}>
+                  <i className="fa-solid fa-link"></i> Será vinculado à prefeitura selecionada.
+                </p>
+              ) : (
+                <p style={{ fontSize: '0.85rem', color: '#dc3545', marginBottom: '15px' }}>
+                  Sem prefeitura selecionada (Contato Avulso).
+                </p>
+              )}
+
+              <form onSubmit={salvarContatoInline} style={{ display: 'grid', gap: '15px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '5px' }}>Nome do Contato *</label>
+                  <input type="text" value={inlineNome} onChange={e => setInlineNome(e.target.value)} required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '5px' }}>Cargo / Função</label>
+                  <input type="text" value={inlineCargo} onChange={e => setInlineCargo(e.target.value)} placeholder="Ex: Prefeito, Secretário..." style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '5px' }}>Telefone (Opcional)</label>
+                  <input type="text" value={inlineTelefone} onChange={e => setInlineTelefone(e.target.value)} placeholder="(XX) 99999-9999" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+                </div>
+                
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
+                  <button type="button" onClick={() => setMostrarCriarContato(false)} style={{ background: '#eee', color: '#333', border: 'none', padding: '8px 15px', borderRadius: '6px', cursor: 'pointer' }}>Cancelar</button>
+                  <button type="submit" style={{ background: '#007bff', color: '#fff', border: 'none', padding: '8px 15px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>Salvar Contato</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* TELA DE CARREGAMENTO OU MENSAGEM PARA SELECIONAR FUNIL */}
+        {!filtroCampanha ? (
+          <div style={{ textAlign: 'center', padding: '100px 20px', background: '#fff', borderRadius: '12px', border: '2px dashed #ccc', marginTop: '20px' }}>
+            <i className="fa-solid fa-arrow-up" style={{ fontSize: '3rem', color: '#ccc', marginBottom: '20px' }}></i>
+            <h2 style={{ color: '#555' }}>Nenhum Funil Selecionado</h2>
+            <p style={{ color: '#888', fontSize: '1.1rem' }}>Use o menu azul no topo da tela para escolher qual campanha/curso você deseja gerenciar.</p>
+          </div>
+        ) : carregando ? (
+          <div style={{textAlign: 'center', padding: '50px'}}><i className="fa-solid fa-spinner fa-spin fa-2x"></i><br/>Carregando seu Funil...</div>
         ) : (
-          <div className="kanban-board">
+          <div className="kanban-board" ref={boardRef} onMouseDown={onBoardMouseDown} onMouseLeave={onBoardMouseLeave} onMouseUp={onBoardMouseUp} onMouseMove={onBoardMouseMove} style={{ userSelect: 'none', marginTop: '20px' }}>
             {etapas.map((etapa, indexEtapa) => {
-              const cardsDestaColuna = oportunidadesExibidas.filter(op => op.etapa_id === etapa.id);
+              const cardsDestaColuna = oportunidades.filter(op => op.etapa_id === etapa.id);
               return (
                 <div key={etapa.id} className="kanban-column" onDragOver={(e) => e.preventDefault()} onDrop={(e) => onDrop(e, etapa.id)}>
                   <div className="kanban-column-header">
-                    <span className="kanban-column-title">{etapa.nome}</span>
-                    <span className="kanban-column-badge">{cardsDestaColuna.length}</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span className="kanban-column-title" style={{ fontWeight: 'bold', color: '#333' }}>{etapa.nome}</span>
+                      <span className="kanban-column-badge" style={{ background: '#ddd', padding: '2px 8px', borderRadius: '10px', fontSize: '0.8rem' }}>{cardsDestaColuna.length}</span>
+                    </div>
                   </div>
-                  {cardsDestaColuna.map(op => {
-                    let corBorda = '#007bff'; let bgCard = '#fff';
-                    if (op.status === 'ganho') { corBorda = '#28a745'; bgCard = '#f4fbf5'; }
-                    if (op.status === 'perdido') { corBorda = '#dc3545'; bgCard = '#fff5f5'; }
-                    return (
-                      <div key={op.id} className={`kanban-card ${indexEtapa > 3 ? 'quente' : indexEtapa > 1 ? 'morno' : 'frio'}`} style={{ borderLeft: `5px solid ${corBorda}`, backgroundColor: bgCard }} draggable="true" onDragStart={(e) => onDragStart(e, op.id)} onClick={() => abrirModalEdicao(op)}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <div className="kanban-card-title">{op.titulo}</div>
-                          {op.status === 'ganho' && <i className="fa-solid fa-check-circle" style={{color: '#28a745'}}></i>}
-                          {op.status === 'perdido' && <i className="fa-solid fa-circle-xmark" style={{color: '#dc3545'}}></i>}
+                  <div className="kanban-cards-container">
+                    {cardsDestaColuna.map(op => {
+                      let corBorda = '#007bff'; let bgCard = '#fff';
+                      if (op.status === 'ganho') { corBorda = '#28a745'; bgCard = '#f4fbf5'; }
+                      if (op.status === 'perdido') { corBorda = '#dc3545'; bgCard = '#fff5f5'; }
+                      return (
+                        <div key={op.id} className="kanban-card" style={{ borderLeft: `5px solid ${corBorda}`, backgroundColor: bgCard, marginBottom: '12px', padding: '12px', borderRadius: '6px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', cursor: 'pointer' }} draggable="true" onDragStart={(e) => onDragStart(e, op.id)} onClick={() => abrirModalEdicao(op)}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div style={{ fontWeight: 'bold', marginBottom: '5px', fontSize: '0.95rem' }}>{op.titulo}</div>
+                            {op.status === 'ganho' && <i className="fa-solid fa-check-circle" style={{color: '#28a745', fontSize: '1rem'}}></i>}
+                            {op.status === 'perdido' && <i className="fa-solid fa-circle-xmark" style={{color: '#dc3545', fontSize: '1rem'}}></i>}
+                          </div>
+                          <div style={{ color: corBorda, fontSize: '0.9rem', fontWeight: 'bold' }}>{formatarMoeda(op.valor)}</div>
+                          {op.empresa_nome && <div style={{ fontSize: '0.8rem', color: '#666', marginTop: '8px' }}><i className="fa-solid fa-building"></i> {op.empresa_nome}</div>}
+                          {op.contato_nome && <div style={{ fontSize: '0.8rem', color: '#666', marginTop: '2px' }}><i className="fa-solid fa-user"></i> {op.contato_nome}</div>}
                         </div>
-                        <div className="kanban-card-value" style={{ color: corBorda }}>{formatarMoeda(op.valor)}</div>
-                        {!filtroCampanha && op.campanha_nome && (
-                          <div style={{ display: 'inline-block', background: '#e9ecef', padding: '3px 8px', borderRadius: '12px', fontSize: '0.75rem', color: '#444', marginBottom: '8px', fontWeight: 'bold' }}><i className="fa-solid fa-bullhorn"></i> {op.campanha_nome}</div>
-                        )}
-                        {op.empresa_nome && <div className="kanban-card-info"><i className="fa-solid fa-building"></i> {op.empresa_nome}</div>}
-                        {op.contato_nome && <div className="kanban-card-info"><i className="fa-solid fa-user"></i> {op.contato_nome}</div>}
-                      </div>
-                    );
-                  })}
-                  {cardsDestaColuna.length === 0 && ( <div style={{textAlign: 'center', padding: '20px', color: '#aaa', fontSize: '0.85rem', border: '1px dashed #ddd', borderRadius: '8px'}}>Solte aqui</div> )}
+                      );
+                    })}
+                    <div style={{ height: '40px' }}></div>
+                  </div>
                 </div>
               )
             })}

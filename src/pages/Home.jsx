@@ -1,14 +1,25 @@
 // src/pages/Home.jsx
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom'; // NOVO: Para fazer os botões navegarem
 import { Header } from '../componentes/Header.jsx';
 import { CardInfo } from '../componentes/CardInfo.jsx';
 
 export function Home() {
+  const navigate = useNavigate(); // Inicializa o navegador
+
   const [contatos, setContatos] = useState([]);
-  const [etapas, setEtapas] = useState([]);
   const [oportunidades, setOportunidades] = useState([]);
+  const [campanhas, setCampanhas] = useState([]);
   const [carregando, setCarregando] = useState(true);
+
+  // Saudação dinâmica baseada na hora do dia
+  const horaAtual = new Date().getHours();
+  let saudacao = 'Boa noite';
+  if (horaAtual >= 5 && horaAtual < 12) saudacao = 'Bom dia';
+  else if (horaAtual >= 12 && horaAtual < 18) saudacao = 'Boa tarde';
+
+  const nomeUsuario = localStorage.getItem('nome') || 'Gestor';
 
   const API_URL = 'https://server-js-gestao.onrender.com';
 
@@ -18,110 +29,109 @@ export function Home() {
   }
 
   useEffect(() => {
-    async function carregarDashboard() {
+    async function carregarHome() {
       setCarregando(true);
       try {
-        // Busca Contatos, Etapas do Funil e Oportunidades (Cartões) tudo de uma vez
-        const [resContatos, resEtapas, resOportunidades] = await Promise.all([
+        const [resContatos, resOportunidades, resCampanhas] = await Promise.all([
           axios.get(`${API_URL}/contatos`, getHeaders()),
-          axios.get(`${API_URL}/etapas`, getHeaders()),
-          axios.get(`${API_URL}/oportunidades`, getHeaders())
+          axios.get(`${API_URL}/oportunidades`, getHeaders()),
+          axios.get(`${API_URL}/campanhas`, getHeaders())
         ]);
         
         setContatos(resContatos.data);
-        setEtapas(resEtapas.data);
         setOportunidades(resOportunidades.data);
+        setCampanhas(resCampanhas.data);
       } catch (erro) {
-        console.error('Erro ao buscar dados do dashboard:', erro);
+        console.error('Erro ao buscar dados da home:', erro);
       } finally {
         setCarregando(false);
       }
     }
 
-    carregarDashboard();
+    carregarHome();
   }, []);
 
-  // === CALCULANDO OS DADOS REAIS DO BANCO ===
-  
-  // 1. Total de Contatos e Tabela
-  const totalContatos = contatos.length;
-  const ultimosContatos = [...contatos].reverse().slice(0, 4); 
-  
-  // 2. Total de Negócios (Soma a quantidade de cartões)
-  const negociosAbertos = oportunidades.length; 
-  
-  // 3. Valor Total em Propostas (Soma o valor em R$ de todos os cartões)
-  const somaValores = oportunidades.reduce((acumulador, op) => acumulador + Number(op.valor || 0), 0);
-  const valorFormatado = somaValores.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  function formatarMoeda(valor) {
+    return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
 
-  // 4. Calculando a Saúde do Funil Dinamicamente
-  const paletaDeCores = ['#1890ff', '#722ed1', '#faad14', '#52c41a', '#eb2f96', '#13c2c2'];
+  // === CÁLCULOS DOS CARDS ===
+  const totalContatos = contatos.length;
+  const campanhasAtivas = campanhas.length;
   
-  const resumoFunil = etapas.map((etapa, index) => {
-    // Quantos cartões estão nesta etapa específica?
-    const quantidadeNaEtapa = oportunidades.filter(op => op.etapa_id === etapa.id).length;
-    
-    // Calcula a porcentagem para a barrinha não passar de 100%
-    const porcentagem = negociosAbertos === 0 ? 0 : Math.round((quantidadeNaEtapa / negociosAbertos) * 100);
-    
-    return {
-      etapa: etapa.nome,
-      quantidade: quantidadeNaEtapa,
-      cor: paletaDeCores[index % paletaDeCores.length], // Pega uma cor diferente para cada coluna
-      porcentagem: `${porcentagem}%`
-    };
-  });
+  const negociosAbertos = oportunidades.filter(op => op.status === 'aberto');
+  const negociosGanhos = oportunidades.filter(op => op.status === 'ganho');
+
+  const valorGanho = negociosGanhos.reduce((acc, op) => acc + Number(op.valor || 0), 0);
+
+  // Pega os 5 negócios abertos mais recentes
+  const ultimosNegocios = [...negociosAbertos].slice(0, 5);
 
   return (
     <div>
-      <Header titulo="Dashboard Geral" />
+      <Header titulo="Centro de Comando" />
 
       <div className="page-container">
         
-        {/* === TOP CARDS DINÂMICOS === */}
-        <div className="card-info-grid">
-          <CardInfo icone="fa-users" label="Total de Pessoas" valor={carregando ? "..." : totalContatos} cor="blue" />
-          <CardInfo icone="fa-folder-open" label="Negócios no Funil" valor={carregando ? "..." : negociosAbertos} cor="yellow" />
-          <CardInfo icone="fa-handshake" label="Valor em Pipeline" valor={carregando ? "..." : valorFormatado} cor="green" />
+        {/* === BOAS VINDAS === */}
+        <div style={{ marginBottom: '25px' }}>
+          <h2 style={{ color: '#333', margin: 0 }}>{saudacao}, {nomeUsuario}! 👋</h2>
+          <p style={{ color: '#777', fontSize: '0.95rem', marginTop: '5px' }}>
+            Aqui está o resumo da sua operação hoje. Foco nas prefeituras!
+          </p>
+        </div>
+
+        {/* === CARDS SUPERIORES === */}
+        <div className="card-info-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+          <CardInfo icone="fa-folder-open" label="Negócios em Aberto" valor={carregando ? "..." : negociosAbertos.length} cor="blue" />
+          <CardInfo icone="fa-check-circle" label="Total Ganho" valor={carregando ? "..." : formatarMoeda(valorGanho)} cor="green" />
+          <CardInfo icone="fa-bullhorn" label="Campanhas Ativas" valor={carregando ? "..." : campanhasAtivas} cor="yellow" />
+          <CardInfo icone="fa-address-book" label="Total de Contatos" valor={carregando ? "..." : totalContatos} cor="purple" />
         </div>
 
         {/* === ÁREA CENTRAL DIVIDIDA (GRID) === */}
-        <div className="dashboard-grid">
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}>
           
-          {/* LADO ESQUERDO: Tabela de Últimos Contatos */}
-          <div className="panel">
-            <div className="panel-title">
-              <i className="fa-solid fa-clock-rotate-left" style={{color: '#007bff'}}></i> 
-              Últimos Contatos Cadastrados
+          {/* LADO ESQUERDO: Tabela de Negócios em Aberto */}
+          <div className="panel" style={{ margin: 0 }}>
+            <div className="panel-title" style={{ padding: '15px 20px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div><i className="fa-solid fa-fire" style={{color: '#ff9800'}}></i> Negócios em Aberto Recentes</div>
+              <button onClick={() => navigate('/funil')} style={{ background: 'none', border: 'none', color: '#007bff', cursor: 'pointer', fontWeight: 'bold' }}>Ver Funil &rarr;</button>
             </div>
-            <div className="table-responsive">
-              <table>
+            
+            <div className="table-responsive" style={{ padding: '10px 20px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr>
-                    <th>Nome</th>
-                    <th>Empresa / Prefeitura</th>
-                    <th>Telefone</th>
-                    <th>Cargo</th>
+                  <tr style={{ textAlign: 'left', borderBottom: '2px solid #eee', color: '#666' }}>
+                    <th style={{ padding: '10px 0' }}>Título / Prefeitura</th>
+                    <th>Campanha</th>
+                    <th style={{ textAlign: 'right' }}>Valor Estimado</th>
                   </tr>
                 </thead>
                 <tbody>
                   {carregando ? (
-                    <tr><td colSpan="4" style={{textAlign: 'center', padding: '20px'}}>Carregando dados do servidor...</td></tr>
-                  ) : ultimosContatos.length === 0 ? (
-                    <tr><td colSpan="4" style={{textAlign: 'center', padding: '20px'}}>Nenhum contato cadastrado.</td></tr>
+                    <tr><td colSpan="3" style={{textAlign: 'center', padding: '20px'}}>Carregando dados...</td></tr>
+                  ) : ultimosNegocios.length === 0 ? (
+                    <tr><td colSpan="3" style={{textAlign: 'center', padding: '20px', color: '#999'}}>Nenhum negócio em aberto no momento.</td></tr>
                   ) : (
-                    ultimosContatos.map(contato => (
-                      <tr key={contato.id}>
-                        <td style={{fontWeight: 600, color: '#1c1e21'}}>{contato.nome}</td>
-                        <td style={{color: '#555'}}>
-                          {contato.empresa_nome ? (
-                            <><i className="fa-solid fa-building" style={{color: '#888', marginRight:'5px'}}></i> {contato.empresa_nome}</>
-                          ) : (
-                            <span style={{color: '#aaa', fontStyle: 'italic'}}>Sem vínculo</span>
-                          )}
+                    ultimosNegocios.map(op => (
+                      <tr key={op.id} style={{ borderBottom: '1px dashed #eee' }}>
+                        <td style={{ padding: '12px 0' }}>
+                          <strong style={{ color: '#333' }}>{op.titulo}</strong>
+                          <div style={{ fontSize: '0.8rem', color: '#777', marginTop: '3px' }}>
+                            <i className="fa-solid fa-building"></i> {op.empresa_nome || 'Avulso'}
+                          </div>
                         </td>
-                        <td style={{fontWeight: 500}}>{contato.telefones || '-'}</td>
-                        <td><span className={`badge ${contato.cargo || 'default'}`}>{contato.cargo || '-'}</span></td>
+                        <td>
+                          {op.campanha_nome ? (
+                            <span style={{ background: '#e9ecef', padding: '3px 8px', borderRadius: '10px', fontSize: '0.75rem', fontWeight: 'bold', color: '#555' }}>
+                              {op.campanha_nome}
+                            </span>
+                          ) : '-'}
+                        </td>
+                        <td style={{ textAlign: 'right', fontWeight: 'bold', color: '#007bff' }}>
+                          {formatarMoeda(op.valor)}
+                        </td>
                       </tr>
                     ))
                   )}
@@ -130,48 +140,56 @@ export function Home() {
             </div>
           </div>
 
-          {/* LADO DIREITO: Funil e Ações Rápidas */}
-          <div className="sidebar-panels">
-            <div className="panel" style={{marginBottom: '20px'}}>
-              <div className="panel-title">
-                <i className="fa-solid fa-filter" style={{color: '#faad14'}}></i> Saúde do Funil
+          {/* LADO DIREITO: Painéis Menores */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            
+            {/* Ações Rápidas (AGORA FUNCIONAM!) */}
+            <div className="panel" style={{ margin: 0 }}>
+              <div className="panel-title" style={{ padding: '15px 20px', borderBottom: '1px solid #eee' }}>
+                <i className="fa-solid fa-bolt" style={{color: '#52c41a'}}></i> Atalhos Rápidos
               </div>
-              <div className="funnel-container">
+              <div style={{ padding: '15px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <button onClick={() => navigate('/contatos')} style={{ width: '100%', padding: '12px', background: '#f8f9fa', border: '1px solid #ddd', borderRadius: '8px', cursor: 'pointer', textAlign: 'left', fontWeight: 'bold', color: '#333', transition: '0.2s' }}>
+                  <i className="fa-solid fa-user-plus" style={{color: '#007bff', width: '25px'}}></i> Gerenciar Contatos
+                </button>
+                <button onClick={() => navigate('/funil')} style={{ width: '100%', padding: '12px', background: '#f8f9fa', border: '1px solid #ddd', borderRadius: '8px', cursor: 'pointer', textAlign: 'left', fontWeight: 'bold', color: '#333', transition: '0.2s' }}>
+                  <i className="fa-solid fa-layer-group" style={{color: '#faad14', width: '25px'}}></i> Ir para o Funil de Vendas
+                </button>
+                <button onClick={() => navigate('/empresas')} style={{ width: '100%', padding: '12px', background: '#f8f9fa', border: '1px solid #ddd', borderRadius: '8px', cursor: 'pointer', textAlign: 'left', fontWeight: 'bold', color: '#333', transition: '0.2s' }}>
+                  <i className="fa-solid fa-building-columns" style={{color: '#722ed1', width: '25px'}}></i> Base de Prefeituras
+                </button>
+              </div>
+            </div>
+
+            {/* Resumo de Campanhas */}
+            <div className="panel" style={{ margin: 0 }}>
+              <div className="panel-title" style={{ padding: '15px 20px', borderBottom: '1px solid #eee' }}>
+                <i className="fa-solid fa-bullhorn" style={{color: '#dc3545'}}></i> Volume por Campanha
+              </div>
+              <div style={{ padding: '15px' }}>
                 {carregando ? (
-                  <div style={{textAlign: 'center', padding: '10px', color: '#888'}}>Calculando...</div>
-                ) : resumoFunil.length === 0 ? (
-                  <div style={{textAlign: 'center', padding: '10px', color: '#888'}}>Nenhum funil configurado.</div>
+                  <div style={{ textAlign: 'center', color: '#999', fontSize: '0.85rem' }}>Carregando...</div>
+                ) : campanhas.length === 0 ? (
+                  <div style={{ textAlign: 'center', color: '#999', fontSize: '0.85rem' }}>Nenhuma campanha criada.</div>
                 ) : (
-                  resumoFunil.map((item, index) => (
-                    <div className="funnel-stage" key={index}>
-                      {/* Oculta textos muito longos com reticências para não quebrar o layout */}
-                      <div className="funnel-info" style={{whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}} title={item.etapa}>
-                        {item.etapa}
-                      </div>
-                      <div className="funnel-bar-container">
-                        <div className="funnel-bar" style={{ width: item.porcentagem, backgroundColor: item.cor }}></div>
-                      </div>
-                      <div className="funnel-count" title={`${item.porcentagem} dos negócios`}>
-                        {item.quantidade}
-                      </div>
-                    </div>
-                  ))
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                    {campanhas.map(camp => {
+                      const qtd = oportunidades.filter(op => op.campanha_id === camp.id && op.status === 'aberto').length;
+                      return (
+                        <li key={camp.id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '0.9rem', borderBottom: '1px dashed #eee', paddingBottom: '5px' }}>
+                          <span style={{ color: '#555', fontWeight: 'bold' }}>{camp.nome}</span>
+                          <span style={{ background: '#e7f3ff', color: '#007bff', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold' }}>{qtd} abertos</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 )}
               </div>
             </div>
 
-            {/* Fica de lição de casa depois conectar esses botões com o useNavigate para abrir as telas certas! */}
-            <div className="panel">
-              <div className="panel-title">
-                <i className="fa-solid fa-bolt" style={{color: '#52c41a'}}></i> Ações Rápidas
-              </div>
-              <button className="quick-action-btn"><i className="fa-solid fa-user-plus" style={{color: '#007bff'}}></i> Cadastrar Novo Contato</button>
-              <button className="quick-action-btn"><i className="fa-solid fa-bullseye" style={{color: '#faad14'}}></i> Criar Oportunidade</button>
-              <button className="quick-action-btn"><i className="fa-solid fa-building" style={{color: '#722ed1'}}></i> Nova Empresa/Prefeitura</button>
-            </div>
           </div>
-
         </div>
+
       </div>
     </div>
   );

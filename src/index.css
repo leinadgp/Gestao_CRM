@@ -91,7 +91,7 @@ body {
 }
 
 .page-container {
-    padding: 30px;
+    padding: 30px 30px 0px 30px;
     display: flex;
     flex-direction: column;
     gap: 30px;
@@ -469,13 +469,14 @@ tr:hover td {
 .kanban-column {
     min-width: 320px;
     max-width: 320px;
+    min-height: 550px;
     background-color: #f4f5f7;
     /* Cinza clarinho típico de colunas */
     border-radius: 10px;
-    padding: 15px;
+    /* padding: 15px; */
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 10px;
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
 }
 
@@ -741,4 +742,65 @@ tr:hover td {
   color: #999;
   text-align: center;
   font-size: 0.85rem;
+}
+
+/* Container que segura todas as colunas */
+.kanban-board {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  overflow-x: auto; /* Permite rolar pro lado se tiver muitas colunas */
+  padding-bottom: 20px;
+  height: calc(100vh - 200px); /* Ajusta a altura para caber na tela */
+}
+
+/* Cada Coluna Individual */
+.kanban-column {
+  min-width: 300px;
+  max-width: 300px;
+  background-color: #f4f5f7;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  max-height: 100%; /* Não deixa a coluna passar do board */
+  position: relative;
+}
+
+/* Área onde os cards ficam (Independente) */
+.kanban-cards-container {
+  flex: 1;
+  overflow-y: auto; /* Rolagem independente */
+  padding: 10px;
+  
+  /* Esconde a barra de rolagem no Chrome/Safari */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+  
+  /* Cria o efeito de fade/gradiente no final da coluna */
+  mask-image: linear-gradient(to bottom, black 90%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 90%, transparent 100%);
+}
+
+.kanban-cards-container::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+/* Cabeçalho da coluna fixo no topo */
+.kanban-column-header {
+  padding: 15px;
+  background: #f4f5f7;
+  border-radius: 10px 10px 0 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+/* Esconde a barra de rolagem horizontal do quadro principal */
+.kanban-board {
+  scrollbar-width: none; /* Para Firefox */
+  -ms-overflow-style: none; /* Para Internet Explorer e Edge */
+}
+
+.kanban-board::-webkit-scrollbar {
+  display: none; /* Para Chrome, Safari e Edge moderno */
 }
