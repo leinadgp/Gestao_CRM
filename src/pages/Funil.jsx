@@ -8,36 +8,36 @@ export function Funil() {
   const [oportunidades, setOportunidades] = useState([]);
   const [empresas, setEmpresas] = useState([]);
   const [contatos, setContatos] = useState([]);
-  const [campanhas, setCampanhas] = useState([]); 
-  
+  const [campanhas, setCampanhas] = useState([]);
+
   const [equipe, setEquipe] = useState([]);
-  const perfilUsuario = localStorage.getItem('perfil'); 
-  const meuUsuarioId = localStorage.getItem('usuarioId'); 
+  const perfilUsuario = localStorage.getItem('perfil');
+  const meuUsuarioId = localStorage.getItem('usuarioId');
 
   const [carregando, setCarregando] = useState(false);
   const [filtroCampanha, setFiltroCampanha] = useState('');
 
   const [modulosCampanha, setModulosCampanha] = useState([]);
   const [modulosSelecionados, setModulosSelecionados] = useState([]);
-  
+
   const [desconto, setDesconto] = useState(0);
 
   const [mostrarModal, setMostrarModal] = useState(false);
   const [editandoId, setEditandoId] = useState(null);
-  
+
   const [titulo, setTitulo] = useState('');
-  const [valor, setValor] = useState(''); 
+  const [valor, setValor] = useState('');
   const [empresaId, setEmpresaId] = useState('');
   const [contatoId, setContatoId] = useState('');
   const [etapaId, setEtapaId] = useState('');
   const [observacoes, setObservacoes] = useState('');
   const [statusOp, setStatusOp] = useState('aberto');
-  const [vendedorId, setVendedorId] = useState(''); 
+  const [vendedorId, setVendedorId] = useState('');
 
   const [notas, setNotas] = useState([]);
   const [novaNota, setNovaNota] = useState('');
-  const [editandoNotaId, setEditandoNotaId] = useState(null); 
-  const [textoNotaEditada, setTextoNotaEditada] = useState(''); 
+  const [editandoNotaId, setEditandoNotaId] = useState(null);
+  const [textoNotaEditada, setTextoNotaEditada] = useState('');
 
   const [mostrarCriarContato, setMostrarCriarContato] = useState(false);
   const [inlineNome, setInlineNome] = useState('');
@@ -73,7 +73,7 @@ export function Funil() {
     if (!isDown.current) return;
     e.preventDefault();
     const x = e.pageX - boardRef.current.offsetLeft;
-    const walk = (x - startX.current) * 1.5; 
+    const walk = (x - startX.current) * 1.5;
     if (boardRef.current) { boardRef.current.scrollLeft = scrollLeft.current - walk; }
   }
 
@@ -116,7 +116,7 @@ export function Funil() {
         axios.get(`${API_URL}/empresas`, getHeaders()),
         axios.get(`${API_URL}/contatos`, getHeaders()),
         axios.get(`${API_URL}/campanhas`, getHeaders()),
-        axios.get(`${API_URL}/usuarios/equipe`, getHeaders()) 
+        axios.get(`${API_URL}/usuarios/equipe`, getHeaders())
       ]);
       setEmpresas(resEmp.data); setContatos(resC.data); setCampanhas(resCamp.data); setEquipe(resEquipe.data);
     } catch (erro) { console.error(erro); }
@@ -141,7 +141,7 @@ export function Funil() {
   }
 
   async function carregarNotas(opId) {
-    try { const res = await axios.get(`${API_URL}/oportunidades/${opId}/notas`, getHeaders()); setNotas(res.data); } 
+    try { const res = await axios.get(`${API_URL}/oportunidades/${opId}/notas`, getHeaders()); setNotas(res.data); }
     catch (e) { console.error('Erro ao buscar notas', e); }
   }
 
@@ -149,7 +149,7 @@ export function Funil() {
     if (!novaNota.trim()) return;
     try {
       const res = await axios.post(`${API_URL}/oportunidades/${editandoId}/notas`, { nota: novaNota }, getHeaders());
-      setNotas([res.data, ...notas]); setNovaNota(''); 
+      setNotas([res.data, ...notas]); setNovaNota('');
     } catch (e) { alert('Erro ao adicionar nota.'); }
   }
 
@@ -193,9 +193,9 @@ export function Funil() {
   function abrirModalNovo() {
     if (!filtroCampanha) return alert("Selecione uma campanha no topo da tela antes de criar uma negociação!");
     setEditandoId(null); setTitulo(''); setValor(''); setEmpresaId(''); setContatoId(''); setObservacoes('');
-    setStatusOp('aberto'); setEtapaId(etapas.length > 0 ? etapas[0].id : ''); 
-    setVendedorId(meuUsuarioId || ''); setModulosSelecionados([]); setDesconto(0); 
-    setBuscaEmpresaNoModal(''); setBuscaContatoNoModal(''); setNotas([]); setNovaNota(''); cancelarEdicaoNota(); 
+    setStatusOp('aberto'); setEtapaId(etapas.length > 0 ? etapas[0].id : '');
+    setVendedorId(meuUsuarioId || ''); setModulosSelecionados([]); setDesconto(0);
+    setBuscaEmpresaNoModal(''); setBuscaContatoNoModal(''); setNotas([]); setNovaNota(''); cancelarEdicaoNota();
     setMostrarModal(true);
   }
 
@@ -204,8 +204,8 @@ export function Funil() {
     setEmpresaId(op.empresa_id || ''); setContatoId(op.contato_id || '');
     setEtapaId(op.etapa_id); setObservacoes(op.observacoes || '');
     setStatusOp(op.status || 'aberto'); setVendedorId(op.vendedor_id || '');
-    setDesconto(op.desconto || 0); 
-    
+    setDesconto(op.desconto || 0);
+
     let mods = [];
     try {
       if (op.modulos_ids) {
@@ -213,11 +213,11 @@ export function Funil() {
         if (!Array.isArray(mods)) mods = [];
       }
     } catch (e) { mods = []; }
-    
-    setModulosSelecionados(mods); 
-    
+
+    setModulosSelecionados(mods);
+
     setBuscaEmpresaNoModal(op.empresa_nome || ''); setBuscaContatoNoModal(op.contato_nome || '');
-    setNotas([]); cancelarEdicaoNota(); carregarNotas(op.id); 
+    setNotas([]); cancelarEdicaoNota(); carregarNotas(op.id);
     setMostrarModal(true);
   }
 
@@ -234,7 +234,7 @@ export function Funil() {
     const valorEnviar = modulosSelecionados.length > 0 ? valorFinalCalculado : (valor ? parseFloat(valor.toString().replace(/\./g, '').replace(',', '.')) : 0);
 
     const dados = {
-      titulo, valor: valorEnviar, empresa_id: empresaId || null, contato_id: contatoId || null, 
+      titulo, valor: valorEnviar, empresa_id: empresaId || null, contato_id: contatoId || null,
       etapa_id: etapaId, observacoes, campanha_id: filtroCampanha, status: statusOp,
       vendedor_id: vendedorId || null, modulos_ids: modulosSelecionados,
       desconto: modulosSelecionados.length > 0 ? Number(desconto) : 0
@@ -243,13 +243,13 @@ export function Funil() {
     try {
       if (editandoId) await axios.put(`${API_URL}/oportunidades/${editandoId}`, dados, getHeaders());
       else await axios.post(`${API_URL}/oportunidades`, dados, getHeaders());
-      fecharModal(); carregarFunilDaCampanha(filtroCampanha); 
+      fecharModal(); carregarFunilDaCampanha(filtroCampanha);
     } catch (erro) { alert('Erro ao salvar oportunidade.'); }
   }
 
   async function deletarOportunidade() {
-    if(!window.confirm('Excluir este negócio? O histórico de notas também será apagado.')) return;
-    try { await axios.delete(`${API_URL}/oportunidades/${editandoId}`, getHeaders()); fecharModal(); carregarFunilDaCampanha(filtroCampanha); } 
+    if (!window.confirm('Excluir este negócio? O histórico de notas também será apagado.')) return;
+    try { await axios.delete(`${API_URL}/oportunidades/${editandoId}`, getHeaders()); fecharModal(); carregarFunilDaCampanha(filtroCampanha); }
     catch (error) { console.error(error); }
   }
 
@@ -260,18 +260,18 @@ export function Funil() {
       <Header titulo="Funil de Vendas" />
 
       <div className="page-container">
-        
+
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
           <div>
             <h2 style={{ color: '#333', margin: 0 }}>Gestão de Pipeline</h2>
             <p style={{ color: '#777', fontSize: '0.9rem', marginTop: '5px' }}>Selecione um Funil / Campanha abaixo para trabalhar.</p>
           </div>
-          
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#007bff', padding: '8px 15px', borderRadius: '8px', border: '1px solid #0056b3', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', maxWidth: '100%' }}>
               <label style={{ color: '#fff', fontWeight: 'bold', fontSize: '1rem', whiteSpace: 'nowrap' }}><i className="fa-solid fa-layer-group"></i> Funil Ativo:</label>
-              <select 
-                value={filtroCampanha} onChange={(e) => setFiltroCampanha(e.target.value)} 
+              <select
+                value={filtroCampanha} onChange={(e) => setFiltroCampanha(e.target.value)}
                 style={{ border: 'none', background: 'transparent', outline: 'none', fontWeight: 'bold', color: '#fff', cursor: 'pointer', fontSize: '1rem', maxWidth: '220px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}
               >
                 <option value="" style={{ color: '#333' }}>-- Selecione um Curso/Campanha --</option>
@@ -289,7 +289,7 @@ export function Funil() {
         {mostrarModal && (
           <div className="modal-overlay" onClick={fecharModal} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
             <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '30px', borderRadius: '12px' }}>
-              
+
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #eee', paddingBottom: '10px' }}>
                 <div style={{ maxWidth: '80%' }}>
                   <h3 style={{ color: '#333', margin: 0 }}>{editandoId ? 'Editar Negócio' : 'Criar Novo Negócio'}</h3>
@@ -299,9 +299,9 @@ export function Funil() {
                 </div>
                 <button onClick={fecharModal} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#999', padding: 0 }}>&times;</button>
               </div>
-              
+
               <form onSubmit={salvarOportunidade} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                
+
                 <div style={{ gridColumn: 'span 2' }}>
                   <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>Título da Negociação *</label>
                   <input type="text" value={titulo} onChange={(e) => setTitulo(e.target.value)} required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
@@ -315,11 +315,36 @@ export function Funil() {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>Status da Negociação</label>
-                  <select value={statusOp} onChange={(e) => setStatusOp(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', background: statusOp === 'ganho' ? '#e6f4ea' : statusOp === 'perdido' ? '#fce8e6' : '#fff' }}>
-                    <option value="aberto">⏳ Em Aberto / Negociando</option>
-                    <option value="ganho">✅ Ganho (Fechado)</option>
-                    <option value="perdido">❌ Perdido</option>
+                  <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                    Status da Negociação
+                  </label>
+
+                  <select
+                    value={statusOp}
+                    onChange={(e) => setStatusOp(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      borderRadius: '6px',
+                      border: '1px solid #ccc',
+                      background:
+                        statusOp === 'naofunciona' ? '#fff9db' :
+                          statusOp === 'naoatendeu' ? '#fff4e6' :
+                            statusOp === 'tarefa' ? '#f3e8ff' :
+                              statusOp === 'inscricao' ? '#e6f4ea' :
+                                statusOp === 'interessada' ? '#e9f7ef' :
+                                  statusOp === 'avaliar' ? '#f1fff3' :
+                                    statusOp === 'perdido' ? '#fdecea' :
+                                      '#fff'
+                    }}
+                  >
+                    <option value="naofunciona">🟡 Não Funciona</option>
+                    <option value="naoatendeu">🟠 Não Atendeu</option>
+                    <option value="tarefa">🟣 Tarefa</option>
+                    <option value="avaliar">🟢 Avaliar</option>
+                    <option value="interessada">🟢 Interessada</option>                    
+                    <option value="inscricao">🟢 Inscrição</option>
+                    <option value="perdido">🔴 Perdido</option>
                   </select>
                 </div>
 
@@ -327,22 +352,22 @@ export function Funil() {
                   <label style={{ display: 'block', marginBottom: '10px', color: '#28a745', fontSize: '0.9rem', fontWeight: 'bold' }}>
                     <i className="fa-solid fa-cart-shopping"></i> Composição do Pacote (Turmas / Módulos)
                   </label>
-                  
+
                   {modulosCampanha.length === 0 ? (
                     <div style={{ fontSize: '0.85rem', color: '#666', fontStyle: 'italic' }}>Este curso não possui módulos. O valor deverá ser inserido manualmente abaixo.</div>
                   ) : (
                     <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                       {modulosCampanha.map(mod => (
-                        <label 
-                          key={mod.id} 
-                          style={{ 
-                            display: 'flex', alignItems: 'center', gap: '6px', background: modulosSelecionados.includes(mod.id) ? '#d4edda' : '#fff', 
-                            padding: '8px 12px', borderRadius: '6px', border: modulosSelecionados.includes(mod.id) ? '1px solid #28a745' : '1px solid #ccc', 
+                        <label
+                          key={mod.id}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '6px', background: modulosSelecionados.includes(mod.id) ? '#d4edda' : '#fff',
+                            padding: '8px 12px', borderRadius: '6px', border: modulosSelecionados.includes(mod.id) ? '1px solid #28a745' : '1px solid #ccc',
                             cursor: 'pointer', transition: '0.2s'
                           }}
                         >
-                          <input 
-                            type="checkbox" checked={modulosSelecionados.includes(mod.id)} onChange={() => toggleModulo(mod.id)} 
+                          <input
+                            type="checkbox" checked={modulosSelecionados.includes(mod.id)} onChange={() => toggleModulo(mod.id)}
                             style={{ cursor: 'pointer', transform: 'scale(1.2)' }}
                           />
                           <span style={{ fontSize: '0.85rem', color: '#333', fontWeight: modulosSelecionados.includes(mod.id) ? 'bold' : 'normal' }}>
@@ -373,13 +398,13 @@ export function Funil() {
 
                 <div style={{ gridColumn: 'span 2' }}>
                   <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>Valor Final da Negociação (R$)</label>
-                  <input 
-                    type="number" step="0.01" 
-                    value={modulosSelecionados.length > 0 ? valorFinalCalculado : valor} 
-                    onChange={(e) => setValor(e.target.value)} 
-                    disabled={modulosSelecionados.length > 0} 
+                  <input
+                    type="number" step="0.01"
+                    value={modulosSelecionados.length > 0 ? valorFinalCalculado : valor}
+                    onChange={(e) => setValor(e.target.value)}
+                    disabled={modulosSelecionados.length > 0}
                     placeholder={modulosSelecionados.length > 0 ? "Calculado automaticamente pelos módulos acima" : "Digite o valor manualmente..."}
-                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', background: modulosSelecionados.length > 0 ? '#e9ecef' : '#fff' }} 
+                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', background: modulosSelecionados.length > 0 ? '#e9ecef' : '#fff' }}
                   />
                   {modulosSelecionados.length > 0 && <span style={{ fontSize: '0.75rem', color: '#888' }}>* O valor está sendo calculado automaticamente pelas opções marcadas acima.</span>}
                 </div>
@@ -388,7 +413,7 @@ export function Funil() {
                   <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>
                     <i className="fa-solid fa-user-tie" style={{ color: '#722ed1' }}></i> Vendedor Responsável
                   </label>
-                  <select 
+                  <select
                     value={vendedorId} onChange={(e) => setVendedorId(e.target.value)} disabled={perfilUsuario === 'vendedor'}
                     style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', background: perfilUsuario === 'vendedor' ? '#eee' : '#fff' }}
                   >
@@ -400,8 +425,9 @@ export function Funil() {
                 <div>
                   <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>Prefeitura Alvo</label>
                   <div className="custom-select-container" ref={dropdownEmpresaRef}>
-                    <input type="text" className="custom-select-input" placeholder="🔍 Buscar prefeitura..." value={buscaEmpresaNoModal} autoComplete="off" onFocus={() => { setBuscaEmpresaNoModal(''); setMostrarDropdownEmpresa(true); }} onChange={(e) => { setBuscaEmpresaNoModal(e.target.value); setMostrarDropdownEmpresa(true); 
-                    if(e.target.value === '') { setEmpresaId(''); setContatoId(''); setBuscaContatoNoModal(''); }
+                    <input type="text" className="custom-select-input" placeholder="🔍 Buscar prefeitura..." value={buscaEmpresaNoModal} autoComplete="off" onFocus={() => { setBuscaEmpresaNoModal(''); setMostrarDropdownEmpresa(true); }} onChange={(e) => {
+                      setBuscaEmpresaNoModal(e.target.value); setMostrarDropdownEmpresa(true);
+                      if (e.target.value === '') { setEmpresaId(''); setContatoId(''); setBuscaContatoNoModal(''); }
                     }} />
                     {mostrarDropdownEmpresa && (
                       <div className="custom-select-dropdown">
@@ -420,11 +446,11 @@ export function Funil() {
                   </label>
                   <div className="custom-select-container" ref={dropdownContatoRef}>
                     <input type="text" className="custom-select-input" placeholder={empresaId ? "🔍 Buscar contato desta prefeitura..." : "🔍 Buscar contato..."} value={buscaContatoNoModal} autoComplete="off" onFocus={() => { setBuscaContatoNoModal(''); setMostrarDropdownContato(true); }} onChange={(e) => { setBuscaContatoNoModal(e.target.value); setMostrarDropdownContato(true); }} />
-                    
+
                     {mostrarDropdownContato && (
                       <div className="custom-select-dropdown">
                         <div className="custom-select-option" style={{ color: '#dc3545', fontWeight: 'bold' }} onClick={() => { setContatoId(''); setBuscaContatoNoModal(''); setMostrarDropdownContato(false); }}><i className="fa-solid fa-eraser"></i> Limpar Seleção</div>
-                        
+
                         {contatosFiltradosParaSelect.length > 0 ? (
                           contatosFiltradosParaSelect.map(cont => (
                             <div key={cont.id} className="custom-select-option" onClick={() => { setContatoId(cont.id); setBuscaContatoNoModal(cont.nome); setMostrarDropdownContato(false); }}>
@@ -451,7 +477,7 @@ export function Funil() {
                   <label style={{ display: 'block', marginBottom: '10px', color: '#333', fontSize: '0.95rem', fontWeight: 'bold' }}>
                     <i className="fa-solid fa-comments"></i> Histórico de Interações (Notas)
                   </label>
-                  
+
                   <div style={{ maxHeight: '200px', overflowY: 'auto', marginBottom: '15px', paddingRight: '5px' }}>
                     {notas.length === 0 ? (
                       <div style={{ color: '#999', fontSize: '0.85rem', textAlign: 'center', padding: '10px 0' }}>Nenhuma nota registada nesta negociação.</div>
@@ -487,10 +513,10 @@ export function Funil() {
                       ))
                     )}
                   </div>
-                  
+
                   {editandoId && (
                     <div style={{ display: 'flex', gap: '10px' }}>
-                      <input type="text" value={novaNota} onChange={e => setNovaNota(e.target.value)} placeholder="Escreva o que conversou hoje..." style={{ flex: 1, padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} onKeyDown={e => { if(e.key === 'Enter') { e.preventDefault(); adicionarNota(); } }} />
+                      <input type="text" value={novaNota} onChange={e => setNovaNota(e.target.value)} placeholder="Escreva o que conversou hoje..." style={{ flex: 1, padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); adicionarNota(); } }} />
                       <button type="button" onClick={adicionarNota} style={{ background: '#28a745', color: '#fff', border: 'none', padding: '0 20px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
                         <i className="fa-solid fa-paper-plane"></i>
                       </button>
@@ -520,7 +546,7 @@ export function Funil() {
             <h2 style={{ color: '#555' }}>Nenhum Funil Selecionado</h2>
           </div>
         ) : carregando ? (
-          <div style={{textAlign: 'center', padding: '50px'}}><i className="fa-solid fa-spinner fa-spin fa-2x"></i><br/>Carregando seu Funil...</div>
+          <div style={{ textAlign: 'center', padding: '50px' }}><i className="fa-solid fa-spinner fa-spin fa-2x"></i><br />Carregando seu Funil...</div>
         ) : (
           <div className="kanban-board" ref={boardRef} onMouseDown={onBoardMouseDown} onMouseLeave={onBoardMouseLeave} onMouseUp={onBoardMouseUp} onMouseMove={onBoardMouseMove} style={{ userSelect: 'none', marginTop: '20px' }}>
             {etapas.map((etapa) => {
@@ -534,17 +560,23 @@ export function Funil() {
                   </div>
                   <div className="kanban-cards-container">
                     {cardsDestaColuna.map(op => {
-                      let corBorda = '#007bff'; let bgCard = '#fff';
-                      if (op.status === 'ganho') { corBorda = '#28a745'; bgCard = '#f4fbf5'; }
-                      if (op.status === 'perdido') { corBorda = '#dc3545'; bgCard = '#fff5f5'; }
-                      
+                      let corBorda = '#c9c5c5';
+                      let bgCard = '#fff';
+
+                      if (op.status === 'naofunciona') { corBorda = '#f1c40f'; bgCard = '#fff9db'; }
+                      if (op.status === 'naoatendeu') { corBorda = '#e67e22'; bgCard = '#fff4e6'; }
+                      if (op.status === 'tarefa') { corBorda = '#6f42c1'; bgCard = '#f3e8ff'; }
+                      if (op.status === 'inscricao') { corBorda = '#195326'; bgCard = '#e6f4ea'; }
+                      if (op.status === 'interessada') { corBorda = '#28a745'; bgCard = '#e9f7ef'; }
+                      if (op.status === 'avaliar') { corBorda = '#7bed9f'; bgCard = '#f1fff3'; }
+                      if (op.status === 'perdido') { corBorda = '#dc3545'; bgCard = '#fdecea'; }
                       let idsModsCard = [];
                       try {
                         if (op.modulos_ids) {
                           idsModsCard = typeof op.modulos_ids === 'string' ? JSON.parse(op.modulos_ids) : op.modulos_ids;
                           if (!Array.isArray(idsModsCard)) idsModsCard = [];
                         }
-                      } catch(e) { idsModsCard = []; }
+                      } catch (e) { idsModsCard = []; }
 
                       const nomesModsCard = idsModsCard.map(id => {
                         const m = modulosCampanha.find(mod => mod.id === id);
@@ -557,7 +589,7 @@ export function Funil() {
                             <div style={{ fontWeight: 'bold', marginBottom: '5px', fontSize: '0.95rem' }}>{op.titulo}</div>
                           </div>
                           <div style={{ color: corBorda, fontSize: '0.9rem', fontWeight: 'bold' }}>{formatarMoeda(op.valor)}</div>
-                          
+
                           {nomesModsCard.length > 0 && (
                             <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '6px' }}>
                               {nomesModsCard.map((nome, idx) => (
@@ -571,7 +603,7 @@ export function Funil() {
                           {op.empresa_nome && <div style={{ fontSize: '0.8rem', color: '#666', marginTop: '8px' }}><i className="fa-solid fa-building"></i> {op.empresa_nome}</div>}
                           {op.vendedor_nome && (
                             <div style={{ display: 'inline-block', marginTop: '10px', background: '#f0f0f0', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', color: '#555', border: '1px solid #ddd' }}>
-                              <i className="fa-solid fa-user-tie" style={{color: '#722ed1', marginRight: '4px'}}></i> {op.vendedor_nome}
+                              <i className="fa-solid fa-user-tie" style={{ color: '#722ed1', marginRight: '4px' }}></i> {op.vendedor_nome}
                             </div>
                           )}
                         </div>

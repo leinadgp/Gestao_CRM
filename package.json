@@ -11,13 +11,15 @@
     "preview": "vite preview",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist"
-},
+  },
   "dependencies": {
     "axios": "^1.13.6",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "react-is": "^19.2.4",
     "react-router-dom": "^7.13.1",
-    "recharts": "^3.8.0"
+    "recharts": "^3.8.1",
+    "suneditor-react": "^3.6.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
