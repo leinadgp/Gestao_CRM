@@ -25,6 +25,7 @@ export function Disparos() {
   const [cabecalhoEmail, setCabecalhoEmail] = useState(''); // NOVO CAMPO
   const [emailCru, setEmailCru] = useState('');
   
+  
   const [enviandoTeste, setEnviandoTeste] = useState(false);
   const [salvandoConfig, setSalvandoConfig] = useState(false);
   const [modoVisual, setModoVisual] = useState(true);
