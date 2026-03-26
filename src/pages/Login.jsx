@@ -34,7 +34,7 @@ export function Login() {
       localStorage.setItem('perfil', resposta.data.perfil || 'usuario');
 
       // 3. Redireciona para a tela principal (Dashboard ou Empresas)
-      window.location.href = '/empresas'; 
+      window.location.href = '/'; 
       // navigate('/empresas'); // Use isso em vez do window.location se usar react-router-dom
 
     } catch (error) {
