@@ -28,7 +28,7 @@ export function Login() {
       localStorage.setItem('token', resposta.data.token);
       localStorage.setItem('perfil', resposta.data.perfil || 'usuario');
       
-      // Guarda o ID e Nome para a Dashboard/Home usar depois
+      // Guarda o ID e Nome para a Dashboard/Home ausar depois
       if (resposta.data.usuarioId) localStorage.setItem('usuarioId', resposta.data.usuarioId);
       if (resposta.data.nome) localStorage.setItem('nome', resposta.data.nome);
 
