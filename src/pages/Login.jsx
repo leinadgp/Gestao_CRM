@@ -1,9 +1,7 @@
 // src/pages/Login.jsx
 import { useState } from 'react';
 import axios from 'axios';
-
-// Se você estiver usando react-router-dom para trocar de tela:
-// import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 export function Login() {
   const [login, setLogin] = useState('');
@@ -11,7 +9,7 @@ export function Login() {
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(false);
 
-  // const navigate = useNavigate(); // Descomente se usar react-router-dom
+  const navigate = useNavigate();
 
   const API_URL = 'https://server-js-gestao.onrender.com';
 
@@ -26,18 +24,19 @@ export function Login() {
         senha
       });
 
-      // 1. Guarda o Token de Segurança
+      // 1. Guarda o Token e os Dados de Segurança
       localStorage.setItem('token', resposta.data.token);
-      
-      // 2. A MÁGICA DO RBAC: Guarda o perfil do usuário (admin ou usuario)
-      // Se o backend ainda não mandar, ele assume 'usuario' por segurança
       localStorage.setItem('perfil', resposta.data.perfil || 'usuario');
+      
+      // Guarda o ID e Nome para a Dashboard/Home usar depois
+      if (resposta.data.usuarioId) localStorage.setItem('usuarioId', resposta.data.usuarioId);
+      if (resposta.data.nome) localStorage.setItem('nome', resposta.data.nome);
 
-      // 3. Redireciona para a tela principal (Dashboard ou Empresas)
-      window.location.href = '/Gestao_CRM/'; 
-      // navigate('/empresas'); // Use isso em vez do window.location se usar react-router-dom
+      // 2. Redireciona de forma nativa do React
+      navigate('/'); 
 
     } catch (error) {
+      // 3. Tratamento de Erros Corrigido
       if (error.response && error.response.status === 401) {
         setErro('Usuário ou senha inválidos.');
       } else {

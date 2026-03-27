@@ -59,29 +59,35 @@ export function Home() {
   }
 
   // === LENTE DE VISÃO: ADMIN/GESTOR VS VENDEDOR ===
-  // Se for vendedor, ele só enxerga os próprios negócios!
   const opsFiltradas = perfilUsuario === 'vendedor' 
     ? oportunidades.filter(op => op.vendedor_id === meuUsuarioId) 
     : oportunidades;
 
+  // === AGRUPADORES INTELIGENTES DE STATUS ===
+  const statusSucesso = ['ganho', 'inscricao'];
+  const statusPerdido = ['perdido', 'naofunciona', 'naoatendeu'];
+  const statusAndamento = ['aberto', 'tarefa', 'avaliar', 'interessada'];
+
   // === CÁLCULOS DOS CARDS ===
-  const totalContatos = contatos.length; // Contatos costumam ser base geral da empresa
+  const totalContatos = contatos.length;
   const campanhasAtivas = campanhas.length;
   
-  const negociosAbertos = opsFiltradas.filter(op => op.status === 'aberto');
-  const negociosGanhos = opsFiltradas.filter(op => op.status === 'ganho');
-  const negociosPerdidos = opsFiltradas.filter(op => op.status === 'perdido');
+  const negociosAbertos = opsFiltradas.filter(op => statusAndamento.includes(op.status));
+  const negociosGanhos = opsFiltradas.filter(op => statusSucesso.includes(op.status));
+  const negociosPerdidos = opsFiltradas.filter(op => statusPerdido.includes(op.status));
 
   const valorGanho = negociosGanhos.reduce((acc, op) => acc + Number(op.valor || 0), 0);
 
   // Pega os 5 negócios abertos mais recentes (filtrado pela lente)
-  const ultimosNegocios = [...negociosAbertos].slice(0, 5);
+  const ultimosNegocios = [...negociosAbertos]
+    .sort((a, b) => new Date(b.criado_em) - new Date(a.criado_em))
+    .slice(0, 5);
 
   // Dados para o Mini Gráfico de Eficiência
   const dadosGrafico = [
     { name: 'Fechados', value: negociosGanhos.length, color: '#28a745' },
     { name: 'Perdidos', value: negociosPerdidos.length, color: '#dc3545' },
-    { name: 'Em Aberto', value: negociosAbertos.length, color: '#007bff' }
+    { name: 'Em Andamento', value: negociosAbertos.length, color: '#007bff' }
   ].filter(d => d.value > 0);
 
   return (
@@ -109,7 +115,7 @@ export function Home() {
 
         {/* === CARDS SUPERIORES === */}
         <div className="card-info-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-          <CardInfo icone="fa-folder-open" label="Negócios em Aberto" valor={carregando ? "..." : negociosAbertos.length} cor="blue" />
+          <CardInfo icone="fa-folder-open" label="Negócios em Andamento" valor={carregando ? "..." : negociosAbertos.length} cor="blue" />
           <CardInfo icone="fa-check-circle" label={perfilUsuario === 'vendedor' ? "Minhas Vendas" : "Faturamento Total"} valor={carregando ? "..." : formatarMoeda(valorGanho)} cor="green" />
           <CardInfo icone="fa-bullhorn" label="Cursos / Campanhas" valor={carregando ? "..." : campanhasAtivas} cor="yellow" />
           <CardInfo icone="fa-address-book" label="Base de Contatos" valor={carregando ? "..." : totalContatos} cor="purple" />

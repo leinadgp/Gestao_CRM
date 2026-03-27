@@ -331,19 +331,21 @@ export function Funil() {
                         statusOp === 'naofunciona' ? '#fff9db' :
                           statusOp === 'naoatendeu' ? '#fff4e6' :
                             statusOp === 'tarefa' ? '#f3e8ff' :
-                              statusOp === 'inscricao' ? '#e6f4ea' :
+                              statusOp === 'inscricao' || statusOp === 'ganho' ? '#e6f4ea' :
                                 statusOp === 'interessada' ? '#e9f7ef' :
-                                  statusOp === 'avaliar' ? '#f1fff3' :
+                                  statusOp === 'avaliar' ? '#e7f3ff' :
                                     statusOp === 'perdido' ? '#fdecea' :
                                       '#fff'
                     }}
                   >
-                    <option value="naofunciona">🟡 Não Funciona</option>
-                    <option value="naoatendeu">🟠 Não Atendeu</option>
+                    <option value="aberto">⚪ Em Aberto</option>
+                    <option value="avaliar">🔵 Avaliar</option>
+                    <option value="interessada">🟢 Interessada</option>
+                    <option value="inscricao">🏆 Inscrição (Ganho)</option>
+                    <option value="ganho">🏆 Vendido (Ganho)</option>
                     <option value="tarefa">🟣 Tarefa</option>
-                    <option value="avaliar">🟢 Avaliar</option>
-                    <option value="interessada">🟢 Interessada</option>                    
-                    <option value="inscricao">🟢 Inscrição</option>
+                    <option value="naoatendeu">🟠 Não Atendeu</option>
+                    <option value="naofunciona">🟡 Não Funciona</option>
                     <option value="perdido">🔴 Perdido</option>
                   </select>
                 </div>
@@ -470,9 +472,6 @@ export function Funil() {
                   <textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows="2" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', resize: 'vertical' }} />
                 </div>
 
-                {/* ==================================================== */}
-                {/* ÁREA DE HISTÓRICO DE NOTAS REINSERIDA                */}
-                {/* ==================================================== */}
                 <div style={{ gridColumn: 'span 2', background: '#f8f9fa', padding: '15px', borderRadius: '8px', border: '1px solid #eee' }}>
                   <label style={{ display: 'block', marginBottom: '10px', color: '#333', fontSize: '0.95rem', fontWeight: 'bold' }}>
                     <i className="fa-solid fa-comments"></i> Histórico de Interações (Notas)
@@ -566,10 +565,11 @@ export function Funil() {
                       if (op.status === 'naofunciona') { corBorda = '#f1c40f'; bgCard = '#fff9db'; }
                       if (op.status === 'naoatendeu') { corBorda = '#e67e22'; bgCard = '#fff4e6'; }
                       if (op.status === 'tarefa') { corBorda = '#6f42c1'; bgCard = '#f3e8ff'; }
-                      if (op.status === 'inscricao') { corBorda = '#195326'; bgCard = '#e6f4ea'; }
+                      if (op.status === 'inscricao' || op.status === 'ganho') { corBorda = '#195326'; bgCard = '#e6f4ea'; }
                       if (op.status === 'interessada') { corBorda = '#28a745'; bgCard = '#e9f7ef'; }
-                      if (op.status === 'avaliar') { corBorda = '#7bed9f'; bgCard = '#f1fff3'; }
+                      if (op.status === 'avaliar') { corBorda = '#007bff'; bgCard = '#e7f3ff'; }
                       if (op.status === 'perdido') { corBorda = '#dc3545'; bgCard = '#fdecea'; }
+                      
                       let idsModsCard = [];
                       try {
                         if (op.modulos_ids) {

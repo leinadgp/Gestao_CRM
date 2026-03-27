@@ -86,10 +86,17 @@ export function Dashboard() {
   }
 
   // =========================================================================
+  // AGRUPADORES INTELIGENTES DE STATUS (Alinhado com o CRM Funil.jsx)
+  // =========================================================================
+  const statusSucesso = ['ganho', 'inscricao'];
+  const statusPerdido = ['perdido', 'naofunciona', 'naoatendeu'];
+  const statusAndamento = ['aberto', 'tarefa', 'avaliar', 'interessada'];
+
+  // =========================================================================
   // MÁQUINA DE CONTABILIDADE (REGIME DE COMPETÊNCIA - OPÇÃO A)
   // =========================================================================
   
-  // 1. Filtra as oportunidades base (Em aberto e Perdidas não mudam)
+  // 1. Filtra as oportunidades base
   const opsGeraisFiltradas = oportunidades.filter(op => {
     return filtroCampanha ? op.campanha_id === parseInt(filtroCampanha) : true;
   });
@@ -98,7 +105,7 @@ export function Dashboard() {
   let vendasFracionadas = [];
   
   opsGeraisFiltradas.forEach(op => {
-    if (op.status !== 'ganho') return; // Só fracionamos a receita ganha
+    if (!statusSucesso.includes(op.status)) return; // Só fracionamos a receita ganha
 
     let idsMods = [];
     try { idsMods = typeof op.modulos_ids === 'string' ? JSON.parse(op.modulos_ids) : (op.modulos_ids || []); } catch(e){}
@@ -138,13 +145,13 @@ export function Dashboard() {
   });
 
   let totalGanho = 0;
-  let qtdGanhaCompetencia = vendasNoMes.length; // Agora 1 pessoa comprando 2 módulos = 2 vendas!
+  let qtdGanhaCompetencia = vendasNoMes.length;
   
   vendasNoMes.forEach(v => {
     totalGanho += v.valorContabil;
   });
 
-  // As métricas de Em Aberto e Perdido continuam usando o formato tradicional (por negócio, não por módulo)
+  // As métricas de Em Aberto e Perdido
   let totalAberto = 0, qtdAberto = 0;
   let totalPerdido = 0, qtdPerdido = 0;
 
@@ -157,10 +164,10 @@ export function Dashboard() {
     }
 
     if (passaMes) {
-      if (op.status === 'aberto') {
+      if (statusAndamento.includes(op.status)) {
         totalAberto += Number(op.valor) || 0;
         qtdAberto++;
-      } else if (op.status === 'perdido') {
+      } else if (statusPerdido.includes(op.status)) {
         totalPerdido += Number(op.valor) || 0;
         qtdPerdido++;
       }
@@ -177,26 +184,27 @@ export function Dashboard() {
   let tituloGraficoBarras = '';
 
   if (filtroCampanha) {
-    tituloGraficoBarras = 'Distribuição no Funil (Em Aberto)';
+    tituloGraficoBarras = 'Distribuição no Funil (Pipeline Ativo)';
     dadosGraficoBarras = etapasDaCampanha.map(etapa => {
-      const opsNaEtapa = opsGeraisFiltradas.filter(op => op.etapa_id === etapa.id && op.status === 'aberto');
+      // Pega todos que estão na etapa E que o status é Em Andamento
+      const opsNaEtapa = opsGeraisFiltradas.filter(op => op.etapa_id === etapa.id && statusAndamento.includes(op.status));
       return { nome: etapa.nome, Quantidade: opsNaEtapa.length, Valor: opsNaEtapa.reduce((acc, op) => acc + (Number(op.valor) || 0), 0) };
     });
   } else {
-    tituloGraficoBarras = 'Volume em Aberto por Curso';
+    tituloGraficoBarras = 'Volume de Negociações Ativas por Curso';
     dadosGraficoBarras = campanhas.map(camp => {
-      const opsNaCamp = opsGeraisFiltradas.filter(op => op.campanha_id === camp.id && op.status === 'aberto');
+      const opsNaCamp = opsGeraisFiltradas.filter(op => op.campanha_id === camp.id && statusAndamento.includes(op.status));
       return { nome: camp.nome, Quantidade: opsNaCamp.length, Valor: opsNaCamp.reduce((acc, op) => acc + (Number(op.valor) || 0), 0) };
     }).filter(d => d.Quantidade > 0); 
   }
 
   const dadosPizza = [
-    { name: 'Inscrições Ganhas', value: qtdGanhaCompetencia, color: '#28a745' },
-    { name: 'Negócios Perdidos', value: qtdPerdido, color: '#dc3545' },
-    { name: 'Em Negociação', value: qtdAberto, color: '#007bff' }
+    { name: 'Sucesso (Ganhas)', value: qtdGanhaCompetencia, color: '#28a745' },
+    { name: 'Perdidos (Descarte)', value: qtdPerdido, color: '#dc3545' },
+    { name: 'Pipeline (Em andamento)', value: qtdAberto, color: '#007bff' }
   ].filter(d => d.value > 0); 
 
-  // Ranking usando o valor Fracionado! Se ele vendeu 2 módulos, ganha 2 pontos e R$ dividido.
+  // Ranking usando o valor Fracionado
   const rankingVendedores = {};
   vendasNoMes.forEach(v => {
     let nomeVendedor = v.vendedor_nome || 'Não Atribuído';
@@ -210,9 +218,8 @@ export function Dashboard() {
   });
   const dadosEquipe = Object.values(rankingVendedores).sort((a, b) => b.total - a.total);
 
-  // Vendas por módulo (Gráfico Novo) focado no mês filtrado!
+  // Vendas por módulo
   const dadosModulos = modulosDaCampanha.map(mod => {
-    // Conta quantas "Vendas Fracionadas" caíram neste módulo
     const vendasDesteModulo = vendasNoMes.filter(v => v.modulo_id_fracionado === mod.id);
     return {
       nome: mod.nome,
@@ -222,7 +229,7 @@ export function Dashboard() {
   });
 
   const ultimasVendas = opsGeraisFiltradas
-    .filter(op => op.status === 'ganho')
+    .filter(op => statusSucesso.includes(op.status))
     .sort((a, b) => new Date(b.atualizado_em || b.criado_em) - new Date(a.atualizado_em || a.criado_em))
     .slice(0, 5);
 
@@ -311,7 +318,7 @@ export function Dashboard() {
                   <i className="fa-solid fa-circle-xmark" style={{ color: '#dc3545', fontSize: '1.2rem' }}></i>
                 </div>
                 <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#333', margin: '10px 0' }}>{formatarMoeda(totalPerdido)}</div>
-                <div style={{ fontSize: '0.85rem', color: '#dc3545', fontWeight: 'bold' }}>{qtdPerdido} negócios perdidos</div>
+                <div style={{ fontSize: '0.85rem', color: '#dc3545', fontWeight: 'bold' }}>{qtdPerdido} negócios descartados</div>
               </div>
 
             </div>
@@ -346,7 +353,7 @@ export function Dashboard() {
               
               <div className="panel" style={{ margin: 0, padding: '20px' }}>
                 <h4 style={{ margin: '0 0 5px 0', color: '#333' }}>{tituloGraficoBarras}</h4>
-                <p style={{ color: '#999', fontSize: '0.85rem', marginBottom: '20px' }}>Exibe apenas negociações em andamento (Sem Rateio).</p>
+                <p style={{ color: '#999', fontSize: '0.85rem', marginBottom: '20px' }}>Exibe apenas negociações ativas no funil.</p>
                 <div style={{ width: '100%', height: 300 }}>
                   {dadosGraficoBarras.length === 0 ? (
                     <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa', fontStyle: 'italic' }}>Nenhum negócio ativo para exibir.</div>
@@ -368,7 +375,7 @@ export function Dashboard() {
               </div>
 
               <div className="panel" style={{ margin: 0, padding: '20px', display: 'flex', flexDirection: 'column' }}>
-                <h4 style={{ margin: '0 0 5px 0', color: '#333', textAlign: 'center' }}>Efetividade (Por Inscrições)</h4>
+                <h4 style={{ margin: '0 0 5px 0', color: '#333', textAlign: 'center' }}>Efetividade (Por Status Geral)</h4>
                 <p style={{ color: '#999', fontSize: '0.85rem', marginBottom: '20px', textAlign: 'center' }}>Comparativo geral do período filtrado.</p>
                 <div style={{ width: '100%', flex: 1, minHeight: '250px' }}>
                   {dadosPizza.length === 0 ? (
@@ -441,20 +448,20 @@ export function Dashboard() {
               <div className="panel" style={{ margin: 0 }}>
                 <div className="panel-title" style={{ padding: '20px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <i className="fa-solid fa-handshake" style={{ color: '#28a745', fontSize: '1.2rem' }}></i> 
-                  <span>Últimos Negócios (Totais) Fechados</span>
+                  <span>Últimos Negócios Fechados</span>
                 </div>
                 <div className="table-responsive">
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ background: '#f8f9fa', borderBottom: '2px solid #ddd', textAlign: 'left', color: '#555', fontSize: '0.9rem' }}>
                         <th style={{ padding: '15px' }}>Negociação</th>
-                        <th style={{ padding: '15px' }}>Vendedor</th>
+                        <th style={{ padding: '15px' }}>Origem/Vendedor</th>
                         <th style={{ padding: '15px', textAlign: 'right' }}>Valor Total</th>
                       </tr>
                     </thead>
                     <tbody>
                       {ultimasVendas.length === 0 ? (
-                        <tr><td colSpan="3" style={{ textAlign: 'center', padding: '30px', color: '#999', fontStyle: 'italic' }}>Nenhuma venda concluída (sem filtros).</td></tr>
+                        <tr><td colSpan="3" style={{ textAlign: 'center', padding: '30px', color: '#999', fontStyle: 'italic' }}>Nenhuma venda concluída no período.</td></tr>
                       ) : (
                         ultimasVendas.map(op => (
                           <tr key={op.id} style={{ borderBottom: '1px solid #eee' }}>
@@ -463,8 +470,8 @@ export function Dashboard() {
                               <div style={{ fontSize: '0.8rem', color: '#777', marginTop: '3px' }}>{formatarData(op.atualizado_em || op.criado_em)}</div>
                             </td>
                             <td style={{ padding: '15px' }}>
-                              <span style={{ background: '#e7f3ff', color: '#007bff', padding: '4px 10px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'bold' }}>
-                                {op.origem_venda === 'landing_page' ? '🤖 Automático' : (op.vendedor_nome || 'Equipe')}
+                              <span style={{ background: '#e7f3ff', color: '#007bff', padding: '4px 10px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                                {op.origem_venda === 'landing_page' ? '🤖 Landing Page' : (op.vendedor_nome || 'Equipe')}
                               </span>
                             </td>
                             <td style={{ padding: '15px', textAlign: 'right', fontWeight: 'bold', color: '#28a745', fontSize: '1.05rem' }}>

@@ -24,7 +24,7 @@ export function Empresas() {
   const [estado, setEstado] = useState('');
   const [cidade, setCidade] = useState('');
   const [telefones, setTelefones] = useState('');
-  const [horarioFuncionamento, setHorarioFuncionamento] = useState(''); // NOVO CAMPO
+  const [horarioFuncionamento, setHorarioFuncionamento] = useState('');
 
   // === CONTROLE DO MODAL DE DETALHES 360º ===
   const [mostrarModalDetalhes, setMostrarModalDetalhes] = useState(false);
@@ -145,14 +145,19 @@ export function Empresas() {
   }
 
   // === CÁLCULOS DO MODAL DE DETALHES ===
+  // Agrupadores de status alinhados com o Dashboard e o Funil
+  const statusSucesso = ['ganho', 'inscricao'];
+  const statusPerdido = ['perdido', 'naofunciona', 'naoatendeu'];
+  const statusAndamento = ['aberto', 'tarefa', 'avaliar', 'interessada'];
+
   let valAndamento = 0, valGanho = 0, valPerdido = 0, totalOportunidades = 0;
   if (detalhesEmpresa && detalhesEmpresa.oportunidades) {
     totalOportunidades = detalhesEmpresa.oportunidades.length;
     detalhesEmpresa.oportunidades.forEach(op => {
       const v = Number(op.valor) || 0;
-      if (op.status === 'ganho') valGanho += v;
-      else if (op.status === 'perdido') valPerdido += v;
-      else valAndamento += v; 
+      if (statusSucesso.includes(op.status)) valGanho += v;
+      else if (statusPerdido.includes(op.status)) valPerdido += v;
+      else if (statusAndamento.includes(op.status)) valAndamento += v; 
     });
   }
 
@@ -382,7 +387,15 @@ export function Empresas() {
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' }}>
                         {detalhesEmpresa.oportunidades.map(op => {
-                          let corBorda = '#007bff'; let bgTag = '#e7f3ff'; let corTag = '#007bff'; let textoTag = 'Em Aberto';
+                          // CORES Mapeadas do CRM Funil.jsx
+                          let corBorda = '#c9c5c5'; let bgTag = '#fff'; let corTag = '#555'; let textoTag = 'Em Aberto';
+                          
+                          if (op.status === 'naofunciona') { corBorda = '#f1c40f'; bgTag = '#fff9db'; corTag = '#b8860b'; textoTag = 'Não Funciona'; }
+                          if (op.status === 'naoatendeu') { corBorda = '#e67e22'; bgTag = '#fff4e6'; corTag = '#d35400'; textoTag = 'Não Atendeu'; }
+                          if (op.status === 'tarefa') { corBorda = '#6f42c1'; bgTag = '#f3e8ff'; corTag = '#6f42c1'; textoTag = 'Tarefa'; }
+                          if (op.status === 'avaliar') { corBorda = '#7bed9f'; bgTag = '#f1fff3'; corTag = '#2e8b57'; textoTag = 'Avaliar'; }
+                          if (op.status === 'interessada') { corBorda = '#28a745'; bgTag = '#e9f7ef'; corTag = '#28a745'; textoTag = 'Interessada'; }
+                          if (op.status === 'inscricao') { corBorda = '#195326'; bgTag = '#e6f4ea'; corTag = '#195326'; textoTag = 'Inscrição'; }
                           if (op.status === 'ganho') { corBorda = '#28a745'; bgTag = '#e6f4ea'; corTag = '#28a745'; textoTag = 'Vendido'; }
                           if (op.status === 'perdido') { corBorda = '#dc3545'; bgTag = '#fce8e6'; corTag = '#dc3545'; textoTag = 'Perdido'; }
 
