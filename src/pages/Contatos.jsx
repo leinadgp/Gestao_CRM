@@ -201,6 +201,7 @@ export function Contatos() {
             <option value="Licita">Licita</option>
             <option value="CI-R">CI-R</option>
             <option value="CI-E">CI-E</option>
+            <option value="Teste">⚙️ Teste Interno</option>
           </select>
           <button onClick={abrirNovo} style={{ background: '#28a745', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
             <i className="fa-solid fa-plus"></i> Novo
@@ -229,6 +230,7 @@ export function Contatos() {
                   <option value="Licita">Licita</option>
                   <option value="CI-R">CI-R</option>
                   <option value="CI-E">CI-E</option>
+                  <option value="Teste">⚙️ Teste Interno</option>
                   <option value="Outro">Outro</option>
                 </select>
               </div>

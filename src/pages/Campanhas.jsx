@@ -16,7 +16,7 @@ export function Campanhas() {
   
   // Múltiplos Cargos Alvo
   const [cargosAlvo, setCargosAlvo] = useState([]);
-  const listaCargosDisponiveis = ['Prefeito', 'Secretário', 'Licita', 'CI-R', 'CI-E'];
+  const listaCargosDisponiveis = ['Prefeito', 'Secretário', 'Licita', 'CI-R', 'CI-E', 'Teste'];
 
   const [etapas, setEtapas] = useState(['Contato Feito', 'Reunião Agendada', 'Proposta Enviada', 'Em Negociação']);
   const [novaEtapa, setNovaEtapa] = useState('');
