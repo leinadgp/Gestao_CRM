@@ -71,9 +71,20 @@ export function Disparos() {
   }
 
   function inserirSnippet(snippet) { setEmailCru(prev => `${prev || ''}${snippet}`); }
-  function inserirParagrafo() { inserirSnippet(`\n<p style="margin:0 0 15px 0; color:#1F4E79;">Novo parágrafo aqui.</p>\n`); }
+  function inserirParagrafo() { inserirSnippet(`\n<p style="margin:0 0 15px 0;color:#1F4E79;">Novo parágrafo aqui.</p>\n`); }
   function inserirTituloSecundario() { inserirSnippet(`\n<h2 style="margin:0 0 15px 0;font-size:18px;color:#1F4E79;">Título da seção</h2>\n`); }
-  
+  function inserirLinhaSeparadora() { inserirSnippet(`\n<div style="height:1px;background:#e5e5e5;margin:20px 0;"></div>\n`); }
+  function inserirAvisoSeguranca() {
+    inserirSnippet(`\n<p style="margin: 0px 0 15px 0; padding: 0 24px; color: #1F4E79; text-align: center; font-size: 13px;">Obs: O link acima é oficial e 100% seguro.</p>\n`);
+  }
+  // NOVAS FUNÇÕES: LISTAS ORDENADAS E NÃO ORDENADAS COM ESTILO
+  function inserirListaNaoOrdenada() {
+    inserirSnippet(`\n<ul style="margin: 0 0 15px 20px; padding: 0; color: #1F4E79; font-size: 14px; line-height: 1.6;">\n  <li style="margin-bottom: 8px;">Primeiro benefício aqui</li>\n  <li style="margin-bottom: 8px;">Segundo benefício aqui</li>\n  <li style="margin-bottom: 8px;">Terceiro benefício aqui</li>\n</ul>\n`);
+  }
+
+  function inserirListaOrdenada() {
+    inserirSnippet(`\n<ol style="margin: 0 0 15px 20px; padding: 0; color: #1F4E79; font-size: 14px; line-height: 1.6;">\n  <li style="margin-bottom: 8px;">Passo 1 aqui</li>\n  <li style="margin-bottom: 8px;">Passo 2 aqui</li>\n  <li style="margin-bottom: 8px;">Passo 3 aqui</li>\n</ol>\n`);
+  }
 
   function inserirBotaoRastreado() {
     const textoBotao = window.prompt('Texto do botão:', 'Selecionar os temas prioritários');
@@ -85,14 +96,15 @@ export function Disparos() {
     inserirSnippet(`\n<div style="text-align: center; padding: 10px 20px; margin: 15px 0;"><a href="${linkRastreado}" target="_blank" style="display:inline-block; padding:14px 26px; background-color:#218553; color:#ffffff; font-weight:bold; text-decoration:none; font-size:14px; border-radius:6px; border:1px solid #218553;">${textoBotao}</a></div><p><br></p>`);
   }
 
+  // ATUALIZADO: Link colado nas aspas para se mesclar na frase
   function inserirLinkTextoRastreado() {
-    const textoLink = window.prompt('Texto do link:', 'Acessar o site');
+    const textoLink = window.prompt('Texto do link:', 'Programa Avançado');
     if (!textoLink) return;
     const urlDestino = window.prompt('URL de destino:', 'https://www.gestao.srv.br');
     if (!urlDestino) return;
     const descricao = window.prompt('Descrição do clique:', 'Link no Texto') || 'Link no Texto';
     const linkRastreado = montarUrlRastreada({ redirect: urlDestino, descricao, etapaAtual: ordemEtapa, cursoId: cursoAlvo, tipoF: tipoFunil });
-    inserirSnippet(` <a href="${linkRastreado}" target="_blank" style="color:#1F4E79;text-decoration:underline;font-weight:bold;">${escapeHtml(textoLink)}</a> `);
+    inserirSnippet(`<a href="${linkRastreado}" target="_blank" style="color:#1F4E79;text-decoration:underline;">${escapeHtml(textoLink)}</a>`);
   }
 
   function montarHtmlFinal({ titulo = tituloemail, cabecalho = cabecalhoEmail, conteudo = emailCru, etapaEmail = ordemEtapa, cursoId = cursoAlvo, tipoF = tipoFunil } = {}) {
@@ -195,7 +207,7 @@ export function Disparos() {
     );
 
     if (ordemDuplicada) {
-      return alert(`Já existee um e-mail na Etapa ${ordemEtapa} do funil ${tipoFunil === 'BROADCAST' ? 'Broadcast' : 'Pós-Clique'}. Por favor, escolha um número de etapa diferente.`);
+      return alert(`Já existe um e-mail na Etapa ${ordemEtapa} do funil ${tipoFunil === 'BROADCAST' ? 'Broadcast' : 'Pós-Clique'}. Por favor, escolha um número de etapa diferente.`);
     }
 
     setSalvandoConfig(true);
@@ -264,11 +276,9 @@ export function Disparos() {
     finally { setEnviandoTeste(false); }
   }
 
-  // --- NOVA FUNÇÃO PARA CORRIGIR O FUSO HORÁRIO DO NAVEGADOR ---
   function formatarDataHora(dataIso) {
     if (!dataIso) return '-';
     const data = new Date(dataIso);
-    // Adiciona o offset do Brasil (3 horas) de volta, pois o navegador subtrai achando que é UTC
     data.setMinutes(data.getMinutes() + data.getTimezoneOffset());
     return data.toLocaleString('pt-BR');
   }
@@ -452,8 +462,12 @@ export function Disparos() {
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
                 <button type="button" onClick={inserirParagrafo} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #ccc', background: '#fff', cursor: 'pointer' }}>+ Parágrafo</button>
                 <button type="button" onClick={inserirTituloSecundario} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #ccc', background: '#fff', cursor: 'pointer' }}>+ Título</button>
+                <button type="button" onClick={inserirListaNaoOrdenada} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #ccc', background: '#fff', cursor: 'pointer' }}>+ Lista (Bolinhas)</button>
+                <button type="button" onClick={inserirListaOrdenada} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #ccc', background: '#fff', cursor: 'pointer' }}>+ Lista (Números)</button>
+                <button type="button" onClick={inserirLinhaSeparadora} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #ccc', background: '#fff', cursor: 'pointer' }}>+ Linha</button>
                 <button type="button" onClick={inserirLinkTextoRastreado} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #007bff', background: '#e7f3ff', cursor: 'pointer', fontWeight: 'bold', color: '#0056b3' }}>+ Link rastreado</button>
                 <button type="button" onClick={inserirBotaoRastreado} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #28a745', background: '#eaf7ed', cursor: 'pointer', fontWeight: 'bold', color: '#19692c' }}>+ Botão Verde</button>
+                <button type="button" onClick={inserirAvisoSeguranca} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #17a2b8', background: '#e0f3f8', cursor: 'pointer', fontWeight: 'bold', color: '#0c5460' }}>+ Aviso de Segurança</button>
                 <button type="button" onClick={() => setEmailCru(getEmailPadrao())} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #dc3545', background: '#fdecea', cursor: 'pointer', fontWeight: 'bold', color: '#b02a37' }}>Restaurar modelo</button>
               </div>
 
@@ -489,7 +503,6 @@ export function Disparos() {
           </div>
         )}
 
-        {/* MODAL DE CLIQUES - COM HORÁRIO CORRIGIDO PARA O BRASIL */}
         {mostrarModalCliques && (
           <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }} onClick={() => setMostrarModalCliques(false)}>
             <div style={{ background: '#fff', width: '100%', maxWidth: '800px', maxHeight: '90vh', borderRadius: '8px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
@@ -529,7 +542,6 @@ export function Disparos() {
                             <td style={{ padding: '15px 12px', verticalAlign: 'top' }}>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                 
-                                {/* ÚLTIMO CLIQUE (SEMPRE VISÍVEL) - USANDO A FUNÇÃO DE FUSO HORÁRIO */}
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8f9fa', padding: '8px 12px', borderRadius: '6px', borderLeft: '3px solid #007bff' }}>
                                   <span style={{ color: '#007bff', fontWeight: 'bold', fontSize: '0.85rem', background: '#e7f3ff', padding: '4px 8px', borderRadius: '4px' }}>
                                     {ultimaInteracao.link}
@@ -549,7 +561,6 @@ export function Disparos() {
                                   </button>
                                 )}
 
-                                {/* LISTA DE CLIQUES ANTIGOS */}
                                 {estaExpandido && historicoAntigo.map((int, i) => (
                                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f1f3f5', padding: '8px 12px', borderRadius: '6px', borderLeft: '3px solid #ccc', marginTop: '4px', opacity: 0.8 }}>
                                     <span style={{ color: '#555', fontWeight: 'bold', fontSize: '0.85rem', background: '#e2e3e5', padding: '4px 8px', borderRadius: '4px' }}>
