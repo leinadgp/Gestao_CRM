@@ -1,4 +1,3 @@
-// src/pages/Contatos.jsx
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { Header } from '../componentes/Header.jsx';
@@ -22,9 +21,10 @@ export function Contatos() {
   const [cargo, setCargo] = useState('');
   const [empresaId, setEmpresaId] = useState('');
   
-  // Arrays dinâmicos para múltiplos E-mails e Telefones
+  // Arrays dinâmicos
   const [emails, setEmails] = useState(['']);
   const [telefones, setTelefones] = useState(['']);
+  const [emailsComErroForm, setEmailsComErroForm] = useState([]); // Guarda quais emails deram erro na edição
 
   // === ESTADOS DO DROPDOWN PESQUISÁVEL (PREFEITURAS) ===
   const [buscaEmpresaNoForm, setBuscaEmpresaNoForm] = useState('');
@@ -78,7 +78,6 @@ export function Contatos() {
     finally { setCarregando(false); }
   }
 
-  // === ABRIR RAIO-X DO CONTATO ===
   async function abrirHistorico(id) {
     try {
       const res = await axios.get(`${API_URL}/contatos/${id}/detalhes`, getHeaders());
@@ -87,7 +86,6 @@ export function Contatos() {
     } catch (error) { alert('Erro ao carregar histórico do contato.'); }
   }
 
-  // === LÓGICA DE CAMPOS DINÂMICOS (E-MAIL E TELEFONE) ===
   function adicionarEmail() { setEmails([...emails, '']); }
   function removerEmail(index) { setEmails(emails.filter((_, i) => i !== index)); }
   function atualizarEmail(index, valor) {
@@ -119,10 +117,9 @@ export function Contatos() {
   const totalPaginas = Math.ceil(contatosFiltrados.length / itensPorPagina);
   const itensExibidos = contatosFiltrados.slice((paginaAtual - 1) * itensPorPagina, paginaAtual * itensPorPagina);
 
-  // === FUNÇÕES DE AÇÃO ===
   function abrirNovo() {
     setEditandoId(null); setNome(''); setCargo(''); setEmpresaId(''); setBuscaEmpresaNoForm('');
-    setEmails(['']); setTelefones(['']); 
+    setEmails(['']); setTelefones(['']); setEmailsComErroForm([]);
     setMostrarForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -133,9 +130,9 @@ export function Contatos() {
     setCargo(c.cargo || '');
     setEmpresaId(c.empresa_id || '');
     setBuscaEmpresaNoForm(c.empresa_nome || '');
-    
     setEmails(c.emails_json && c.emails_json.length > 0 ? c.emails_json : ['']);
     setTelefones(c.telefones_json && c.telefones_json.length > 0 ? c.telefones_json : ['']);
+    setEmailsComErroForm(c.emails_com_erro || []); // Popula a lista de erros para o formulário
     
     setMostrarForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -235,20 +232,32 @@ export function Contatos() {
                 </select>
               </div>
 
-              {/* MÚLTIPLOS E-MAILS */}
+              {/* MÚLTIPLOS E-MAILS COM ALERTA DE ERRO */}
               <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '8px', border: '1px solid #eee' }}>
                 <label style={{ fontWeight: 'bold', fontSize: '0.9rem', display: 'flex', justifyContent: 'space-between' }}>
                   <span><i className="fa-solid fa-envelope"></i> E-mails</span>
                   <button type="button" onClick={adicionarEmail} style={{ background: 'none', border: 'none', color: '#007bff', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold' }}>+ Adicionar</button>
                 </label>
-                {emails.map((email, index) => (
-                  <div key={index} style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                    <input type="email" value={email} onChange={e => atualizarEmail(index, e.target.value)} placeholder="Ex: email@teste.com" style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #ddd' }} />
-                    {emails.length > 1 && (
-                      <button type="button" onClick={() => removerEmail(index)} style={{ background: '#dc3545', color: '#fff', border: 'none', borderRadius: '6px', padding: '0 12px', cursor: 'pointer' }}><i className="fa-solid fa-trash"></i></button>
-                    )}
-                  </div>
-                ))}
+                {emails.map((email, index) => {
+                  const isFalho = emailsComErroForm.includes(email);
+                  return (
+                    <div key={index} style={{ marginTop: '10px' }}>
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <input 
+                          type="email" 
+                          value={email} 
+                          onChange={e => atualizarEmail(index, e.target.value)} 
+                          placeholder="Ex: email@teste.com" 
+                          style={{ width: '100%', padding: '8px', borderRadius: '6px', border: isFalho ? '2px solid #dc3545' : '1px solid #ddd', background: isFalho ? '#fdf0f1' : '#fff' }} 
+                        />
+                        {emails.length > 1 && (
+                          <button type="button" onClick={() => removerEmail(index)} style={{ background: '#dc3545', color: '#fff', border: 'none', borderRadius: '6px', padding: '0 12px', cursor: 'pointer' }}><i className="fa-solid fa-trash"></i></button>
+                        )}
+                      </div>
+                      {isFalho && <div style={{ color: '#dc3545', fontSize: '0.75rem', marginTop: '4px', fontWeight: 'bold' }}><i className="fa-solid fa-triangle-exclamation"></i> E-mail inválido ou caixa cheia (Bounce)</div>}
+                    </div>
+                  );
+                })}
               </div>
 
               {/* MÚLTIPLOS TELEFONES */}
@@ -318,41 +327,46 @@ export function Contatos() {
                 ) : itensExibidos.length === 0 ? (
                   <tr><td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>Nenhum contato encontrado.</td></tr>
                 ) : (
-                  itensExibidos.map(c => (
-                    <tr key={c.id}>
-                      <td>
-                        <strong style={{ fontSize: '1.05rem', color: '#1c1e21' }}>{c.nome}</strong><br />
-                        <div style={{ display: 'flex', gap: '15px', marginTop: '5px' }}>
-                          <span style={{ color: '#666', fontSize: '0.85rem' }}>
-                            <i className="fa-solid fa-envelope"></i> {c.emails_json && c.emails_json.length > 0 ? c.emails_json[0] : 'S/ E-mail'} 
-                            {c.emails_json && c.emails_json.length > 1 && <span style={{ background: '#e9ecef', padding: '2px 6px', borderRadius: '10px', marginLeft: '5px', fontSize: '0.75rem' }}>+{c.emails_json.length - 1}</span>}
-                          </span>
-                          <span style={{ color: '#666', fontSize: '0.85rem' }}>
-                            <i className="fa-brands fa-whatsapp"></i> {c.telefones_json && c.telefones_json.length > 0 ? c.telefones_json[0] : 'S/ Tel'}
-                            {c.telefones_json && c.telefones_json.length > 1 && <span style={{ background: '#e9ecef', padding: '2px 6px', borderRadius: '10px', marginLeft: '5px', fontSize: '0.75rem' }}>+{c.telefones_json.length - 1}</span>}
-                          </span>
-                        </div>
-                      </td>
-                      <td>
-                        {c.empresa_nome || <span style={{ color: '#ccc' }}>Avulso</span>}
-                        {c.estado && <span style={{ color: '#007bff', fontWeight: 'bold' }}> ( {c.estado} )</span>}
-                      </td>
-                      <td><span className={`badge ${c.cargo}`}>{c.cargo || '-'}</span></td>
-                      <td style={{ textAlign: 'center' }}>
-                        <button onClick={() => abrirHistorico(c.id)} style={{ background: 'none', border: 'none', color: '#6f42c1', cursor: 'pointer', fontSize: '1.2rem', marginRight: '10px' }} title="Ficha do Cliente">
-                          <i className="fa-solid fa-address-card"></i>
-                        </button>
-                        <button onClick={() => prepararEdicao(c)} style={{ background: 'none', border: 'none', color: '#ffc107', cursor: 'pointer', fontSize: '1.2rem', marginRight: '10px' }} title="Editar">
-                          <i className="fa-solid fa-pen-to-square"></i>
-                        </button>
-                        {perfilUsuario === 'admin' && (
-                          <button onClick={() => excluir(c.id)} style={{ background: 'none', border: 'none', color: '#dc3545', cursor: 'pointer', fontSize: '1.2rem' }} title="Excluir">
-                            <i className="fa-solid fa-trash-can"></i>
+                  itensExibidos.map(c => {
+                    const primeiroEmail = c.emails_json && c.emails_json.length > 0 ? c.emails_json[0] : 'S/ E-mail';
+                    const emailComErro = c.emails_com_erro?.includes(primeiroEmail);
+
+                    return (
+                      <tr key={c.id}>
+                        <td>
+                          <strong style={{ fontSize: '1.05rem', color: '#1c1e21' }}>{c.nome}</strong><br />
+                          <div style={{ display: 'flex', gap: '15px', marginTop: '5px' }}>
+                            <span style={{ color: emailComErro ? '#dc3545' : '#666', fontSize: '0.85rem', fontWeight: emailComErro ? 'bold' : 'normal' }}>
+                              <i className={emailComErro ? "fa-solid fa-triangle-exclamation" : "fa-solid fa-envelope"}></i> {primeiroEmail}
+                              {c.emails_json && c.emails_json.length > 1 && <span style={{ background: '#e9ecef', padding: '2px 6px', borderRadius: '10px', marginLeft: '5px', fontSize: '0.75rem', color: '#666' }}>+{c.emails_json.length - 1}</span>}
+                            </span>
+                            <span style={{ color: '#666', fontSize: '0.85rem' }}>
+                              <i className="fa-brands fa-whatsapp"></i> {c.telefones_json && c.telefones_json.length > 0 ? c.telefones_json[0] : 'S/ Tel'}
+                              {c.telefones_json && c.telefones_json.length > 1 && <span style={{ background: '#e9ecef', padding: '2px 6px', borderRadius: '10px', marginLeft: '5px', fontSize: '0.75rem' }}>+{c.telefones_json.length - 1}</span>}
+                            </span>
+                          </div>
+                        </td>
+                        <td>
+                          {c.empresa_nome || <span style={{ color: '#ccc' }}>Avulso</span>}
+                          {c.estado && <span style={{ color: '#007bff', fontWeight: 'bold' }}> ( {c.estado} )</span>}
+                        </td>
+                        <td><span className={`badge ${c.cargo}`}>{c.cargo || '-'}</span></td>
+                        <td style={{ textAlign: 'center' }}>
+                          <button onClick={() => abrirHistorico(c.id)} style={{ background: 'none', border: 'none', color: '#6f42c1', cursor: 'pointer', fontSize: '1.2rem', marginRight: '10px' }} title="Ficha do Cliente">
+                            <i className="fa-solid fa-address-card"></i>
                           </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))
+                          <button onClick={() => prepararEdicao(c)} style={{ background: 'none', border: 'none', color: '#ffc107', cursor: 'pointer', fontSize: '1.2rem', marginRight: '10px' }} title="Editar">
+                            <i className="fa-solid fa-pen-to-square"></i>
+                          </button>
+                          {perfilUsuario === 'admin' && (
+                            <button onClick={() => excluir(c.id)} style={{ background: 'none', border: 'none', color: '#dc3545', cursor: 'pointer', fontSize: '1.2rem' }} title="Excluir">
+                              <i className="fa-solid fa-trash-can"></i>
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -427,7 +441,6 @@ export function Contatos() {
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' }}>
                     {dadosHistorico.oportunidades.map(op => {
-                      // Cores espelhadas do Funil.jsx
                       let corBorda = '#c9c5c5'; let bgTag = '#fff'; let corTag = '#555'; let textoTag = 'Em Aberto';
                       
                       if (op.status === 'naofunciona') { corBorda = '#f1c40f'; bgTag = '#fff9db'; corTag = '#b8860b'; textoTag = 'Não Funciona'; }

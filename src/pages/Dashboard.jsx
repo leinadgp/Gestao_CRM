@@ -1,4 +1,3 @@
-// src/pages/Dashboard.jsx
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Header } from '../componentes/Header.jsx';
@@ -9,15 +8,16 @@ export function Dashboard() {
   const [campanhas, setCampanhas] = useState([]);
   const [etapasDaCampanha, setEtapasDaCampanha] = useState([]);
   
-  // Guardamos TODOS os módulos de todas as campanhas para fazer a matemática de contabilidade
   const [todosModulos, setTodosModulos] = useState([]);
   const [modulosDaCampanha, setModulosDaCampanha] = useState([]);
+  const [relatorioCliques, setRelatorioCliques] = useState([]);
+  
+  // NOVO: Estado para a lista de pessoas inscritas
+  const [inscritos, setInscritos] = useState([]);
 
   const [carregando, setCarregando] = useState(true);
-
   const [filtroCampanha, setFiltroCampanha] = useState('');
   
-  // Filtro de Mês/Ano (Ex: "2026-03")
   const dataAtual = new Date();
   const mesAtualString = `${dataAtual.getFullYear()}-${String(dataAtual.getMonth() + 1).padStart(2, '0')}`;
   const [mesFiltro, setMesFiltro] = useState(mesAtualString); 
@@ -33,14 +33,16 @@ export function Dashboard() {
     async function carregarDadosBase() {
       setCarregando(true);
       try {
-        const [resOps, resCamp] = await Promise.all([
+        const [resOps, resCamp, resInscritos] = await Promise.all([
           axios.get(`${API_URL}/oportunidades`, getHeaders()),
-          axios.get(`${API_URL}/campanhas`, getHeaders())
+          axios.get(`${API_URL}/campanhas`, getHeaders()),
+          axios.get(`${API_URL}/dashboard/inscritos`, getHeaders()) // Busca a lista nominal de convertidos
         ]);
+        
         setOportunidades(resOps.data);
         setCampanhas(resCamp.data);
+        setInscritos(resInscritos.data);
 
-        // Busca os módulos de TODAS as campanhas para a contabilidade global
         const promessasModulos = resCamp.data.map(c => axios.get(`${API_URL}/campanhas/${c.id}/modulos`, getHeaders()));
         const respostasModulos = await Promise.all(promessasModulos);
         const modulosGlobais = respostasModulos.flatMap(r => r.data);
@@ -56,22 +58,25 @@ export function Dashboard() {
   }, []);
 
   useEffect(() => {
-    async function buscarEtapasEModulos() {
+    async function buscarDadosExtrasDaCampanha() {
       if (filtroCampanha) {
         try {
           const resEtapas = await axios.get(`${API_URL}/campanhas/${filtroCampanha}/etapas`, getHeaders());
           setEtapasDaCampanha(resEtapas.data);
-          // Filtra os módulos apenas da campanha selecionada
           setModulosDaCampanha(todosModulos.filter(m => m.campanha_id === parseInt(filtroCampanha)));
+          
+          const resCliques = await axios.get(`${API_URL}/campanhas/${filtroCampanha}/relatorio-cliques`, getHeaders());
+          setRelatorioCliques(resCliques.data);
         } catch (erro) {
           console.error(erro);
         }
       } else {
         setEtapasDaCampanha([]);
         setModulosDaCampanha([]);
+        setRelatorioCliques([]);
       }
     }
-    buscarEtapasEModulos();
+    buscarDadosExtrasDaCampanha();
   }, [filtroCampanha, todosModulos]);
 
   function formatarMoeda(valor) {
@@ -85,38 +90,27 @@ export function Dashboard() {
     return data.toLocaleDateString('pt-BR');
   }
 
-  // =========================================================================
-  // AGRUPADORES INTELIGENTES DE STATUS (Alinhado com o CRM Funil.jsx)
-  // =========================================================================
   const statusSucesso = ['ganho', 'inscricao'];
   const statusPerdido = ['perdido', 'naofunciona', 'naoatendeu'];
   const statusAndamento = ['aberto', 'tarefa', 'avaliar', 'interessada'];
 
-  // =========================================================================
-  // MÁQUINA DE CONTABILIDADE (REGIME DE COMPETÊNCIA - OPÇÃO A)
-  // =========================================================================
-  
-  // 1. Filtra as oportunidades base
   const opsGeraisFiltradas = oportunidades.filter(op => {
     return filtroCampanha ? op.campanha_id === parseInt(filtroCampanha) : true;
   });
 
-  // 2. "Explode" as oportunidades GANHAS em múltiplas vendas fracionadas
   let vendasFracionadas = [];
   
   opsGeraisFiltradas.forEach(op => {
-    if (!statusSucesso.includes(op.status)) return; // Só fracionamos a receita ganha
+    if (!statusSucesso.includes(op.status)) return; 
 
     let idsMods = [];
     try { idsMods = typeof op.modulos_ids === 'string' ? JSON.parse(op.modulos_ids) : (op.modulos_ids || []); } catch(e){}
 
     if (idsMods.length > 0) {
-      // Divide o valor final pelo número de módulos selecionados
       const valorPorModulo = Number(op.valor) / idsMods.length;
       
       idsMods.forEach(idMod => {
         const infoMod = todosModulos.find(m => m.id === idMod);
-        // A data de competência é a data da aula (evento). Se não tiver, cai na data que vendeu.
         const dataCompetencia = infoMod?.data_evento || infoMod?.data_inicio_vendas || op.atualizado_em || op.criado_em;
         
         vendasFracionadas.push({
@@ -127,7 +121,6 @@ export function Dashboard() {
         });
       });
     } else {
-      // Se ganhou mas não marcou módulo, conta como 1 venda integral na data de hoje
       vendasFracionadas.push({
         ...op,
         valorContabil: Number(op.valor),
@@ -137,7 +130,6 @@ export function Dashboard() {
     }
   });
 
-  // 3. Aplica o Filtro de MÊS nas vendas fracionadas e nas gerais
   const vendasNoMes = vendasFracionadas.filter(venda => {
     if (!mesFiltro) return true;
     const mesAnoVenda = venda.dataCompetencia ? venda.dataCompetencia.substring(0, 7) : '';
@@ -146,17 +138,12 @@ export function Dashboard() {
 
   let totalGanho = 0;
   let qtdGanhaCompetencia = vendasNoMes.length;
-  
-  vendasNoMes.forEach(v => {
-    totalGanho += v.valorContabil;
-  });
+  vendasNoMes.forEach(v => { totalGanho += v.valorContabil; });
 
-  // As métricas de Em Aberto e Perdido
   let totalAberto = 0, qtdAberto = 0;
   let totalPerdido = 0, qtdPerdido = 0;
 
   opsGeraisFiltradas.forEach(op => {
-    // Filtro de mês para Aberto/Perdido (usa a data do negócio mesmo)
     let passaMes = true;
     if (mesFiltro) {
       const dataOp = op.atualizado_em || op.criado_em;
@@ -176,17 +163,12 @@ export function Dashboard() {
 
   const ticketMedio = qtdGanhaCompetencia > 0 ? (totalGanho / qtdGanhaCompetencia) : 0;
 
-  // =========================================================================
-  // GRÁFICOS E RANKING
-  // =========================================================================
-
   let dadosGraficoBarras = [];
   let tituloGraficoBarras = '';
 
   if (filtroCampanha) {
     tituloGraficoBarras = 'Distribuição no Funil (Pipeline Ativo)';
     dadosGraficoBarras = etapasDaCampanha.map(etapa => {
-      // Pega todos que estão na etapa E que o status é Em Andamento
       const opsNaEtapa = opsGeraisFiltradas.filter(op => op.etapa_id === etapa.id && statusAndamento.includes(op.status));
       return { nome: etapa.nome, Quantidade: opsNaEtapa.length, Valor: opsNaEtapa.reduce((acc, op) => acc + (Number(op.valor) || 0), 0) };
     });
@@ -204,7 +186,6 @@ export function Dashboard() {
     { name: 'Pipeline (Em andamento)', value: qtdAberto, color: '#007bff' }
   ].filter(d => d.value > 0); 
 
-  // Ranking usando o valor Fracionado
   const rankingVendedores = {};
   vendasNoMes.forEach(v => {
     let nomeVendedor = v.vendedor_nome || 'Não Atribuído';
@@ -218,7 +199,6 @@ export function Dashboard() {
   });
   const dadosEquipe = Object.values(rankingVendedores).sort((a, b) => b.total - a.total);
 
-  // Vendas por módulo
   const dadosModulos = modulosDaCampanha.map(mod => {
     const vendasDesteModulo = vendasNoMes.filter(v => v.modulo_id_fracionado === mod.id);
     return {
@@ -232,6 +212,23 @@ export function Dashboard() {
     .filter(op => statusSucesso.includes(op.status))
     .sort((a, b) => new Date(b.atualizado_em || b.criado_em) - new Date(a.atualizado_em || a.criado_em))
     .slice(0, 5);
+
+  // Filtragem da lista nominal de inscritos com base nos filtros da tela
+  const listaInscritosFiltrada = inscritos.filter(inscrito => {
+    let passaCampanha = true;
+    if (filtroCampanha) {
+      // Filtrar pelo nome do curso não é o ideal se tiver o ID, mas como a query traz o nome:
+      const campSelecionada = campanhas.find(c => c.id === parseInt(filtroCampanha));
+      if (campSelecionada && inscrito.curso_nome !== campSelecionada.nome) passaCampanha = false;
+    }
+
+    let passaMes = true;
+    if (mesFiltro) {
+      const dataInsc = inscrito.data_inscricao ? inscrito.data_inscricao.substring(0, 7) : '';
+      if (dataInsc !== mesFiltro) passaMes = false;
+    }
+    return passaCampanha && passaMes;
+  });
 
   return (
     <div>
@@ -279,12 +276,11 @@ export function Dashboard() {
 
         {carregando ? (
           <div style={{ textAlign: 'center', padding: '50px', color: '#666' }}>
-            <i className="fa-solid fa-spinner fa-spin fa-2x"></i><br/>Calculando rateio contábil...
+            <i className="fa-solid fa-spinner fa-spin fa-2x"></i><br/>Calculando relatórios...
           </div>
         ) : (
           <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-              
               <div className="panel" style={{ borderLeft: '5px solid #007bff', padding: '20px', margin: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ color: '#666', fontSize: '0.85rem', fontWeight: 'bold' }}>VALOR NEGOCIANDO</div>
@@ -320,8 +316,23 @@ export function Dashboard() {
                 <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#333', margin: '10px 0' }}>{formatarMoeda(totalPerdido)}</div>
                 <div style={{ fontSize: '0.85rem', color: '#dc3545', fontWeight: 'bold' }}>{qtdPerdido} negócios descartados</div>
               </div>
-
             </div>
+
+            {filtroCampanha && relatorioCliques.length > 0 && (
+              <div className="panel" style={{ margin: '0 0 30px 0', padding: '20px', borderLeft: '5px solid #17a2b8' }}>
+                <h4 style={{ margin: '0 0 5px 0', color: '#333' }}><i className="fa-solid fa-mouse-pointer" style={{ color: '#17a2b8' }}></i> Engajamento de E-mails</h4>
+                <p style={{ color: '#999', fontSize: '0.85rem', marginBottom: '15px' }}>Cliques reais por etapa da automação.</p>
+                <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                  {relatorioCliques.map(rel => (
+                    <div key={rel.etapa_email} style={{ background: '#f8f9fa', padding: '15px', borderRadius: '8px', border: '1px solid #ddd', flex: '1', minWidth: '150px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#007bff' }}>Etapa {rel.etapa_email}</div>
+                      <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#333', margin: '5px 0' }}>{rel.total_cliques} <span style={{fontSize: '0.8rem', color: '#777', fontWeight: 'normal'}}>cliques</span></div>
+                      <div style={{ fontSize: '0.75rem', color: '#17a2b8', fontWeight: 'bold' }}>Em {rel.leads_unicos} leads únicos</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {filtroCampanha && modulosDaCampanha.length > 0 && (
               <div className="panel" style={{ margin: '0 0 30px 0', padding: '20px', borderLeft: '5px solid #722ed1' }}>
@@ -350,7 +361,6 @@ export function Dashboard() {
             )}
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-              
               <div className="panel" style={{ margin: 0, padding: '20px' }}>
                 <h4 style={{ margin: '0 0 5px 0', color: '#333' }}>{tituloGraficoBarras}</h4>
                 <p style={{ color: '#999', fontSize: '0.85rem', marginBottom: '20px' }}>Exibe apenas negociações ativas no funil.</p>
@@ -402,11 +412,9 @@ export function Dashboard() {
                   ))}
                 </div>
               </div>
-
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px' }}>
-              
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px', marginBottom: '30px' }}>
               <div className="panel" style={{ margin: 0 }}>
                 <div className="panel-title" style={{ padding: '20px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <i className="fa-solid fa-medal" style={{ color: '#007bff', fontSize: '1.2rem' }}></i> 
@@ -484,7 +492,66 @@ export function Dashboard() {
                   </table>
                 </div>
               </div>
+            </div>
 
+            {/* SEÇÃO NOVA: LISTA DE INSCRITOS (CONVERTIDOS) */}
+            <div className="panel" style={{ margin: '0 0 30px 0', borderTop: '5px solid #28a745' }}>
+              <div className="panel-title" style={{ padding: '20px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <i className="fa-solid fa-users-viewfinder" style={{ color: '#28a745', fontSize: '1.2rem' }}></i> 
+                <span>Lista Nominal de Inscritos (Convertidos)</span>
+              </div>
+              <div className="table-responsive" style={{ maxHeight: '500px', overflowY: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
+                    <tr style={{ background: '#f8f9fa', borderBottom: '2px solid #ddd', textAlign: 'left', color: '#555', fontSize: '0.9rem' }}>
+                      <th style={{ padding: '15px' }}>Lead (Contato)</th>
+                      <th style={{ padding: '15px' }}>Curso Base</th>
+                      <th style={{ padding: '15px' }}>Data da Inscrição</th>
+                      <th style={{ padding: '15px' }}>Origem</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {listaInscritosFiltrada.length === 0 ? (
+                      <tr><td colSpan="4" style={{ textAlign: 'center', padding: '30px', color: '#999', fontStyle: 'italic' }}>Nenhuma inscrição encontrada para este período/curso.</td></tr>
+                    ) : (
+                      listaInscritosFiltrada.map(ins => {
+                        let emailDisplay = "Sem E-mail";
+                        try {
+                          const emails = typeof ins.emails_json === 'string' ? JSON.parse(ins.emails_json) : ins.emails_json;
+                          if (emails && emails.length > 0) emailDisplay = emails[0];
+                        } catch(e) {}
+                        
+                        let fonesDisplay = "Sem Telefone";
+                        try {
+                          const fones = typeof ins.telefones_json === 'string' ? JSON.parse(ins.telefones_json) : ins.telefones_json;
+                          if (fones && fones.length > 0) fonesDisplay = fones[0];
+                        } catch(e) {}
+
+                        return (
+                          <tr key={ins.oportunidade_id} style={{ borderBottom: '1px solid #eee' }}>
+                            <td style={{ padding: '15px' }}>
+                              <div style={{ fontWeight: 'bold', color: '#333' }}>{ins.contato_nome}</div>
+                              <div style={{ fontSize: '0.8rem', color: '#777', marginTop: '3px' }}><i className="fa-solid fa-envelope"></i> {emailDisplay}</div>
+                              <div style={{ fontSize: '0.8rem', color: '#777', marginTop: '2px' }}><i className="fa-solid fa-phone"></i> {fonesDisplay}</div>
+                            </td>
+                            <td style={{ padding: '15px', color: '#007bff', fontWeight: 'bold', fontSize: '0.9rem' }}>
+                              {ins.curso_nome}
+                            </td>
+                            <td style={{ padding: '15px', fontSize: '0.9rem', color: '#555' }}>
+                              {formatarData(ins.data_inscricao)}
+                            </td>
+                            <td style={{ padding: '15px' }}>
+                              <span style={{ background: ins.origem_venda === 'landing_page' ? '#eef4fa' : '#f4fbf5', color: ins.origem_venda === 'landing_page' ? '#1F4E79' : '#28a745', padding: '4px 10px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'bold' }}>
+                                {ins.origem_venda === 'landing_page' ? 'Site / Formulário' : 'Venda Manual'}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
           </>

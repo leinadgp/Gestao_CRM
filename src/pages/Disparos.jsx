@@ -1,4 +1,3 @@
-// src/pages/Disparos.jsx
 import { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import SunEditorModule from 'suneditor-react';
@@ -9,14 +8,11 @@ const SunEditor = SunEditorModule.default || SunEditorModule;
 
 export function Disparos() {
   const API_URL = 'https://server-js-gestao.onrender.com';
-
-  const WEBHOOK_TESTE = 'https://deccel-ia-n8n-nova-versao.cdqhrl.easypanel.host/webhook/teste-disparo';
+  const WEBHOOK_TESTE = 'https://deccel-ia-n8n-nova-versao.cdqhrl.easypanel.host/webhook/v2-teste-disparo';
 
   const [campanhas, setCampanhas] = useState([]);
-  const [statusCampanhas, setStatusCampanhas] = useState({});
   const [sequenciaAtual, setSequenciaAtual] = useState([]);
 
-  // Estados do Formulário
   const [cursoAlvo, setCursoAlvo] = useState('');
   const [tipoFunil, setTipoFunil] = useState('BROADCAST'); 
   const [ordemEtapa, setOrdemEtapa] = useState('1');
@@ -31,6 +27,14 @@ export function Disparos() {
   const [salvandoConfig, setSalvandoConfig] = useState(false);
   const [modoVisual, setModoVisual] = useState(true);
   const [mostrarPreview, setMostrarPreview] = useState(false);
+
+  const [mostrarModalCliques, setMostrarModalCliques] = useState(false);
+  const [dadosCliques, setDadosCliques] = useState([]);
+  const [carregandoCliques, setCarregandoCliques] = useState(false);
+  const [emailSelecionadoParaCliques, setEmailSelecionadoParaCliques] = useState(null);
+  
+  const [leadsExpandidos, setLeadsExpandidos] = useState([]);
+  const [editandoEmailId, setEditandoEmailId] = useState(null);
 
   const preparacaoRef = useRef(null);
 
@@ -60,32 +64,25 @@ export function Disparos() {
     return `<p style="margin:0 0 15px 0;">Prezado(a),</p><p style="margin:0 0 15px 0;">O cotidiano do <strong>Controle Interno Municipal</strong> exige muito mais do que conhecimento teórico. Exige soluções práticas, segurança jurídica e aderência à realidade de cada município.</p>`.trim();
   }
 
-  function montarUrlRastreada({ redirect, descricao, etapaAtual, cursoNome }) {
-    const base = 'https://deccel-ia-n8n-nova-versao.cdqhrl.easypanel.host/webhook/rastreio2';
+  function montarUrlRastreada({ redirect, descricao, etapaAtual, cursoId, tipoF }) {
+    const base = `${API_URL}/rastreio`;
     const emailPlaceholder = '{{$json.EmailLimpo}}';
-    return `${base}?redirect=${encodeURIComponent(redirect)}&email=${emailPlaceholder}&descricao=${encodeURIComponent(descricao || '')}&etapa=${encodeURIComponent(String(etapaAtual || ''))}&curso=${encodeURIComponent(cursoNome || '')}`;
+    return `${base}?redirect=${encodeURIComponent(redirect)}&email=${emailPlaceholder}&descricao=${encodeURIComponent(descricao || '')}&etapa=${encodeURIComponent(String(etapaAtual || ''))}&tipo=${encodeURIComponent(tipoF || 'BROADCAST')}&curso=${encodeURIComponent(cursoId || '')}`;
   }
 
   function inserirSnippet(snippet) { setEmailCru(prev => `${prev || ''}${snippet}`); }
-  function inserirParagrafo() { inserirSnippet(`\n<p style="margin:0 0 15px 0;">Novo parágrafo aqui.</p>\n`); }
+  function inserirParagrafo() { inserirSnippet(`\n<p style="margin:0 0 15px 0; color:#1F4E79;">Novo parágrafo aqui.</p>\n`); }
   function inserirTituloSecundario() { inserirSnippet(`\n<h2 style="margin:0 0 15px 0;font-size:18px;color:#1F4E79;">Título da seção</h2>\n`); }
-  function inserirLinhaSeparadora() { inserirSnippet(`\n<div style="height:1px;background:#e5e5e5;margin:20px 0;"></div>\n`); }
+  
 
   function inserirBotaoRastreado() {
     const textoBotao = window.prompt('Texto do botão:', 'Selecionar os temas prioritários');
     if (!textoBotao) return;
     const urlDestino = window.prompt('URL de destino:', 'https://www.gestao.srv.br');
     if (!urlDestino) return;
-    const descricao = window.prompt('Descrição do clique (para o n8n):', 'Link Pesquisa Cursos') || 'Link Pesquisa Cursos';
-    const cursoSelecionado = campanhas.find(c => c.id === Number(cursoAlvo));
-    const linkRastreado = montarUrlRastreada({ redirect: urlDestino, descricao, etapaAtual: ordemEtapa, cursoNome: cursoSelecionado?.nome || '' });
-
-    inserirSnippet(`
-<div style="text-align: center; padding: 10px 20px; margin: 15px 0;">
-  <a href="${linkRastreado}" target="_blank" style="display:inline-block; padding:14px 26px; background-color:#218553; color:#ffffff; font-weight:bold; text-decoration:none; font-size:14px; border-radius:6px; border:1px solid #218553;">
-    ${textoBotao}
-  </a>
-</div><p><br></p>`.trim());
+    const descricao = window.prompt('Descrição do clique:', 'Botão Principal') || 'Botão Principal';
+    const linkRastreado = montarUrlRastreada({ redirect: urlDestino, descricao, etapaAtual: ordemEtapa, cursoId: cursoAlvo, tipoF: tipoFunil });
+    inserirSnippet(`\n<div style="text-align: center; padding: 10px 20px; margin: 15px 0;"><a href="${linkRastreado}" target="_blank" style="display:inline-block; padding:14px 26px; background-color:#218553; color:#ffffff; font-weight:bold; text-decoration:none; font-size:14px; border-radius:6px; border:1px solid #218553;">${textoBotao}</a></div><p><br></p>`);
   }
 
   function inserirLinkTextoRastreado() {
@@ -93,19 +90,17 @@ export function Disparos() {
     if (!textoLink) return;
     const urlDestino = window.prompt('URL de destino:', 'https://www.gestao.srv.br');
     if (!urlDestino) return;
-    const descricao = window.prompt('Descrição do clique (para o n8n):', 'link-texto') || 'link-texto';
-    const cursoSelecionado = campanhas.find(c => c.id === Number(cursoAlvo));
-    const linkRastreado = montarUrlRastreada({ redirect: urlDestino, descricao, etapaAtual: ordemEtapa, cursoNome: cursoSelecionado?.nome || '' });
-
+    const descricao = window.prompt('Descrição do clique:', 'Link no Texto') || 'Link no Texto';
+    const linkRastreado = montarUrlRastreada({ redirect: urlDestino, descricao, etapaAtual: ordemEtapa, cursoId: cursoAlvo, tipoF: tipoFunil });
     inserirSnippet(` <a href="${linkRastreado}" target="_blank" style="color:#1F4E79;text-decoration:underline;font-weight:bold;">${escapeHtml(textoLink)}</a> `);
   }
 
-  function montarHtmlFinal({ titulo = tituloemail, cabecalho = cabecalhoEmail, conteudo = emailCru, etapaEmail = ordemEtapa, cursoNome = '' } = {}) {
+  function montarHtmlFinal({ titulo = tituloemail, cabecalho = cabecalhoEmail, conteudo = emailCru, etapaEmail = ordemEtapa, cursoId = cursoAlvo, tipoF = tipoFunil } = {}) {
     const tituloSeguro = escapeHtml(titulo || 'E-mail');
     const cabecalhoSeguro = escapeHtml(cabecalho || '');
     const conteudoHtml = conteudo || getEmailPadrao();
-    const linkSite = montarUrlRastreada({ redirect: 'https://www.gestao.srv.br', descricao: 'Link Site', etapaAtual: etapaEmail, cursoNome });
-    const linkBot = montarUrlRastreada({ redirect: 'https://www.gestao.srv.br', descricao: 'bot', etapaAtual: etapaEmail, cursoNome });
+    const linkSite = montarUrlRastreada({ redirect: 'https://www.gestao.srv.br', descricao: 'Link Site', etapaAtual: etapaEmail, cursoId, tipoF });
+    const linkBot = montarUrlRastreada({ redirect: 'https://www.gestao.srv.br', descricao: 'bot', etapaAtual: etapaEmail, cursoId, tipoF });
 
     return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${tituloSeguro}</title></head><body style="margin:0;padding:0;background-color:#f4f6f8;"><table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f6f8;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff;font-family:Arial,sans-serif;font-size:14px;color:#1F4E79;">${cabecalhoSeguro ? `<tr><td style="background-color:#1F4E79;color:#ffffff;padding:16px 20px;text-align:center;font-weight:bold;font-size:15px;">${cabecalhoSeguro}</td></tr>` : ''}<tr><td style="padding:30px 30px 10px 30px;line-height:1.6;text-align:justify;">${conteudoHtml}</td></tr><tr><td style="padding:10px 24px 25px 24px;color:#1F4E79;"><p style="margin:0 0 15px 0; font-family:Arial,sans-serif; font-size:14px; line-height:1.6; color:#1F4E79;">Fico à disposição!</p><p style="margin:0 0 10px 0; font-family:Arial,sans-serif; font-size:14px; line-height:1.6; color:#1F4E79;">Atenciosamente,</p><p style="margin:0; font-family:Arial,sans-serif; font-size:14px; line-height:1.6; color:#1F4E79;"><strong>Camila Silveira Guimarães</strong></p><p style="margin:0; font-family:Arial,sans-serif; font-size:14px; line-height:1.6; color:#1F4E79;">Setor Comercial</p><p style="margin:0; font-family:Arial,sans-serif; font-size:14px; line-height:1.6; color:#1F4E79;">(51) 3541 3355</p><p style="margin:0 0 10px 0; font-family:Arial,sans-serif; font-size:14px; line-height:1.6; color:#1F4E79;">(51) 98443-2097</p><p style="margin:0 0 15px 0; font-family:Arial,sans-serif; font-size:14px; line-height:1.6; color:#1F4E79;"><a href="${linkSite}" target="_blank" style="color:#1F4E79;text-decoration:none;font-weight:bold;">www.gestao.srv.br</a></p><a href="${linkBot}" target="_blank" style="color:#ffffff;text-decoration:none;font-weight:bold;">.</a></td></tr></table></td></tr></table></body></html>`;
   }
@@ -119,17 +114,25 @@ export function Disparos() {
   }, []);
 
   useEffect(() => {
-    if (cursoAlvo) { carregarSequencia(cursoAlvo); } 
-    else { setSequenciaAtual([]); }
+    if (cursoAlvo) { carregarSequencia(cursoAlvo); } else { setSequenciaAtual([]); }
   }, [cursoAlvo]);
+
+  useEffect(() => {
+    if (!editandoEmailId) {
+      const emailsDoFunil = sequenciaAtual.filter(e => e.tipo_funil === tipoFunil);
+      if (emailsDoFunil.length > 0) {
+        const ultimaOrdem = Math.max(...emailsDoFunil.map(e => Number(e.ordem_etapa)));
+        setOrdemEtapa(String(ultimaOrdem + 1));
+      } else {
+        setOrdemEtapa('1');
+      }
+    }
+  }, [tipoFunil, sequenciaAtual, editandoEmailId]);
 
   async function carregarCampanhas() {
     try {
       const res = await axios.get(`${API_URL}/campanhas`, getHeaders());
       setCampanhas(res.data);
-      const statusInicial = {};
-      res.data.forEach(c => { statusInicial[c.id] = c.status_motor || 'ocioso'; });
-      setStatusCampanhas(statusInicial);
     } catch (erro) { console.error('Erro campanhas', erro); }
   }
 
@@ -140,47 +143,109 @@ export function Disparos() {
     } catch (erro) { console.error('Erro ao buscar sequência', erro); }
   }
 
+  async function abrirModalCliques(email) {
+    setEmailSelecionadoParaCliques(email);
+    setLeadsExpandidos([]); 
+    setMostrarModalCliques(true);
+    setCarregandoCliques(true);
+    try {
+      const res = await axios.get(`${API_URL}/campanhas/${email.campanha_id}/funil/${email.tipo_funil}/etapa/${email.ordem_etapa}/cliques`, getHeaders());
+      const cliquesReais = res.data.filter(c => c.link_descricao && c.link_descricao.toLowerCase() !== 'bot');
+      setDadosCliques(cliquesReais);
+    } catch (error) {
+      alert("Erro ao buscar relatório de cliques.");
+    } finally {
+      setCarregandoCliques(false);
+    }
+  }
+
+  function toggleLeadHistorico(leadId) {
+    setLeadsExpandidos(prev => 
+      prev.includes(leadId) ? prev.filter(id => id !== leadId) : [...prev, leadId]
+    );
+  }
+
+  async function iniciarCampanha() {
+    if (!window.confirm(`🚀 Deseja iniciar a automação para "${campanhaSelecionada.nome}"?\nIsso vai injetar os leads selecionados no Kanban e na fila de e-mails.`)) return;
+    try {
+      const res = await axios.post(`${API_URL}/campanhas/${campanhaSelecionada.id}/iniciar`, {}, getHeaders());
+      alert(`✅ ${res.data.mensagem}`);
+      carregarCampanhas();
+    } catch (erro) { alert(erro.response?.data?.erro || 'Erro ao iniciar a automação.'); }
+  }
+
+  async function alternarStatusMotor() {
+    const novoStatus = campanhaSelecionada.status_motor === 'rodando' ? 'pausado' : 'rodando';
+    const acao = novoStatus === 'pausado' ? 'PAUSAR' : 'RETOMAR';
+    if (!window.confirm(`Deseja ${acao} os disparos automáticos para a campanha "${campanhaSelecionada.nome}"?`)) return;
+    try {
+      await axios.put(`${API_URL}/campanhas/${campanhaSelecionada.id}/status-motor`, { status_motor: novoStatus }, getHeaders());
+      carregarCampanhas();
+    } catch (erro) { alert('Erro ao alterar status do motor.'); }
+  }
+
   async function salvarCardEmail(e) {
     e.preventDefault();
     if (!cursoAlvo) return alert('Selecione a Campanha.');
+
+    const ordemDuplicada = sequenciaAtual.find(email => 
+      email.tipo_funil === tipoFunil && 
+      Number(email.ordem_etapa) === Number(ordemEtapa) &&
+      email.id !== editandoEmailId
+    );
+
+    if (ordemDuplicada) {
+      return alert(`Já existe um e-mail na Etapa ${ordemEtapa} do funil ${tipoFunil === 'BROADCAST' ? 'Broadcast' : 'Pós-Clique'}. Por favor, escolha um número de etapa diferente.`);
+    }
+
     setSalvandoConfig(true);
 
     const payload = {
-      campanha_id: cursoAlvo,
-      tipo_funil: tipoFunil,
-      ordem_etapa: ordemEtapa,
+      campanha_id: cursoAlvo, tipo_funil: tipoFunil, ordem_etapa: ordemEtapa,
       data_disparo_exata: tipoFunil === 'BROADCAST' ? dataDisparo : null,
       horas_espera: tipoFunil === 'POS_CLIQUE' ? horasEspera : null,
-      cargo_alvo: 'Todos', // Hardcoded invisível
-      titulo_email: tituloemail,
-      cabecalho_email: cabecalhoEmail,
-      html_email: emailCru
+      cargo_alvo: 'Todos', titulo_email: tituloemail, cabecalho_email: cabecalhoEmail, html_email: emailCru
     };
 
     try {
-      await axios.post(`${API_URL}/sequencia-emails`, payload, getHeaders());
-      alert('💾 E-mail adicionado à sequência com sucesso!');
+      if (editandoEmailId) {
+        await axios.put(`${API_URL}/sequencia-emails/${editandoEmailId}`, payload, getHeaders());
+        alert('💾 E-mail atualizado com sucesso!');
+      } else {
+        await axios.post(`${API_URL}/sequencia-emails`, payload, getHeaders());
+        alert('💾 E-mail adicionado à sequência com sucesso!');
+      }
+      
       carregarSequencia(cursoAlvo);
-      setTituloemail(''); setCabecalhoEmail(''); setEmailCru('');
-    } catch (erro) { alert('❌ Erro ao guardar e-mail.'); } 
-    finally { setSalvandoConfig(false); }
+      limparFormularioEmail();
+    } catch (erro) { 
+      alert(erro.response?.data?.erro || '❌ Erro ao guardar e-mail.'); 
+    } finally { 
+      setSalvandoConfig(false); 
+    }
+  }
+
+  function limparFormularioEmail() {
+    setEditandoEmailId(null);
+    setTituloemail(''); 
+    setCabecalhoEmail(''); 
+    setEmailCru('');
   }
 
   async function deletarCard(id) {
     if (!window.confirm("Tem certeza que deseja apagar este e-mail da sequência?")) return;
-    try {
-      await axios.delete(`${API_URL}/sequencia-emails/${id}`, getHeaders());
-      carregarSequencia(cursoAlvo);
-    } catch (error) { alert("Erro ao deletar e-mail."); }
+    try { await axios.delete(`${API_URL}/sequencia-emails/${id}`, getHeaders()); carregarSequencia(cursoAlvo); } 
+    catch (error) { alert("Erro ao deletar e-mail."); }
   }
 
   function carregarParaEdicao(emailConfig) {
-    setTipoFunil(emailConfig.tipo_funil);
+    setEditandoEmailId(emailConfig.id);
+    setTipoFunil(emailConfig.tipo_funil); 
     setOrdemEtapa(emailConfig.ordem_etapa);
     setDataDisparo(emailConfig.data_disparo_exata ? emailConfig.data_disparo_exata.split('T')[0] : '');
-    setHorasEspera(emailConfig.horas_espera || '');
+    setHorasEspera(emailConfig.horas_espera || ''); 
     setTituloemail(emailConfig.titulo_email || '');
-    setCabecalhoEmail(emailConfig.cabecalho_email || '');
+    setCabecalhoEmail(emailConfig.cabecalho_email || ''); 
     setEmailCru(emailConfig.html_email || '');
     if (preparacaoRef.current) preparacaoRef.current.scrollIntoView({ behavior: 'smooth' });
   }
@@ -199,10 +264,44 @@ export function Disparos() {
     finally { setEnviandoTeste(false); }
   }
 
+  // --- NOVA FUNÇÃO PARA CORRIGIR O FUSO HORÁRIO DO NAVEGADOR ---
+  function formatarDataHora(dataIso) {
+    if (!dataIso) return '-';
+    const data = new Date(dataIso);
+    // Adiciona o offset do Brasil (3 horas) de volta, pois o navegador subtrai achando que é UTC
+    data.setMinutes(data.getMinutes() + data.getTimezoneOffset());
+    return data.toLocaleString('pt-BR');
+  }
+
   const broadcasts = sequenciaAtual.filter(e => e.tipo_funil === 'BROADCAST');
   const posCliques = sequenciaAtual.filter(e => e.tipo_funil === 'POS_CLIQUE');
+  const htmlPreviewFinal = montarHtmlFinal({ titulo: tituloemail, cabecalho: cabecalhoEmail, conteudo: emailCru, etapaEmail: ordemEtapa, cursoId: cursoAlvo, tipoF: tipoFunil });
 
-  const htmlPreviewFinal = montarHtmlFinal({ titulo: tituloemail, cabecalho: cabecalhoEmail, conteudo: emailCru, etapaEmail: ordemEtapa, cursoNome: campanhaSelecionada?.nome || '' });
+  const leadsAgrupados = Object.values((dadosCliques || []).reduce((acc, clique) => {
+    const chave = clique.contato_id || clique.contato_nome || Math.random();
+    
+    if (!acc[chave]) {
+      let emailExibicao = 'Sem e-mail';
+      try {
+        const emailsArray = typeof clique.emails_json === 'string' ? JSON.parse(clique.emails_json) : clique.emails_json;
+        if (emailsArray && emailsArray.length > 0) emailExibicao = emailsArray[0];
+      } catch(e) {}
+  
+      acc[chave] = {
+        id: chave,
+        nome: clique.contato_nome || 'Desconhecido',
+        email: emailExibicao,
+        interacoes: []
+      };
+    }
+    
+    acc[chave].interacoes.push({
+      link: clique.link_descricao || 'Link',
+      data: clique.criado_em
+    });
+    
+    return acc;
+  }, {}));
 
   return (
     <div>
@@ -210,31 +309,59 @@ export function Disparos() {
       <div className="page-container" style={{ maxWidth: '1200px', margin: '0 auto', paddingBottom: '40px' }}>
 
         <div className="panel" style={{ padding: '20px', marginBottom: '20px', background: '#eef2f5', border: '1px solid #cdd4db', borderRadius: '8px' }}>
-          <label style={{ fontWeight: 'bold', fontSize: '1rem', color: '#1F4E79' }}>1. Selecione a Campanha para gerenciar o Funil:</label>
-          <select value={cursoAlvo} onChange={e => setCursoAlvo(e.target.value)} style={{ width: '100%', padding: '12px', marginTop: '10px', borderRadius: '6px', border: '1px solid #1F4E79', fontSize: '1.1rem', fontWeight: 'bold' }}>
+          <label style={{ fontWeight: 'bold', fontSize: '1rem', color: '#1F4E79' }}>1. Selecione a Campanha para gerenciar o Funil e a Automação:</label>
+          <select value={cursoAlvo} onChange={e => { setCursoAlvo(e.target.value); limparFormularioEmail(); }} style={{ width: '100%', padding: '12px', marginTop: '10px', borderRadius: '6px', border: '1px solid #1F4E79', fontSize: '1.1rem', fontWeight: 'bold' }}>
             <option value="">-- Escolha uma Campanha --</option>
             {campanhas.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
           </select>
         </div>
 
+        {campanhaSelecionada && (
+          <div className="panel" style={{ padding: '20px', marginBottom: '30px', background: '#fff', border: campanhaSelecionada.status_motor === 'rodando' ? '2px solid #28a745' : campanhaSelecionada.status_motor === 'pausado' ? '2px solid #ffc107' : '1px solid #ddd', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h3 style={{ margin: '0 0 5px 0', color: '#333' }}><i className="fa-solid fa-robot"></i> Motor de Disparos: {campanhaSelecionada.nome}</h3>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: '#666' }}>Controle a injeção de leads e os envios automáticos para esta campanha.</p>
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              {campanhaSelecionada.status_motor === 'rodando' ? (
+                <>
+                  <div style={{ padding: '10px 15px', background: '#e6f4ea', color: '#155724', borderRadius: '6px', fontWeight: 'bold', border: '1px solid #c3e6cb' }}>
+                    <i className="fa-solid fa-check-circle"></i> Automação Rodando
+                  </div>
+                  <button onClick={alternarStatusMotor} style={{ padding: '10px 20px', background: '#ffc107', color: '#333', borderRadius: '6px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}><i className="fa-solid fa-pause"></i> Pausar Disparos</button>
+                </>
+              ) : campanhaSelecionada.status_motor === 'pausado' ? (
+                <>
+                  <div style={{ padding: '10px 15px', background: '#fff3cd', color: '#856404', borderRadius: '6px', fontWeight: 'bold', border: '1px solid #ffeeba' }}>
+                    <i className="fa-solid fa-pause-circle"></i> Automação Pausada
+                  </div>
+                  <button onClick={alternarStatusMotor} style={{ padding: '10px 20px', background: '#28a745', color: '#fff', borderRadius: '6px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}><i className="fa-solid fa-play"></i> Retomar Disparos</button>
+                </>
+              ) : (
+                <button onClick={iniciarCampanha} style={{ padding: '10px 20px', background: '#28a745', color: '#fff', borderRadius: '6px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}>
+                  <i className="fa-solid fa-rocket"></i> Iniciar Automação (Injetar Leads)
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {cursoAlvo && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '30px' }}>
-            
             <div style={{ background: '#f8f9fa', padding: '20px', borderRadius: '8px', borderTop: '5px solid #007bff', border: '1px solid #ddd' }}>
               <h3 style={{ margin: '0 0 15px 0', color: '#007bff' }}><i className="fa-solid fa-calendar-days"></i> Funil Broadcast (Frios)</h3>
               <p style={{ fontSize: '0.85rem', color: '#666', marginBottom: '15px' }}>E-mails disparados em datas exatas para a base.</p>
               
               {broadcasts.length === 0 && <div style={{ padding: '15px', textAlign: 'center', background: '#fff', border: '1px dashed #ccc', color: '#999' }}>Nenhum e-mail agendado.</div>}
               {broadcasts.map(email => (
-                <div key={email.id} style={{ background: '#fff', padding: '15px', borderRadius: '6px', border: '1px solid #eee', marginBottom: '10px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                  <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#007bff', marginBottom: '5px' }}>
-                    Etapa {email.ordem_etapa}
-                  </div>
+                <div key={email.id} style={{ background: editandoEmailId === email.id ? '#e7f3ff' : '#fff', padding: '15px', borderRadius: '6px', border: editandoEmailId === email.id ? '2px solid #007bff' : '1px solid #eee', marginBottom: '10px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#007bff', marginBottom: '5px' }}>Etapa {email.ordem_etapa}</div>
                   <div style={{ fontWeight: 'bold', color: '#333', marginBottom: '5px' }}>{email.titulo_email}</div>
                   <div style={{ fontSize: '0.85rem', color: '#555', marginBottom: '10px' }}><i className="fa-regular fa-clock"></i> Disparo: {email.data_disparo_exata ? new Date(email.data_disparo_exata).toLocaleDateString('pt-BR') : 'Sem data'}</div>
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    <button onClick={() => carregarParaEdicao(email)} style={{ padding: '5px 10px', fontSize: '0.8rem', background: '#e9ecef', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Editar</button>
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    <button onClick={() => carregarParaEdicao(email)} style={{ padding: '5px 10px', fontSize: '0.8rem', background: editandoEmailId === email.id ? '#007bff' : '#e9ecef', color: editandoEmailId === email.id ? '#fff' : '#333', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>{editandoEmailId === email.id ? 'Editando...' : 'Editar'}</button>
                     <button onClick={() => deletarCard(email.id)} style={{ padding: '5px 10px', fontSize: '0.8rem', background: '#ffeeba', color: '#856404', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Excluir</button>
+                    <button onClick={() => abrirModalCliques(email)} style={{ padding: '5px 10px', fontSize: '0.8rem', background: '#17a2b8', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}><i className="fa-solid fa-mouse-pointer"></i> Interações</button>
                   </div>
                 </div>
               ))}
@@ -246,15 +373,14 @@ export function Disparos() {
               
               {posCliques.length === 0 && <div style={{ padding: '15px', textAlign: 'center', background: '#fff', border: '1px dashed #ccc', color: '#999' }}>Nenhum e-mail engatilhado.</div>}
               {posCliques.map(email => (
-                <div key={email.id} style={{ background: '#fff', padding: '15px', borderRadius: '6px', border: '1px solid #eee', marginBottom: '10px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                  <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#fd7e14', marginBottom: '5px' }}>
-                    Etapa {email.ordem_etapa}
-                  </div>
+                <div key={email.id} style={{ background: editandoEmailId === email.id ? '#fff8e7' : '#fff', padding: '15px', borderRadius: '6px', border: editandoEmailId === email.id ? '2px solid #fd7e14' : '1px solid #eee', marginBottom: '10px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#fd7e14', marginBottom: '5px' }}>Etapa {email.ordem_etapa}</div>
                   <div style={{ fontWeight: 'bold', color: '#333', marginBottom: '5px' }}>{email.titulo_email}</div>
                   <div style={{ fontSize: '0.85rem', color: '#555', marginBottom: '10px' }}><i className="fa-solid fa-hourglass-half"></i> Espera: + {email.horas_espera} horas</div>
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    <button onClick={() => carregarParaEdicao(email)} style={{ padding: '5px 10px', fontSize: '0.8rem', background: '#e9ecef', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Editar</button>
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    <button onClick={() => carregarParaEdicao(email)} style={{ padding: '5px 10px', fontSize: '0.8rem', background: editandoEmailId === email.id ? '#fd7e14' : '#e9ecef', color: editandoEmailId === email.id ? '#fff' : '#333', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>{editandoEmailId === email.id ? 'Editando...' : 'Editar'}</button>
                     <button onClick={() => deletarCard(email.id)} style={{ padding: '5px 10px', fontSize: '0.8rem', background: '#ffeeba', color: '#856404', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Excluir</button>
+                    <button onClick={() => abrirModalCliques(email)} style={{ padding: '5px 10px', fontSize: '0.8rem', background: '#17a2b8', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}><i className="fa-solid fa-mouse-pointer"></i> Interações</button>
                   </div>
                 </div>
               ))}
@@ -263,11 +389,19 @@ export function Disparos() {
         )}
 
         <div ref={preparacaoRef} className="panel" style={{ borderTop: '5px solid #6f42c1', padding: '30px', marginBottom: '30px', opacity: cursoAlvo ? 1 : 0.5, pointerEvents: cursoAlvo ? 'auto' : 'none' }}>
-          <div style={{ marginBottom: '20px' }}><h2 style={{ margin: 0, color: '#333' }}>2. Adicionar Novo E-mail ao Funil</h2></div>
+          <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2 style={{ margin: 0, color: '#333' }}>
+              {editandoEmailId ? `Editando E-mail (Ordem ${ordemEtapa})` : '2. Adicionar Novo E-mail ao Funil'}
+            </h2>
+            {editandoEmailId && (
+              <button onClick={limparFormularioEmail} style={{ background: '#eee', color: '#333', border: 'none', padding: '8px 15px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
+                <i className="fa-solid fa-times"></i> Cancelar Edição
+              </button>
+            )}
+          </div>
 
           <form onSubmit={salvarCardEmail}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', background: '#f4f7f6', padding: '20px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #e0e0e0' }}>
-              
               <div>
                 <label style={{ fontWeight: 'bold', fontSize: '0.9rem', display: 'block', marginBottom: '5px' }}>Qual Funil? *</label>
                 <select value={tipoFunil} onChange={e => setTipoFunil(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '2px solid #6f42c1', fontWeight: 'bold', color: '#6f42c1' }}>
@@ -318,7 +452,6 @@ export function Disparos() {
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
                 <button type="button" onClick={inserirParagrafo} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #ccc', background: '#fff', cursor: 'pointer' }}>+ Parágrafo</button>
                 <button type="button" onClick={inserirTituloSecundario} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #ccc', background: '#fff', cursor: 'pointer' }}>+ Título</button>
-                <button type="button" onClick={inserirLinhaSeparadora} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #ccc', background: '#fff', cursor: 'pointer' }}>+ Linha</button>
                 <button type="button" onClick={inserirLinkTextoRastreado} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #007bff', background: '#e7f3ff', cursor: 'pointer', fontWeight: 'bold', color: '#0056b3' }}>+ Link rastreado</button>
                 <button type="button" onClick={inserirBotaoRastreado} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #28a745', background: '#eaf7ed', cursor: 'pointer', fontWeight: 'bold', color: '#19692c' }}>+ Botão Verde</button>
                 <button type="button" onClick={() => setEmailCru(getEmailPadrao())} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #dc3545', background: '#fdecea', cursor: 'pointer', fontWeight: 'bold', color: '#b02a37' }}>Restaurar modelo</button>
@@ -335,7 +468,9 @@ export function Disparos() {
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '15px', flexWrap: 'wrap' }}>
               <button type="button" onClick={handleEnviarTeste} disabled={enviandoTeste} style={{ background: '#6c757d', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}><i className="fa-solid fa-paper-plane"></i> Disparo de Teste</button>
-              <button type="submit" disabled={salvandoConfig} style={{ background: '#6f42c1', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}><i className="fa-solid fa-plus"></i> Salvar na Sequência</button>
+              <button type="submit" disabled={salvandoConfig} style={{ background: editandoEmailId ? '#ffc107' : '#6f42c1', color: editandoEmailId ? '#333' : '#fff', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
+                <i className={`fa-solid ${editandoEmailId ? 'fa-save' : 'fa-plus'}`}></i> {editandoEmailId ? 'Salvar Alterações' : 'Adicionar à Sequência'}
+              </button>
             </div>
           </form>
         </div>
@@ -353,6 +488,92 @@ export function Disparos() {
             </div>
           </div>
         )}
+
+        {/* MODAL DE CLIQUES - COM HORÁRIO CORRIGIDO PARA O BRASIL */}
+        {mostrarModalCliques && (
+          <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }} onClick={() => setMostrarModalCliques(false)}>
+            <div style={{ background: '#fff', width: '100%', maxWidth: '800px', maxHeight: '90vh', borderRadius: '8px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+              <div style={{ padding: '15px 20px', background: '#f8f9fa', borderBottom: '1px solid #ddd', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h3 style={{ margin: 0, color: '#17a2b8' }}><i className="fa-solid fa-chart-bar"></i> Relatório de Cliques</h3>
+                  <div style={{ fontSize: '0.85rem', color: '#666', marginTop: '5px' }}>{emailSelecionadoParaCliques?.titulo_email}</div>
+                </div>
+                <button onClick={() => setMostrarModalCliques(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer' }}>&times;</button>
+              </div>
+              <div style={{ padding: '20px', flex: 1, overflowY: 'auto' }}>
+                {carregandoCliques ? (
+                  <div style={{ textAlign: 'center', padding: '50px', color: '#666' }}><i className="fa-solid fa-spinner fa-spin fa-2x"></i><br/>Carregando relatórios...</div>
+                ) : leadsAgrupados.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '50px', background: '#f8f9fa', borderRadius: '8px', color: '#999', fontStyle: 'italic' }}>Nenhum clique real registrado para este e-mail ainda.</div>
+                ) : (
+                  <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '15px' }}>
+                    <thead>
+                      <tr style={{ background: '#f4f6f8', textAlign: 'left', color: '#555', fontSize: '0.85rem' }}>
+                        <th style={{ padding: '12px', borderBottom: '2px solid #ddd' }}>CONTATO (LEAD)</th>
+                        <th style={{ padding: '12px', borderBottom: '2px solid #ddd' }}>HISTÓRICO DE CLIQUES</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {leadsAgrupados.map((lead) => {
+                        const interacoes = lead.interacoes;
+                        const ultimaInteracao = interacoes[0]; 
+                        const historicoAntigo = interacoes.slice(1); 
+                        const estaExpandido = leadsExpandidos.includes(lead.id);
+
+                        return (
+                          <tr key={lead.id} style={{ borderBottom: '1px solid #eee' }}>
+                            <td style={{ padding: '15px 12px', verticalAlign: 'top', width: '40%' }}>
+                              <strong style={{ color: '#333', fontSize: '1rem', display: 'block' }}>{lead.nome}</strong>
+                              <span style={{ color: '#777', fontSize: '0.85rem' }}>{lead.email}</span>
+                            </td>
+                            <td style={{ padding: '15px 12px', verticalAlign: 'top' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                
+                                {/* ÚLTIMO CLIQUE (SEMPRE VISÍVEL) - USANDO A FUNÇÃO DE FUSO HORÁRIO */}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8f9fa', padding: '8px 12px', borderRadius: '6px', borderLeft: '3px solid #007bff' }}>
+                                  <span style={{ color: '#007bff', fontWeight: 'bold', fontSize: '0.85rem', background: '#e7f3ff', padding: '4px 8px', borderRadius: '4px' }}>
+                                    {ultimaInteracao.link}
+                                  </span>
+                                  <span style={{ color: '#666', fontSize: '0.8rem' }}>
+                                    {formatarDataHora(ultimaInteracao.data)}
+                                  </span>
+                                </div>
+
+                                {historicoAntigo.length > 0 && (
+                                  <button 
+                                    onClick={() => toggleLeadHistorico(lead.id)} 
+                                    style={{ background: 'none', border: 'none', color: '#17a2b8', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer', textAlign: 'left', padding: '5px 0', marginTop: '5px' }}
+                                  >
+                                    <i className={`fa-solid ${estaExpandido ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i> 
+                                    {estaExpandido ? ' Ocultar histórico' : ` Ver mais ${historicoAntigo.length} clique(s) anterior(es)`}
+                                  </button>
+                                )}
+
+                                {/* LISTA DE CLIQUES ANTIGOS */}
+                                {estaExpandido && historicoAntigo.map((int, i) => (
+                                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f1f3f5', padding: '8px 12px', borderRadius: '6px', borderLeft: '3px solid #ccc', marginTop: '4px', opacity: 0.8 }}>
+                                    <span style={{ color: '#555', fontWeight: 'bold', fontSize: '0.85rem', background: '#e2e3e5', padding: '4px 8px', borderRadius: '4px' }}>
+                                      {int.link}
+                                    </span>
+                                    <span style={{ color: '#888', fontSize: '0.8rem' }}>
+                                      {formatarDataHora(int.data)}
+                                    </span>
+                                  </div>
+                                ))}
+
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );
