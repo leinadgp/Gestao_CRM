@@ -195,7 +195,7 @@ export function Disparos() {
     );
 
     if (ordemDuplicada) {
-      return alert(`Já existe um e-mail na Etapa ${ordemEtapa} do funil ${tipoFunil === 'BROADCAST' ? 'Broadcast' : 'Pós-Clique'}. Por favor, escolha um número de etapa diferente.`);
+      return alert(`Já existee um e-mail na Etapa ${ordemEtapa} do funil ${tipoFunil === 'BROADCAST' ? 'Broadcast' : 'Pós-Clique'}. Por favor, escolha um número de etapa diferente.`);
     }
 
     setSalvandoConfig(true);
