@@ -28,10 +28,16 @@ export function Disparos() {
   const [modoVisual, setModoVisual] = useState(true);
   const [mostrarPreview, setMostrarPreview] = useState(false);
 
+  // Estados dos Modais
   const [mostrarModalCliques, setMostrarModalCliques] = useState(false);
   const [dadosCliques, setDadosCliques] = useState([]);
   const [carregandoCliques, setCarregandoCliques] = useState(false);
-  const [emailSelecionadoParaCliques, setEmailSelecionadoParaCliques] = useState(null);
+
+  const [mostrarModalEnvios, setMostrarModalEnvios] = useState(false);
+  const [dadosEnvios, setDadosEnvios] = useState({ enviados: [], fila: [] });
+  const [carregandoEnvios, setCarregandoEnvios] = useState(false);
+
+  const [emailSelecionadoModal, setEmailSelecionadoModal] = useState(null);
   
   const [leadsExpandidos, setLeadsExpandidos] = useState([]);
   const [editandoEmailId, setEditandoEmailId] = useState(null);
@@ -77,7 +83,7 @@ export function Disparos() {
   function inserirAvisoSeguranca() {
     inserirSnippet(`\n<p style="margin: 0px 0 15px 0; padding: 0 24px; color: #1F4E79; text-align: center; font-size: 13px;">Obs: O link acima é oficial e 100% seguro.</p>\n`);
   }
-  // NOVAS FUNÇÕES: LISTAS ORDENADAS E NÃO ORDENADAS COM ESTILO
+  
   function inserirListaNaoOrdenada() {
     inserirSnippet(`\n<ul style="margin: 0 0 15px 20px; padding: 0; color: #1F4E79; font-size: 14px; line-height: 1.6;">\n  <li style="margin-bottom: 8px;">Primeiro benefício aqui</li>\n  <li style="margin-bottom: 8px;">Segundo benefício aqui</li>\n  <li style="margin-bottom: 8px;">Terceiro benefício aqui</li>\n</ul>\n`);
   }
@@ -93,10 +99,21 @@ export function Disparos() {
     if (!urlDestino) return;
     const descricao = window.prompt('Descrição do clique:', 'Botão Principal') || 'Botão Principal';
     const linkRastreado = montarUrlRastreada({ redirect: urlDestino, descricao, etapaAtual: ordemEtapa, cursoId: cursoAlvo, tipoF: tipoFunil });
-    inserirSnippet(`\n<div style="text-align: center; padding: 10px 20px; margin: 15px 0;"><a href="${linkRastreado}" target="_blank" style="display:inline-block; padding:14px 26px; background-color:#218553; color:#ffffff; font-weight:bold; text-decoration:none; font-size:14px; border-radius:6px; border:1px solid #218553;">${textoBotao}</a></div><p><br></p>`);
+    
+    const htmlBotao = `
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 15px 0;">
+  <tr>
+    <td align="center" style="padding: 15px 20px 10px 20px;">
+      <a href="${linkRastreado}" target="_blank" style="display:inline-block;padding:14px 26px;background-color:#218553;color:#ffffff;font-weight:bold;text-decoration:none;font-size:14px;border-radius:6px;border:1px solid #1a6b42; text-align: center;">
+        ${textoBotao}
+      </a>
+    </td>
+  </tr>
+</table>
+    `;
+    inserirSnippet(htmlBotao);
   }
 
-  // ATUALIZADO: Link colado nas aspas para se mesclar na frase
   function inserirLinkTextoRastreado() {
     const textoLink = window.prompt('Texto do link:', 'Programa Avançado');
     if (!textoLink) return;
@@ -155,7 +172,8 @@ export function Disparos() {
     } catch (erro) { console.error('Erro ao buscar sequência', erro); }
   }
 
-  async function abrirModalCliques(email) {
+  // --- MODAIS DE RELATÓRIOS ---
+async function abrirModalCliques(email) {
     setEmailSelecionadoParaCliques(email);
     setLeadsExpandidos([]); 
     setMostrarModalCliques(true);
@@ -165,18 +183,37 @@ export function Disparos() {
       const cliquesReais = res.data.filter(c => c.link_descricao && c.link_descricao.toLowerCase() !== 'bot');
       setDadosCliques(cliquesReais);
     } catch (error) {
-      alert("Erro ao buscar relatório de cliques.");
+      console.error("ERRO COMPLETO CLIQUES:", error);
+      alert("Erro ao buscar relatório de cliques. Verifique o console (F12).");
     } finally {
       setCarregandoCliques(false);
     }
   }
 
-  function toggleLeadHistorico(leadId) {
-    setLeadsExpandidos(prev => 
-      prev.includes(leadId) ? prev.filter(id => id !== leadId) : [...prev, leadId]
-    );
+async function abrirModalEnvios(email) {
+    setEmailSelecionadoModal(email);
+    setMostrarModalEnvios(true);
+    setCarregandoEnvios(true);
+    try {
+      const res = await axios.get(`${API_URL}/campanhas/${email.campanha_id}/funil/${email.tipo_funil}/etapa/${email.ordem_etapa}/envios`, getHeaders());
+      // Proteção para garantir que sempre existirá um array válido no estado
+      setDadosEnvios({
+        enviados: res.data.enviados || [],
+        fila: res.data.fila || []
+      });
+    } catch (error) {
+      console.error("ERRO COMPLETO ENVIOS:", error);
+      alert("Erro ao buscar fila e envios deste e-mail. Verifique o console (F12).");
+    } finally {
+      setCarregandoEnvios(false);
+    }
   }
 
+  function toggleLeadHistorico(leadId) {
+    setLeadsExpandidos(prev => prev.includes(leadId) ? prev.filter(id => id !== leadId) : [...prev, leadId]);
+  }
+
+  // --- LÓGICAS DO MOTOR ---
   async function iniciarCampanha() {
     if (!window.confirm(`🚀 Deseja iniciar a automação para "${campanhaSelecionada.nome}"?\nIsso vai injetar os leads selecionados no Kanban e na fila de e-mails.`)) return;
     try {
@@ -201,14 +238,10 @@ export function Disparos() {
     if (!cursoAlvo) return alert('Selecione a Campanha.');
 
     const ordemDuplicada = sequenciaAtual.find(email => 
-      email.tipo_funil === tipoFunil && 
-      Number(email.ordem_etapa) === Number(ordemEtapa) &&
-      email.id !== editandoEmailId
+      email.tipo_funil === tipoFunil && Number(email.ordem_etapa) === Number(ordemEtapa) && email.id !== editandoEmailId
     );
 
-    if (ordemDuplicada) {
-      return alert(`Já existe um e-mail na Etapa ${ordemEtapa} do funil ${tipoFunil === 'BROADCAST' ? 'Broadcast' : 'Pós-Clique'}. Por favor, escolha um número de etapa diferente.`);
-    }
+    if (ordemDuplicada) return alert(`Já existe um e-mail na Etapa ${ordemEtapa} do funil ${tipoFunil === 'BROADCAST' ? 'Broadcast' : 'Pós-Clique'}. Por favor, escolha um número de etapa diferente.`);
 
     setSalvandoConfig(true);
 
@@ -289,27 +322,15 @@ export function Disparos() {
 
   const leadsAgrupados = Object.values((dadosCliques || []).reduce((acc, clique) => {
     const chave = clique.contato_id || clique.contato_nome || Math.random();
-    
     if (!acc[chave]) {
       let emailExibicao = 'Sem e-mail';
       try {
         const emailsArray = typeof clique.emails_json === 'string' ? JSON.parse(clique.emails_json) : clique.emails_json;
         if (emailsArray && emailsArray.length > 0) emailExibicao = emailsArray[0];
       } catch(e) {}
-  
-      acc[chave] = {
-        id: chave,
-        nome: clique.contato_nome || 'Desconhecido',
-        email: emailExibicao,
-        interacoes: []
-      };
+      acc[chave] = { id: chave, nome: clique.contato_nome || 'Desconhecido', email: emailExibicao, interacoes: [] };
     }
-    
-    acc[chave].interacoes.push({
-      link: clique.link_descricao || 'Link',
-      data: clique.criado_em
-    });
-    
+    acc[chave].interacoes.push({ link: clique.link_descricao || 'Link', data: clique.criado_em });
     return acc;
   }, {}));
 
@@ -368,10 +389,15 @@ export function Disparos() {
                   <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#007bff', marginBottom: '5px' }}>Etapa {email.ordem_etapa}</div>
                   <div style={{ fontWeight: 'bold', color: '#333', marginBottom: '5px' }}>{email.titulo_email}</div>
                   <div style={{ fontSize: '0.85rem', color: '#555', marginBottom: '10px' }}><i className="fa-regular fa-clock"></i> Disparo: {email.data_disparo_exata ? new Date(email.data_disparo_exata).toLocaleDateString('pt-BR') : 'Sem data'}</div>
-                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                    <button onClick={() => carregarParaEdicao(email)} style={{ padding: '5px 10px', fontSize: '0.8rem', background: editandoEmailId === email.id ? '#007bff' : '#e9ecef', color: editandoEmailId === email.id ? '#fff' : '#333', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>{editandoEmailId === email.id ? 'Editando...' : 'Editar'}</button>
+                  
+                  {/* BOTOES DE AÇÃO DIVIDIDOS */}
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', borderTop: '1px dashed #ddd', paddingTop: '10px', marginTop: '5px' }}>
+                    <button onClick={() => carregarParaEdicao(email)} style={{ padding: '5px 10px', fontSize: '0.8rem', background: editandoEmailId === email.id ? '#007bff' : '#e9ecef', color: editandoEmailId === email.id ? '#fff' : '#333', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>{editandoEmailId === email.id ? 'Editando...' : 'Editar E-mail'}</button>
                     <button onClick={() => deletarCard(email.id)} style={{ padding: '5px 10px', fontSize: '0.8rem', background: '#ffeeba', color: '#856404', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Excluir</button>
-                    <button onClick={() => abrirModalCliques(email)} style={{ padding: '5px 10px', fontSize: '0.8rem', background: '#17a2b8', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}><i className="fa-solid fa-mouse-pointer"></i> Interações</button>
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '10px' }}>
+                    <button onClick={() => abrirModalEnvios(email)} style={{ flex: 1, padding: '6px 10px', fontSize: '0.8rem', background: '#6f42c1', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}><i className="fa-solid fa-paper-plane"></i> Ver Fila / Envios</button>
+                    <button onClick={() => abrirModalCliques(email)} style={{ flex: 1, padding: '6px 10px', fontSize: '0.8rem', background: '#17a2b8', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}><i className="fa-solid fa-mouse-pointer"></i> Interações</button>
                   </div>
                 </div>
               ))}
@@ -387,10 +413,14 @@ export function Disparos() {
                   <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#fd7e14', marginBottom: '5px' }}>Etapa {email.ordem_etapa}</div>
                   <div style={{ fontWeight: 'bold', color: '#333', marginBottom: '5px' }}>{email.titulo_email}</div>
                   <div style={{ fontSize: '0.85rem', color: '#555', marginBottom: '10px' }}><i className="fa-solid fa-hourglass-half"></i> Espera: + {email.horas_espera} horas</div>
-                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                    <button onClick={() => carregarParaEdicao(email)} style={{ padding: '5px 10px', fontSize: '0.8rem', background: editandoEmailId === email.id ? '#fd7e14' : '#e9ecef', color: editandoEmailId === email.id ? '#fff' : '#333', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>{editandoEmailId === email.id ? 'Editando...' : 'Editar'}</button>
+                  
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', borderTop: '1px dashed #ddd', paddingTop: '10px', marginTop: '5px' }}>
+                    <button onClick={() => carregarParaEdicao(email)} style={{ padding: '5px 10px', fontSize: '0.8rem', background: editandoEmailId === email.id ? '#fd7e14' : '#e9ecef', color: editandoEmailId === email.id ? '#fff' : '#333', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>{editandoEmailId === email.id ? 'Editando...' : 'Editar E-mail'}</button>
                     <button onClick={() => deletarCard(email.id)} style={{ padding: '5px 10px', fontSize: '0.8rem', background: '#ffeeba', color: '#856404', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Excluir</button>
-                    <button onClick={() => abrirModalCliques(email)} style={{ padding: '5px 10px', fontSize: '0.8rem', background: '#17a2b8', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}><i className="fa-solid fa-mouse-pointer"></i> Interações</button>
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '10px' }}>
+                    <button onClick={() => abrirModalEnvios(email)} style={{ flex: 1, padding: '6px 10px', fontSize: '0.8rem', background: '#6f42c1', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}><i className="fa-solid fa-paper-plane"></i> Ver Fila / Envios</button>
+                    <button onClick={() => abrirModalCliques(email)} style={{ flex: 1, padding: '6px 10px', fontSize: '0.8rem', background: '#17a2b8', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}><i className="fa-solid fa-mouse-pointer"></i> Interações</button>
                   </div>
                 </div>
               ))}
@@ -503,6 +533,7 @@ export function Disparos() {
           </div>
         )}
 
+        {/* MODAL 1: CLIQUES */}
         {mostrarModalCliques && (
           <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }} onClick={() => setMostrarModalCliques(false)}>
             <div style={{ background: '#fff', width: '100%', maxWidth: '800px', maxHeight: '90vh', borderRadius: '8px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
@@ -579,6 +610,83 @@ export function Disparos() {
                       })}
                     </tbody>
                   </table>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL 2: FILA E ENVIOS */}
+        {mostrarModalEnvios && (
+          <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }} onClick={() => setMostrarModalEnvios(false)}>
+            <div style={{ background: '#fff', width: '100%', maxWidth: '900px', maxHeight: '90vh', borderRadius: '8px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+              <div style={{ padding: '15px 20px', background: '#6f42c1', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h3 style={{ margin: 0, color: '#fff' }}><i className="fa-solid fa-paper-plane"></i> Relatório de Envios e Fila</h3>
+                  <div style={{ fontSize: '0.85rem', color: '#e6e6e6', marginTop: '5px' }}>{emailSelecionadoModal?.titulo_email}</div>
+                </div>
+                <button onClick={() => setMostrarModalEnvios(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#fff' }}>&times;</button>
+              </div>
+              
+              <div style={{ padding: '20px', flex: 1, overflowY: 'auto', background: '#f4f6f8' }}>
+                {carregandoEnvios ? (
+                  <div style={{ textAlign: 'center', padding: '50px', color: '#666' }}><i className="fa-solid fa-spinner fa-spin fa-2x"></i><br/>Carregando dados da fila...</div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                    
+                    {/* COLUNA 1: JÁ ENVIADOS */}
+                    <div style={{ background: '#fff', borderRadius: '8px', border: '1px solid #ddd', overflow: 'hidden' }}>
+                      <div style={{ background: '#e6f4ea', padding: '12px 15px', borderBottom: '1px solid #c3e6cb', fontWeight: 'bold', color: '#155724' }}>
+                        <i className="fa-solid fa-check-double"></i> Já Enviados ({dadosEnvios.enviados.length})
+                      </div>
+                      <div style={{ padding: '10px', maxHeight: '400px', overflowY: 'auto' }}>
+                        {dadosEnvios.enviados.length === 0 ? (
+                          <div style={{ textAlign: 'center', padding: '20px', color: '#999', fontStyle: 'italic' }}>Nenhum envio registrado.</div>
+                        ) : (
+                          dadosEnvios.enviados.map((envio, idx) => (
+                            <div key={idx} style={{ padding: '10px', borderBottom: '1px solid #eee' }}>
+                              <strong style={{ display: 'block', color: '#333', fontSize: '0.9rem' }}>{envio.nome}</strong>
+                              <span style={{ display: 'block', color: '#777', fontSize: '0.8rem' }}>{envio.email_destino}</span>
+                              <span style={{ display: 'block', color: '#28a745', fontSize: '0.75rem', marginTop: '3px', fontWeight: 'bold' }}>
+                                <i className="fa-solid fa-clock"></i> {formatarDataHora(envio.data_envio)}
+                              </span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    {/* COLUNA 2: NA FILA */}
+                    <div style={{ background: '#fff', borderRadius: '8px', border: '1px solid #ddd', overflow: 'hidden' }}>
+                      <div style={{ background: '#fff3cd', padding: '12px 15px', borderBottom: '1px solid #ffeeba', fontWeight: 'bold', color: '#856404' }}>
+                        <i className="fa-solid fa-hourglass-half"></i> Aguardando na Fila ({dadosEnvios.fila.length})
+                      </div>
+                      <div style={{ padding: '10px', maxHeight: '400px', overflowY: 'auto' }}>
+                        {dadosEnvios.fila.length === 0 ? (
+                          <div style={{ textAlign: 'center', padding: '20px', color: '#999', fontStyle: 'italic' }}>Fila vazia para esta etapa.</div>
+                        ) : (
+                          dadosEnvios.fila.map((lead, idx) => {
+                            let emailExibicao = 'Sem e-mail';
+                            try {
+                              const emailsArray = typeof lead.emails_json === 'string' ? JSON.parse(lead.emails_json) : lead.emails_json;
+                              if (emailsArray && emailsArray.length > 0) emailExibicao = emailsArray[0];
+                            } catch(e) {}
+
+                            return (
+                              <div key={idx} style={{ padding: '10px', borderBottom: '1px solid #eee' }}>
+                                <strong style={{ display: 'block', color: '#333', fontSize: '0.9rem' }}>{lead.nome}</strong>
+                                <span style={{ display: 'block', color: '#777', fontSize: '0.8rem' }}>{emailExibicao}</span>
+                                <span style={{ display: 'block', color: '#856404', fontSize: '0.75rem', marginTop: '3px', fontWeight: 'bold' }}>
+                                  Próximo na régua
+                                </span>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+
+                  </div>
                 )}
               </div>
             </div>
