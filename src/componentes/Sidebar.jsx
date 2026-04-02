@@ -36,6 +36,13 @@ export function Sidebar() {
           <NavLink to="/disparos" className={({ isActive }) => isActive ? "sidebar-link active" : "sidebar-link"}>
             <i className="fa-solid fa-user-shield"></i> Disparos em Massa
           </NavLink>
+          
+        )}
+        {perfilUsuario === 'admin' && (
+          <NavLink to="/landing-pages" className={({ isActive }) => isActive ? "sidebar-link active" : "sidebar-link"}>
+            <i className="fa-solid fa-user-shield"></i> Landing Pages
+          </NavLink>
+          
         )}
       </nav>
     </aside>

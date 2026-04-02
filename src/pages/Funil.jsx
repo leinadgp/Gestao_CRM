@@ -39,10 +39,14 @@ export function Funil() {
   const [editandoNotaId, setEditandoNotaId] = useState(null);
   const [textoNotaEditada, setTextoNotaEditada] = useState('');
 
-  const [mostrarCriarContato, setMostrarCriarContato] = useState(false);
-  const [inlineNome, setInlineNome] = useState('');
-  const [inlineCargo, setInlineCargo] = useState('');
-  const [inlineTelefone, setInlineTelefone] = useState('');
+  // === ESTADOS DO SUB-MODAL DE CONTATO ===
+  const [mostrarModalContato, setMostrarModalContato] = useState(false);
+  const [contatoSelecionado, setContatoSelecionado] = useState(null);
+  const [editandoContatoRapido, setEditandoContatoRapido] = useState(false);
+  const [contatoNome, setContatoNome] = useState('');
+  const [contatoCargo, setContatoCargo] = useState('');
+  const [contatoEmails, setContatoEmails] = useState('');
+  const [contatoTelefones, setContatoTelefones] = useState('');
 
   const [buscaEmpresaNoModal, setBuscaEmpresaNoModal] = useState('');
   const [mostrarDropdownEmpresa, setMostrarDropdownEmpresa] = useState(false);
@@ -56,26 +60,6 @@ export function Funil() {
   const isDown = useRef(false);
   const startX = useRef(0);
   const scrollLeft = useRef(0);
-
-  function onBoardMouseDown(e) {
-    if (e.target.closest('.kanban-card')) return;
-    isDown.current = true;
-    if (boardRef.current) {
-      boardRef.current.style.cursor = 'grabbing';
-      startX.current = e.pageX - boardRef.current.offsetLeft;
-      scrollLeft.current = boardRef.current.scrollLeft;
-    }
-  }
-
-  function onBoardMouseLeave() { isDown.current = false; if (boardRef.current) boardRef.current.style.cursor = 'auto'; }
-  function onBoardMouseUp() { isDown.current = false; if (boardRef.current) boardRef.current.style.cursor = 'auto'; }
-  function onBoardMouseMove(e) {
-    if (!isDown.current) return;
-    e.preventDefault();
-    const x = e.pageX - boardRef.current.offsetLeft;
-    const walk = (x - startX.current) * 1.5;
-    if (boardRef.current) { boardRef.current.scrollLeft = scrollLeft.current - walk; }
-  }
 
   const API_URL = 'https://server-js-gestao.onrender.com';
 
@@ -108,6 +92,26 @@ export function Funil() {
   function getHeaders() {
     const token = localStorage.getItem('token');
     return { headers: { Authorization: `Bearer ${token}` } };
+  }
+
+  // === ARRASTAR KANBAN ===
+  function onBoardMouseDown(e) {
+    if (e.target.closest('.kanban-card')) return;
+    isDown.current = true;
+    if (boardRef.current) {
+      boardRef.current.style.cursor = 'grabbing';
+      startX.current = e.pageX - boardRef.current.offsetLeft;
+      scrollLeft.current = boardRef.current.scrollLeft;
+    }
+  }
+  function onBoardMouseLeave() { isDown.current = false; if (boardRef.current) boardRef.current.style.cursor = 'auto'; }
+  function onBoardMouseUp() { isDown.current = false; if (boardRef.current) boardRef.current.style.cursor = 'auto'; }
+  function onBoardMouseMove(e) {
+    if (!isDown.current) return;
+    e.preventDefault();
+    const x = e.pageX - boardRef.current.offsetLeft;
+    const walk = (x - startX.current) * 1.5;
+    if (boardRef.current) { boardRef.current.scrollLeft = scrollLeft.current - walk; }
   }
 
   async function carregarDadosBase() {
@@ -164,20 +168,62 @@ export function Funil() {
     } catch (e) { alert('Erro ao editar a nota.'); }
   }
 
+  // === INTERAÇÃO: ABRIR SUB-MODAL DE CONTATO ===
+  function abrirDetalheContato() {
+    if (!contatoId) return;
+    const contato = contatos.find(c => c.id === parseInt(contatoId));
+    if (!contato) return;
+
+    setContatoSelecionado(contato);
+    setContatoNome(contato.nome);
+    setContatoCargo(contato.cargo || '');
+    
+    try {
+      const emails = typeof contato.emails_json === 'string' ? JSON.parse(contato.emails_json) : (contato.emails_json || []);
+      setContatoEmails(emails.join(', '));
+    } catch(e) { setContatoEmails(''); }
+
+    try {
+      const tels = typeof contato.telefones_json === 'string' ? JSON.parse(contato.telefones_json) : (contato.telefones_json || []);
+      setContatoTelefones(tels.join(', '));
+    } catch(e) { setContatoTelefones(''); }
+
+    setEditandoContatoRapido(false);
+    setMostrarModalContato(true);
+  }
+
+  // === SALVAR EDIÇÃO RÁPIDA DE CONTATO ===
+  async function salvarContatoRapido(e) {
+    e.preventDefault();
+    const emailsArr = contatoEmails.split(',').map(m => m.trim()).filter(m => m);
+    const telsArr = contatoTelefones.split(',').map(t => t.trim()).filter(t => t);
+    
+    try {
+      await axios.put(`${API_URL}/contatos/${contatoSelecionado.id}`, {
+        nome: contatoNome,
+        cargo: contatoCargo,
+        emails_json: emailsArr,
+        telefones_json: telsArr,
+        empresa_id: empresaId || contatoSelecionado.empresa_id 
+      }, getHeaders());
+      
+      alert('✅ Contato atualizado com sucesso!');
+      setMostrarModalContato(false);
+      
+      // Recarrega a lista de contatos por trás para refletir a mudança no funil
+      const resC = await axios.get(`${API_URL}/contatos`, getHeaders());
+      setContatos(resC.data);
+      setBuscaContatoNoModal(contatoNome); 
+
+    } catch(error) {
+      alert(error.response?.data?.erro || 'Erro ao atualizar contato.');
+    }
+  }
+
   const empresasFiltradasParaSelect = empresas.filter(e => e.nome.toLowerCase().includes(buscaEmpresaNoModal.toLowerCase()));
   let baseContatosFiltrados = contatos;
   if (empresaId) baseContatosFiltrados = contatos.filter(c => c.empresa_id === parseInt(empresaId));
   const contatosFiltradosParaSelect = baseContatosFiltrados.filter(c => c.nome.toLowerCase().includes(buscaContatoNoModal.toLowerCase()));
-
-  async function salvarContatoInline(e) {
-    e.preventDefault();
-    try {
-      const payload = { nome: inlineNome, cargo: inlineCargo, empresa_id: empresaId || null, telefones_json: inlineTelefone ? [inlineTelefone] : [], emails_json: [] };
-      const res = await axios.post(`${API_URL}/contatos`, payload, getHeaders());
-      const novoContato = res.data;
-      setContatos([...contatos, novoContato]); setContatoId(novoContato.id); setBuscaContatoNoModal(novoContato.nome); setMostrarCriarContato(false);
-    } catch (err) { alert("Erro ao criar contato."); }
-  }
 
   function toggleModulo(id) {
     setModulosSelecionados(prev => prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id]);
@@ -287,8 +333,8 @@ export function Funil() {
         </div>
 
         {mostrarModal && (
-          <div className="modal-overlay" onClick={fecharModal} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '30px', borderRadius: '12px' }}>
+          <div className="modal-overlay" onClick={fecharModal} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', zIndex: 9998 }}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '30px', borderRadius: '12px' }}>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #eee', paddingBottom: '10px' }}>
                 <div style={{ maxWidth: '80%' }}>
@@ -300,57 +346,109 @@ export function Funil() {
                 <button onClick={fecharModal} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#999', padding: 0 }}>&times;</button>
               </div>
 
-              <form onSubmit={salvarOportunidade} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+              <form onSubmit={salvarOportunidade}>
+                
+                {/* BLOCO 1: INFORMAÇÕES BÁSICAS DA NEGOCIAÇÃO */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px' }}>
+                  <div style={{ gridColumn: 'span 2' }}>
+                    <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>Título da Negociação *</label>
+                    <input type="text" value={titulo} onChange={(e) => setTitulo(e.target.value)} required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+                  </div>
 
-                <div style={{ gridColumn: 'span 2' }}>
-                  <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>Título da Negociação *</label>
-                  <input type="text" value={titulo} onChange={(e) => setTitulo(e.target.value)} required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>Etapa no Funil *</label>
+                    <select value={etapaId} onChange={(e) => setEtapaId(e.target.value)} required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #007bff', background: '#f8f9fa' }}>
+                      {etapas.map(etp => <option key={etp.id} value={etp.id}>{etp.nome}</option>)}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>Status da Negociação</label>
+                    <select
+                      value={statusOp}
+                      onChange={(e) => setStatusOp(e.target.value)}
+                      style={{
+                        width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc',
+                        background:
+                          statusOp === 'naofunciona' ? '#fff9db' :
+                            statusOp === 'naoatendeu' ? '#fff4e6' :
+                              statusOp === 'tarefa' ? '#f3e8ff' :
+                                statusOp === 'inscricao' || statusOp === 'ganho' ? '#e6f4ea' :
+                                  statusOp === 'interessada' ? '#e9f7ef' :
+                                    statusOp === 'avaliar' ? '#e7f3ff' :
+                                      statusOp === 'perdido' ? '#fdecea' : '#fff'
+                      }}
+                    >
+                      <option value="aberto">⚪ Em Aberto</option>
+                      <option value="avaliar">🔵 Avaliar</option>
+                      <option value="interessada">🟢 Interessada</option>
+                      <option value="inscricao">🏆 Inscrição (Ganho)</option>
+                      <option value="ganho">🏆 Vendido (Ganho)</option>
+                      <option value="tarefa">🟣 Tarefa</option>
+                      <option value="naoatendeu">🟠 Não Atendeu</option>
+                      <option value="naofunciona">🟡 Não Funciona</option>
+                      <option value="perdido">🔴 Perdido</option>
+                    </select>
+                  </div>
                 </div>
 
-                <div>
-                  <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>Etapa no Funil *</label>
-                  <select value={etapaId} onChange={(e) => setEtapaId(e.target.value)} required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #007bff', background: '#f8f9fa' }}>
-                    {etapas.map(etp => <option key={etp.id} value={etp.id}>{etp.nome}</option>)}
-                  </select>
+                {/* BLOCO 2: RELACIONAMENTOS (EMPRESA E CONTATO) */}
+                <div style={{ background: '#f4f6f8', padding: '15px', borderRadius: '8px', border: '1px solid #ddd', marginBottom: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                  
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '5px', color: '#333', fontSize: '0.9rem', fontWeight: 'bold' }}><i className="fa-solid fa-building"></i> Prefeitura Alvo</label>
+                    <div className="custom-select-container" ref={dropdownEmpresaRef}>
+                      <input type="text" className="custom-select-input" placeholder="🔍 Buscar prefeitura..." value={buscaEmpresaNoModal} autoComplete="off" onFocus={() => { setBuscaEmpresaNoModal(''); setMostrarDropdownEmpresa(true); }} onChange={(e) => {
+                        setBuscaEmpresaNoModal(e.target.value); setMostrarDropdownEmpresa(true);
+                        if (e.target.value === '') { setEmpresaId(''); setContatoId(''); setBuscaContatoNoModal(''); }
+                      }} />
+                      {mostrarDropdownEmpresa && (
+                        <div className="custom-select-dropdown">
+                          <div className="custom-select-option" style={{ color: '#dc3545', fontWeight: 'bold' }} onClick={() => { setEmpresaId(''); setBuscaEmpresaNoModal(''); setContatoId(''); setBuscaContatoNoModal(''); setMostrarDropdownEmpresa(false); }}><i className="fa-solid fa-eraser"></i> Limpar Seleção</div>
+                          {empresasFiltradasParaSelect.map(emp => (
+                            <div key={emp.id} className="custom-select-option" onClick={() => { setEmpresaId(emp.id); setBuscaEmpresaNoModal(emp.nome); setMostrarDropdownEmpresa(false); }}>{emp.nome}</div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '5px', color: '#333', fontSize: '0.9rem', fontWeight: 'bold' }}><i className="fa-solid fa-address-book"></i> Contato Principal</label>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <div className="custom-select-container" ref={dropdownContatoRef} style={{ flex: 1 }}>
+                        <input type="text" className="custom-select-input" placeholder={empresaId ? "🔍 Buscar contato desta prefeitura..." : "🔍 Buscar contato..."} value={buscaContatoNoModal} autoComplete="off" onFocus={() => { setBuscaContatoNoModal(''); setMostrarDropdownContato(true); }} onChange={(e) => { setBuscaContatoNoModal(e.target.value); setMostrarDropdownContato(true); }} />
+
+                        {mostrarDropdownContato && (
+                          <div className="custom-select-dropdown">
+                            <div className="custom-select-option" style={{ color: '#dc3545', fontWeight: 'bold' }} onClick={() => { setContatoId(''); setBuscaContatoNoModal(''); setMostrarDropdownContato(false); }}><i className="fa-solid fa-eraser"></i> Limpar Seleção</div>
+
+                            {contatosFiltradosParaSelect.length > 0 ? (
+                              contatosFiltradosParaSelect.map(cont => (
+                                <div key={cont.id} className="custom-select-option" onClick={() => { setContatoId(cont.id); setBuscaContatoNoModal(cont.nome); setMostrarDropdownContato(false); }}>
+                                  <strong style={{ color: '#333' }}>{cont.nome}</strong>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="custom-select-no-results" style={{ fontStyle: 'italic', color: '#888' }}>Nenhum contato encontrado.</div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* BOTÃO MÁGICO DE VER/EDITAR CONTATO */}
+                      {contatoId && (
+                        <button type="button" onClick={abrirDetalheContato} style={{ background: '#e7f3ff', color: '#007bff', border: '1px solid #b8daff', borderRadius: '6px', padding: '0 15px', cursor: 'pointer', fontWeight: 'bold', transition: '0.2s' }} title="Visualizar ou Editar Contato">
+                          <i className="fa-solid fa-user-pen"></i>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
                 </div>
 
-                <div>
-                  <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>
-                    Status da Negociação
-                  </label>
-
-                  <select
-                    value={statusOp}
-                    onChange={(e) => setStatusOp(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px',
-                      borderRadius: '6px',
-                      border: '1px solid #ccc',
-                      background:
-                        statusOp === 'naofunciona' ? '#fff9db' :
-                          statusOp === 'naoatendeu' ? '#fff4e6' :
-                            statusOp === 'tarefa' ? '#f3e8ff' :
-                              statusOp === 'inscricao' || statusOp === 'ganho' ? '#e6f4ea' :
-                                statusOp === 'interessada' ? '#e9f7ef' :
-                                  statusOp === 'avaliar' ? '#e7f3ff' :
-                                    statusOp === 'perdido' ? '#fdecea' :
-                                      '#fff'
-                    }}
-                  >
-                    <option value="aberto">⚪ Em Aberto</option>
-                    <option value="avaliar">🔵 Avaliar</option>
-                    <option value="interessada">🟢 Interessada</option>
-                    <option value="inscricao">🏆 Inscrição (Ganho)</option>
-                    <option value="ganho">🏆 Vendido (Ganho)</option>
-                    <option value="tarefa">🟣 Tarefa</option>
-                    <option value="naoatendeu">🟠 Não Atendeu</option>
-                    <option value="naofunciona">🟡 Não Funciona</option>
-                    <option value="perdido">🔴 Perdido</option>
-                  </select>
-                </div>
-
-                <div style={{ gridColumn: 'span 2', background: '#f4fbf5', padding: '15px', borderRadius: '8px', border: '1px solid #c3e6cb' }}>
+                {/* BLOCO 3: VALORES E MÓDULOS */}
+                <div style={{ background: '#f4fbf5', padding: '15px', borderRadius: '8px', border: '1px solid #c3e6cb', marginBottom: '20px' }}>
                   <label style={{ display: 'block', marginBottom: '10px', color: '#28a745', fontSize: '0.9rem', fontWeight: 'bold' }}>
                     <i className="fa-solid fa-cart-shopping"></i> Composição do Pacote (Turmas / Módulos)
                   </label>
@@ -360,18 +458,8 @@ export function Funil() {
                   ) : (
                     <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                       {modulosCampanha.map(mod => (
-                        <label
-                          key={mod.id}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: '6px', background: modulosSelecionados.includes(mod.id) ? '#d4edda' : '#fff',
-                            padding: '8px 12px', borderRadius: '6px', border: modulosSelecionados.includes(mod.id) ? '1px solid #28a745' : '1px solid #ccc',
-                            cursor: 'pointer', transition: '0.2s'
-                          }}
-                        >
-                          <input
-                            type="checkbox" checked={modulosSelecionados.includes(mod.id)} onChange={() => toggleModulo(mod.id)}
-                            style={{ cursor: 'pointer', transform: 'scale(1.2)' }}
-                          />
+                        <label key={mod.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: modulosSelecionados.includes(mod.id) ? '#d4edda' : '#fff', padding: '8px 12px', borderRadius: '6px', border: modulosSelecionados.includes(mod.id) ? '1px solid #28a745' : '1px solid #ccc', cursor: 'pointer', transition: '0.2s' }}>
+                          <input type="checkbox" checked={modulosSelecionados.includes(mod.id)} onChange={() => toggleModulo(mod.id)} style={{ cursor: 'pointer', transform: 'scale(1.2)' }} />
                           <span style={{ fontSize: '0.85rem', color: '#333', fontWeight: modulosSelecionados.includes(mod.id) ? 'bold' : 'normal' }}>
                             {mod.nome} <span style={{ color: '#28a745' }}>({formatarMoeda(mod.valor)})</span>
                           </span>
@@ -396,137 +484,97 @@ export function Funil() {
                       </div>
                     </div>
                   )}
-                </div>
 
-                <div style={{ gridColumn: 'span 2' }}>
-                  <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>Valor Final da Negociação (R$)</label>
-                  <input
-                    type="number" step="0.01"
-                    value={modulosSelecionados.length > 0 ? valorFinalCalculado : valor}
-                    onChange={(e) => setValor(e.target.value)}
-                    disabled={modulosSelecionados.length > 0}
-                    placeholder={modulosSelecionados.length > 0 ? "Calculado automaticamente pelos módulos acima" : "Digite o valor manualmente..."}
-                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', background: modulosSelecionados.length > 0 ? '#e9ecef' : '#fff' }}
-                  />
-                  {modulosSelecionados.length > 0 && <span style={{ fontSize: '0.75rem', color: '#888' }}>* O valor está sendo calculado automaticamente pelas opções marcadas acima.</span>}
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>
-                    <i className="fa-solid fa-user-tie" style={{ color: '#722ed1' }}></i> Vendedor Responsável
-                  </label>
-                  <select
-                    value={vendedorId} onChange={(e) => setVendedorId(e.target.value)} disabled={perfilUsuario === 'vendedor'}
-                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', background: perfilUsuario === 'vendedor' ? '#eee' : '#fff' }}
-                  >
-                    <option value="">-- Sem dono definido --</option>
-                    {equipe.map(user => <option key={user.id} value={user.id}>{user.nome} ({user.perfil})</option>)}
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>Prefeitura Alvo</label>
-                  <div className="custom-select-container" ref={dropdownEmpresaRef}>
-                    <input type="text" className="custom-select-input" placeholder="🔍 Buscar prefeitura..." value={buscaEmpresaNoModal} autoComplete="off" onFocus={() => { setBuscaEmpresaNoModal(''); setMostrarDropdownEmpresa(true); }} onChange={(e) => {
-                      setBuscaEmpresaNoModal(e.target.value); setMostrarDropdownEmpresa(true);
-                      if (e.target.value === '') { setEmpresaId(''); setContatoId(''); setBuscaContatoNoModal(''); }
-                    }} />
-                    {mostrarDropdownEmpresa && (
-                      <div className="custom-select-dropdown">
-                        <div className="custom-select-option" style={{ color: '#dc3545', fontWeight: 'bold' }} onClick={() => { setEmpresaId(''); setBuscaEmpresaNoModal(''); setContatoId(''); setBuscaContatoNoModal(''); setMostrarDropdownEmpresa(false); }}><i className="fa-solid fa-eraser"></i> Limpar Seleção</div>
-                        {empresasFiltradasParaSelect.map(emp => (
-                          <div key={emp.id} className="custom-select-option" onClick={() => { setEmpresaId(emp.id); setBuscaEmpresaNoModal(emp.nome); setMostrarDropdownEmpresa(false); }}>{emp.nome}</div>
-                        ))}
-                      </div>
-                    )}
+                  <div style={{ marginTop: '15px' }}>
+                    <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>Valor Final da Negociação (R$)</label>
+                    <input
+                      type="number" step="0.01"
+                      value={modulosSelecionados.length > 0 ? valorFinalCalculado : valor}
+                      onChange={(e) => setValor(e.target.value)}
+                      disabled={modulosSelecionados.length > 0}
+                      placeholder={modulosSelecionados.length > 0 ? "Calculado automaticamente pelos módulos acima" : "Digite o valor manualmente..."}
+                      style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', background: modulosSelecionados.length > 0 ? '#e9ecef' : '#fff' }}
+                    />
+                    {modulosSelecionados.length > 0 && <span style={{ fontSize: '0.75rem', color: '#888' }}>* O valor está sendo calculado automaticamente pelas opções marcadas acima.</span>}
                   </div>
                 </div>
 
-                <div>
-                  <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>
-                    Contato Principal
-                  </label>
-                  <div className="custom-select-container" ref={dropdownContatoRef}>
-                    <input type="text" className="custom-select-input" placeholder={empresaId ? "🔍 Buscar contato desta prefeitura..." : "🔍 Buscar contato..."} value={buscaContatoNoModal} autoComplete="off" onFocus={() => { setBuscaContatoNoModal(''); setMostrarDropdownContato(true); }} onChange={(e) => { setBuscaContatoNoModal(e.target.value); setMostrarDropdownContato(true); }} />
-
-                    {mostrarDropdownContato && (
-                      <div className="custom-select-dropdown">
-                        <div className="custom-select-option" style={{ color: '#dc3545', fontWeight: 'bold' }} onClick={() => { setContatoId(''); setBuscaContatoNoModal(''); setMostrarDropdownContato(false); }}><i className="fa-solid fa-eraser"></i> Limpar Seleção</div>
-
-                        {contatosFiltradosParaSelect.length > 0 ? (
-                          contatosFiltradosParaSelect.map(cont => (
-                            <div key={cont.id} className="custom-select-option" onClick={() => { setContatoId(cont.id); setBuscaContatoNoModal(cont.nome); setMostrarDropdownContato(false); }}>
-                              <strong style={{ color: '#333' }}>{cont.nome}</strong>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="custom-select-no-results" style={{ fontStyle: 'italic', color: '#888' }}>Nenhum contato encontrado.</div>
-                        )}
-                      </div>
-                    )}
+                {/* BLOCO 4: OBSERVAÇÕES E NOTAS */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '15px' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                      <i className="fa-solid fa-user-tie" style={{ color: '#722ed1' }}></i> Vendedor Responsável
+                    </label>
+                    <select
+                      value={vendedorId} onChange={(e) => setVendedorId(e.target.value)} disabled={perfilUsuario === 'vendedor'}
+                      style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', background: perfilUsuario === 'vendedor' ? '#eee' : '#fff' }}
+                    >
+                      <option value="">-- Sem dono definido --</option>
+                      {equipe.map(user => <option key={user.id} value={user.id}>{user.nome} ({user.perfil})</option>)}
+                    </select>
                   </div>
-                </div>
 
-                <div style={{ gridColumn: 'span 2' }}>
-                  <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>Resumo Geral do Negócio</label>
-                  <textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows="2" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', resize: 'vertical' }} />
-                </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>Resumo Geral do Negócio</label>
+                    <textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows="2" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', resize: 'vertical' }} />
+                  </div>
 
-                <div style={{ gridColumn: 'span 2', background: '#f8f9fa', padding: '15px', borderRadius: '8px', border: '1px solid #eee' }}>
-                  <label style={{ display: 'block', marginBottom: '10px', color: '#333', fontSize: '0.95rem', fontWeight: 'bold' }}>
-                    <i className="fa-solid fa-comments"></i> Histórico de Interações (Notas)
-                  </label>
+                  <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '8px', border: '1px solid #eee' }}>
+                    <label style={{ display: 'block', marginBottom: '10px', color: '#333', fontSize: '0.95rem', fontWeight: 'bold' }}>
+                      <i className="fa-solid fa-comments"></i> Histórico de Interações (Notas)
+                    </label>
 
-                  <div style={{ maxHeight: '200px', overflowY: 'auto', marginBottom: '15px', paddingRight: '5px' }}>
-                    {notas.length === 0 ? (
-                      <div style={{ color: '#999', fontSize: '0.85rem', textAlign: 'center', padding: '10px 0' }}>Nenhuma nota registada nesta negociação.</div>
-                    ) : (
-                      notas.map(n => (
-                        <div key={n.id} style={{ background: '#fff', borderLeft: '4px solid #007bff', padding: '12px', borderRadius: '6px', marginBottom: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                          {editandoNotaId === n.id ? (
-                            <div>
-                              <textarea value={textoNotaEditada} onChange={e => setTextoNotaEditada(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #007bff', resize: 'vertical' }} rows="2" />
-                              <div style={{ display: 'flex', gap: '5px', marginTop: '5px', justifyContent: 'flex-end' }}>
-                                <button type="button" onClick={cancelarEdicaoNota} style={{ padding: '5px 10px', fontSize: '0.8rem', background: '#ccc', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Cancelar</button>
-                                <button type="button" onClick={() => salvarNotaEditada(n.id)} style={{ padding: '5px 10px', fontSize: '0.8rem', background: '#007bff', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Salvar</button>
-                              </div>
-                            </div>
-                          ) : (
-                            <>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', fontSize: '0.8rem', color: '#666' }}>
-                                <strong style={{ color: '#333' }}><i className="fa-solid fa-user-circle"></i> {n.usuario_nome}</strong>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                  <span>{formatarDataHora(n.criado_em)}</span>
-                                  <button type="button" onClick={() => iniciarEdicaoNota(n)} style={{ background: 'none', border: 'none', color: '#007bff', cursor: 'pointer', padding: 0 }} title="Editar nota"><i className="fa-solid fa-pen"></i></button>
+                    <div style={{ maxHeight: '200px', overflowY: 'auto', marginBottom: '15px', paddingRight: '5px' }}>
+                      {notas.length === 0 ? (
+                        <div style={{ color: '#999', fontSize: '0.85rem', textAlign: 'center', padding: '10px 0' }}>Nenhuma nota registada nesta negociação.</div>
+                      ) : (
+                        notas.map(n => (
+                          <div key={n.id} style={{ background: '#fff', borderLeft: '4px solid #007bff', padding: '12px', borderRadius: '6px', marginBottom: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                            {editandoNotaId === n.id ? (
+                              <div>
+                                <textarea value={textoNotaEditada} onChange={e => setTextoNotaEditada(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #007bff', resize: 'vertical' }} rows="2" />
+                                <div style={{ display: 'flex', gap: '5px', marginTop: '5px', justifyContent: 'flex-end' }}>
+                                  <button type="button" onClick={cancelarEdicaoNota} style={{ padding: '5px 10px', fontSize: '0.8rem', background: '#ccc', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Cancelar</button>
+                                  <button type="button" onClick={() => salvarNotaEditada(n.id)} style={{ padding: '5px 10px', fontSize: '0.8rem', background: '#007bff', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Salvar</button>
                                 </div>
                               </div>
-                              <div style={{ fontSize: '0.9rem', color: '#444', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>{n.nota}</div>
-                              {n.atualizado_em && (
-                                <div style={{ fontSize: '0.7rem', color: '#aaa', marginTop: '8px', fontStyle: 'italic', textAlign: 'right' }}>
-                                  Editado em: {formatarDataHora(n.atualizado_em)}
+                            ) : (
+                              <>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', fontSize: '0.8rem', color: '#666' }}>
+                                  <strong style={{ color: '#333' }}><i className="fa-solid fa-user-circle"></i> {n.usuario_nome}</strong>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <span>{formatarDataHora(n.criado_em)}</span>
+                                    <button type="button" onClick={() => iniciarEdicaoNota(n)} style={{ background: 'none', border: 'none', color: '#007bff', cursor: 'pointer', padding: 0 }} title="Editar nota"><i className="fa-solid fa-pen"></i></button>
+                                  </div>
                                 </div>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      ))
-                    )}
-                  </div>
-
-                  {editandoId && (
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                      <input type="text" value={novaNota} onChange={e => setNovaNota(e.target.value)} placeholder="Escreva o que conversou hoje..." style={{ flex: 1, padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); adicionarNota(); } }} />
-                      <button type="button" onClick={adicionarNota} style={{ background: '#28a745', color: '#fff', border: 'none', padding: '0 20px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
-                        <i className="fa-solid fa-paper-plane"></i>
-                      </button>
+                                <div style={{ fontSize: '0.9rem', color: '#444', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>{n.nota}</div>
+                                {n.atualizado_em && (
+                                  <div style={{ fontSize: '0.7rem', color: '#aaa', marginTop: '8px', fontStyle: 'italic', textAlign: 'right' }}>
+                                    Editado em: {formatarDataHora(n.atualizado_em)}
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        ))
+                      )}
                     </div>
-                  )}
-                  {!editandoId && (
-                    <div style={{ fontSize: '0.85rem', color: '#dc3545', fontStyle: 'italic' }}>* Guarde a negociação a primeira vez para poder adicionar notas diárias.</div>
-                  )}
+
+                    {editandoId && (
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <input type="text" value={novaNota} onChange={e => setNovaNota(e.target.value)} placeholder="Escreva o que conversou hoje..." style={{ flex: 1, padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); adicionarNota(); } }} />
+                        <button type="button" onClick={adicionarNota} style={{ background: '#28a745', color: '#fff', border: 'none', padding: '0 20px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
+                          <i className="fa-solid fa-paper-plane"></i>
+                        </button>
+                      </div>
+                    )}
+                    {!editandoId && (
+                      <div style={{ fontSize: '0.85rem', color: '#dc3545', fontStyle: 'italic' }}>* Guarde a negociação a primeira vez para poder adicionar notas diárias.</div>
+                    )}
+                  </div>
                 </div>
 
-                <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
                   {editandoId ? <button type="button" onClick={deletarOportunidade} style={{ background: '#dc3545', color: '#fff', border: 'none', padding: '10px 15px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}><i className="fa-solid fa-trash-can"></i> Excluir</button> : <div></div>}
                   <div style={{ display: 'flex', gap: '10px' }}>
                     <button type="button" onClick={fecharModal} style={{ background: '#6c757d', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer' }}>Cancelar</button>
@@ -536,6 +584,86 @@ export function Funil() {
                   </div>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* ======================================================== */}
+        {/* SUB-MODAL: VISUALIZAR E EDITAR CONTATO (Z-INDEX 9999)    */}
+        {/* ======================================================== */}
+        {mostrarModalContato && contatoSelecionado && (
+          <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
+            <div style={{ background: '#fff', width: '100%', maxWidth: '600px', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 15px 40px rgba(0,0,0,0.4)' }} onClick={e => e.stopPropagation()}>
+              
+              <div style={{ padding: '15px 20px', background: '#1F4E79', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ margin: 0, fontSize: '1.2rem' }}>
+                  <i className="fa-solid fa-user-pen"></i> Detalhes do Contato
+                </h3>
+                <button onClick={() => setMostrarModalContato(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#fff' }}>&times;</button>
+              </div>
+
+              <div style={{ padding: '20px' }}>
+                {!editandoContatoRapido ? (
+                  // MODO VISUALIZAÇÃO
+                  <div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px' }}>
+                      <div style={{ background: '#f4f6f8', padding: '15px', borderRadius: '6px', border: '1px solid #ddd' }}>
+                        <label style={{ fontSize: '0.8rem', color: '#666', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>NOME COMPLETO</label>
+                        <div style={{ fontSize: '1rem', color: '#333' }}>{contatoNome}</div>
+                      </div>
+                      <div style={{ background: '#f4f6f8', padding: '15px', borderRadius: '6px', border: '1px solid #ddd' }}>
+                        <label style={{ fontSize: '0.8rem', color: '#666', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>CARGO</label>
+                        <div style={{ fontSize: '1rem', color: '#333' }}>{contatoCargo || '-'}</div>
+                      </div>
+                      <div style={{ background: '#f4f6f8', padding: '15px', borderRadius: '6px', border: '1px solid #ddd', gridColumn: 'span 2' }}>
+                        <label style={{ fontSize: '0.8rem', color: '#666', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}><i className="fa-regular fa-envelope"></i> E-MAILS (Lista de Disparo)</label>
+                        <div style={{ fontSize: '1rem', color: '#007bff' }}>{contatoEmails || '-'}</div>
+                      </div>
+                      <div style={{ background: '#f4f6f8', padding: '15px', borderRadius: '6px', border: '1px solid #ddd', gridColumn: 'span 2' }}>
+                        <label style={{ fontSize: '0.8rem', color: '#666', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}><i className="fa-solid fa-phone"></i> TELEFONES (WhatsApp)</label>
+                        <div style={{ fontSize: '1rem', color: '#333' }}>{contatoTelefones || '-'}</div>
+                      </div>
+                    </div>
+                    
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                      <button onClick={() => setMostrarModalContato(false)} style={{ background: '#eee', color: '#333', padding: '10px 20px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Voltar</button>
+                      <button onClick={() => setEditandoContatoRapido(true)} style={{ background: '#ffc107', color: '#333', padding: '10px 20px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
+                        <i className="fa-solid fa-pen"></i> Editar Contato
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  // MODO EDIÇÃO
+                  <form onSubmit={salvarContatoRapido}>
+                    <div style={{ display: 'grid', gap: '15px', marginBottom: '20px' }}>
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.9rem' }}>Nome *</label>
+                        <input type="text" required value={contatoNome} onChange={e => setContatoNome(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.9rem' }}>Cargo</label>
+                        <input type="text" value={contatoCargo} onChange={e => setContatoCargo(e.target.value)} placeholder="Ex: Secretário da Fazenda" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.9rem' }}><i className="fa-regular fa-envelope"></i> E-mails (Separe por vírgula)</label>
+                        <input type="text" value={contatoEmails} onChange={e => setContatoEmails(e.target.value)} placeholder="email1@teste.com, email2@teste.com" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #007bff' }} />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.9rem' }}><i className="fa-solid fa-phone"></i> Telefones (Separe por vírgula)</label>
+                        <input type="text" value={contatoTelefones} onChange={e => setContatoTelefones(e.target.value)} placeholder="51999999999, 5133333333" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #28a745' }} />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
+                      <button type="button" onClick={() => setEditandoContatoRapido(false)} style={{ background: '#eee', color: '#333', padding: '10px 20px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Cancelar</button>
+                      <button type="submit" style={{ background: '#007bff', color: '#fff', padding: '10px 20px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
+                        <i className="fa-solid fa-save"></i> Salvar Alterações
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+              
             </div>
           </div>
         )}

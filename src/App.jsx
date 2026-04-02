@@ -10,6 +10,7 @@ import { Funil } from './pages/Funil.jsx';
 import { Disparos } from './pages/Disparos.jsx';
 import { Campanhas } from './pages/Campanhas.jsx';
 import { Dashboard } from './pages/Dashboard.jsx';
+import { LandingPages } from './pages/LandingPages.jsx';
 
 function RotaProtegida({ children }) {
   const token = localStorage.getItem('token');
@@ -71,6 +72,11 @@ export function App() {
         <Route path="/disparos" element={
           <RotaProtegida>
             <Disparos />
+          </RotaProtegida>
+        } />
+        <Route path="/landing-pages" element={
+          <RotaProtegida>
+            <LandingPages />
           </RotaProtegida>
         } />
       </Routes>

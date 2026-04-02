@@ -346,7 +346,7 @@ export function Dashboard() {
                   {dadosModulos.every(d => d.Inscrições === 0) ? (
                     <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa', fontStyle: 'italic' }}>Nenhuma venda fracionada para este mês.</div>
                   ) : (
-                    <ResponsiveContainer>
+                    <ResponsiveContainer minHeight={1}>
                       <BarChart data={dadosModulos} margin={{ top: 20, right: 30, left: -20, bottom: 5 }} layout="vertical">
                         <XAxis type="number" allowDecimals={false} />
                         <YAxis dataKey="nome" type="category" width={150} tick={{ fontSize: 11 }} />
@@ -368,7 +368,7 @@ export function Dashboard() {
                   {dadosGraficoBarras.length === 0 ? (
                     <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa', fontStyle: 'italic' }}>Nenhum negócio ativo para exibir.</div>
                   ) : (
-                    <ResponsiveContainer>
+                    <ResponsiveContainer minHeight={1}>
                       <BarChart data={dadosGraficoBarras} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
                         <XAxis dataKey="nome" tick={{ fontSize: 11 }} />
                         <YAxis allowDecimals={false} />
@@ -391,7 +391,7 @@ export function Dashboard() {
                   {dadosPizza.length === 0 ? (
                      <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa', fontStyle: 'italic' }}>Nenhum dado para analisar.</div>
                   ) : (
-                    <ResponsiveContainer>
+                    <ResponsiveContainer minHeight={1}>
                       <PieChart>
                         <Pie data={dadosPizza} cx="50%" cy="50%" innerRadius={70} outerRadius={100} paddingAngle={5} dataKey="value">
                           {dadosPizza.map((entry, index) => (

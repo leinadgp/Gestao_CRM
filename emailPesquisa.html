@@ -248,9 +248,11 @@
 <script>
     const API_URL = 'https://server-js-gestao.onrender.com';
     
-    // Captura o ID da campanha/curso diretamente da URL (?curso=7)
+    // O parâmetro 'curso' na URL agora é o slug (ex: teste4)
     const urlParams = new URLSearchParams(window.location.search);
-    const cursoId = urlParams.get('curso');
+    const cursoSlug = urlParams.get('curso');
+
+    let cursoIdOficial = null; // Variável para guardar o ID real que será enviado no formulário
 
     const containerModulos = document.getElementById('containerModulos');
     const form = document.getElementById('formInscricao');
@@ -259,7 +261,7 @@
 
     // 1. CARREGAR DADOS DO CURSO E MÓDULOS DINAMICAMENTE
     async function carregarDadosDoCurso() {
-        if (!cursoId) {
+        if (!cursoSlug) {
             tituloCurso.innerText = "Curso não informado";
             descCurso.innerText = "Por favor, acesse esta página usando um link válido.";
             containerModulos.innerHTML = '';
@@ -267,12 +269,15 @@
         }
 
         try {
-            // Chama a rota pública que criamos no server.js
-            const res = await fetch(`${API_URL}/api/publico/campanha/${cursoId}`);
+            // Correção da Rota: Ajustado para chamar a rota /slug/:slug no servidor
+            const res = await fetch(`${API_URL}/api/publico/campanha/slug/${cursoSlug}`);
             
             if (!res.ok) throw new Error("Curso não encontrado ou indisponível.");
             
             const dados = await res.json();
+
+            // Salva o ID real da campanha retornado do banco
+            cursoIdOficial = dados.curso.id;
 
             // Atualiza Títulos
             tituloCurso.innerText = dados.curso.nome;
@@ -281,7 +286,7 @@
 
             // Renderiza Módulos
             if (dados.modulos && dados.modulos.length > 0) {
-                containerModulos.innerHTML = ''; // Limpa o "Buscando..."
+                containerModulos.innerHTML = ''; 
                 
                 dados.modulos.forEach(mod => {
                     const valorFormatado = Number(mod.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -336,7 +341,7 @@
             email: document.getElementById('email').value,
             whatsapp: document.getElementById('whatsapp').value,
             cidade: document.getElementById('cidade').value,
-            curso_id: parseInt(cursoId),
+            curso_id: cursoIdOficial, // Usa o ID real obtido na primeira requisição
             modulos_ids: modulosSelecionados
         };
 
