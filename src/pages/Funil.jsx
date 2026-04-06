@@ -132,7 +132,7 @@ export function Funil() {
       const resEtapas = await axios.get(`${API_URL}/campanhas/${campanhaId}/etapas`, getHeaders());
       setEtapas(resEtapas.data);
       const resOps = await axios.get(`${API_URL}/oportunidades`, getHeaders());
-      const opsDestaCampanha = resOps.data.filter(op => op.campanha_id === parseInt(campanhaId));
+      const opsDestaCampanha = resOps.data.filter(op => Number(op.campanha_id) === Number(campanhaId));
       setOportunidades(opsDestaCampanha);
     } catch (erro) { console.error(erro); } finally { setCarregando(false); }
   }
@@ -210,7 +210,6 @@ export function Funil() {
       alert('✅ Contato atualizado com sucesso!');
       setMostrarModalContato(false);
       
-      // Recarrega a lista de contatos por trás para refletir a mudança no funil
       const resC = await axios.get(`${API_URL}/contatos`, getHeaders());
       setContatos(resC.data);
       setBuscaContatoNoModal(contatoNome); 
@@ -238,9 +237,26 @@ export function Funil() {
 
   function abrirModalNovo() {
     if (!filtroCampanha) return alert("Selecione uma campanha no topo da tela antes de criar uma negociação!");
-    setEditandoId(null); setTitulo(''); setValor(''); setEmpresaId(''); setContatoId(''); setObservacoes('');
-    setStatusOp('aberto'); setEtapaId(etapas.length > 0 ? etapas[0].id : '');
-    setVendedorId(meuUsuarioId || ''); setModulosSelecionados([]); setDesconto(0);
+    
+    setEditandoId(null); 
+    setTitulo(''); 
+    setEmpresaId(''); 
+    setContatoId(''); 
+    setObservacoes('');
+    setStatusOp('aberto'); 
+    setEtapaId(etapas.length > 0 ? etapas[0].id : '');
+    setVendedorId(meuUsuarioId || ''); 
+    setDesconto(0);
+    
+    if (modulosCampanha.length > 0) {
+      const todosIds = modulosCampanha.map(m => m.id);
+      setModulosSelecionados(todosIds);
+      setValor(''); 
+    } else {
+      setModulosSelecionados([]);
+      setValor(990.00); 
+    }
+
     setBuscaEmpresaNoModal(''); setBuscaContatoNoModal(''); setNotas([]); setNovaNota(''); cancelarEdicaoNota();
     setMostrarModal(true);
   }
@@ -270,9 +286,11 @@ export function Funil() {
   function fecharModal() { setMostrarModal(false); }
 
   function formatarMoeda(v) { return Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
-  function formatarDataHora(dataIso) {
-    if (!dataIso) return '-';
-    return new Date(dataIso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+  // NOVA FUNÇÃO: Limpar telefone para ser usado no link "tel:" (remove espaços e parênteses)
+  function formatarTelefoneParaLink(telefoneStr) {
+    if (!telefoneStr) return '';
+    return telefoneStr.replace(/[^0-9]/g, '');
   }
 
   async function salvarOportunidade(e) {
@@ -348,7 +366,6 @@ export function Funil() {
 
               <form onSubmit={salvarOportunidade}>
                 
-                {/* BLOCO 1: INFORMAÇÕES BÁSICAS DA NEGOCIAÇÃO */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px' }}>
                   <div style={{ gridColumn: 'span 2' }}>
                     <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>Título da Negociação *</label>
@@ -392,9 +409,7 @@ export function Funil() {
                   </div>
                 </div>
 
-                {/* BLOCO 2: RELACIONAMENTOS (EMPRESA E CONTATO) */}
                 <div style={{ background: '#f4f6f8', padding: '15px', borderRadius: '8px', border: '1px solid #ddd', marginBottom: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                  
                   <div>
                     <label style={{ display: 'block', marginBottom: '5px', color: '#333', fontSize: '0.9rem', fontWeight: 'bold' }}><i className="fa-solid fa-building"></i> Prefeitura Alvo</label>
                     <div className="custom-select-container" ref={dropdownEmpresaRef}>
@@ -436,7 +451,6 @@ export function Funil() {
                         )}
                       </div>
                       
-                      {/* BOTÃO MÁGICO DE VER/EDITAR CONTATO */}
                       {contatoId && (
                         <button type="button" onClick={abrirDetalheContato} style={{ background: '#e7f3ff', color: '#007bff', border: '1px solid #b8daff', borderRadius: '6px', padding: '0 15px', cursor: 'pointer', fontWeight: 'bold', transition: '0.2s' }} title="Visualizar ou Editar Contato">
                           <i className="fa-solid fa-user-pen"></i>
@@ -444,10 +458,8 @@ export function Funil() {
                       )}
                     </div>
                   </div>
-
                 </div>
 
-                {/* BLOCO 3: VALORES E MÓDULOS */}
                 <div style={{ background: '#f4fbf5', padding: '15px', borderRadius: '8px', border: '1px solid #c3e6cb', marginBottom: '20px' }}>
                   <label style={{ display: 'block', marginBottom: '10px', color: '#28a745', fontSize: '0.9rem', fontWeight: 'bold' }}>
                     <i className="fa-solid fa-cart-shopping"></i> Composição do Pacote (Turmas / Módulos)
@@ -495,11 +507,9 @@ export function Funil() {
                       placeholder={modulosSelecionados.length > 0 ? "Calculado automaticamente pelos módulos acima" : "Digite o valor manualmente..."}
                       style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', background: modulosSelecionados.length > 0 ? '#e9ecef' : '#fff' }}
                     />
-                    {modulosSelecionados.length > 0 && <span style={{ fontSize: '0.75rem', color: '#888' }}>* O valor está sendo calculado automaticamente pelas opções marcadas acima.</span>}
                   </div>
                 </div>
 
-                {/* BLOCO 4: OBSERVAÇÕES E NOTAS */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '15px' }}>
                   <div>
                     <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>
@@ -543,16 +553,11 @@ export function Funil() {
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', fontSize: '0.8rem', color: '#666' }}>
                                   <strong style={{ color: '#333' }}><i className="fa-solid fa-user-circle"></i> {n.usuario_nome}</strong>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    <span>{formatarDataHora(n.criado_em)}</span>
+                                    <span>{new Date(n.criado_em).toLocaleString('pt-BR')}</span>
                                     <button type="button" onClick={() => iniciarEdicaoNota(n)} style={{ background: 'none', border: 'none', color: '#007bff', cursor: 'pointer', padding: 0 }} title="Editar nota"><i className="fa-solid fa-pen"></i></button>
                                   </div>
                                 </div>
                                 <div style={{ fontSize: '0.9rem', color: '#444', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>{n.nota}</div>
-                                {n.atualizado_em && (
-                                  <div style={{ fontSize: '0.7rem', color: '#aaa', marginTop: '8px', fontStyle: 'italic', textAlign: 'right' }}>
-                                    Editado em: {formatarDataHora(n.atualizado_em)}
-                                  </div>
-                                )}
                               </>
                             )}
                           </div>
@@ -567,9 +572,6 @@ export function Funil() {
                           <i className="fa-solid fa-paper-plane"></i>
                         </button>
                       </div>
-                    )}
-                    {!editandoId && (
-                      <div style={{ fontSize: '0.85rem', color: '#dc3545', fontStyle: 'italic' }}>* Guarde a negociação a primeira vez para poder adicionar notas diárias.</div>
                     )}
                   </div>
                 </div>
@@ -621,7 +623,14 @@ export function Funil() {
                       </div>
                       <div style={{ background: '#f4f6f8', padding: '15px', borderRadius: '6px', border: '1px solid #ddd', gridColumn: 'span 2' }}>
                         <label style={{ fontSize: '0.8rem', color: '#666', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}><i className="fa-solid fa-phone"></i> TELEFONES (WhatsApp)</label>
-                        <div style={{ fontSize: '1rem', color: '#333' }}>{contatoTelefones || '-'}</div>
+                        <div style={{ fontSize: '1rem', color: '#333' }}>
+                          {/* MÁGICA DOS TELEFONES CLICÁVEIS */}
+                          {contatoTelefones ? contatoTelefones.split(',').map((tel, idx) => (
+                            <a key={idx} href={`tel:${formatarTelefoneParaLink(tel)}`} title="Clique para ligar" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#e7f3ff', color: '#007bff', padding: '6px 12px', borderRadius: '20px', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.9rem', marginRight: '8px', border: '1px solid #b8daff', transition: '0.2s' }}>
+                              <i className="fa-solid fa-phone" style={{ color: '#28a745' }}></i> {tel.trim()}
+                            </a>
+                          )) : '-'}
+                        </div>
                       </div>
                     </div>
                     
@@ -677,7 +686,9 @@ export function Funil() {
         ) : (
           <div className="kanban-board" ref={boardRef} onMouseDown={onBoardMouseDown} onMouseLeave={onBoardMouseLeave} onMouseUp={onBoardMouseUp} onMouseMove={onBoardMouseMove} style={{ userSelect: 'none', marginTop: '20px' }}>
             {etapas.map((etapa) => {
-              const cardsDestaColuna = oportunidades.filter(op => op.etapa_id === etapa.id);
+              
+              const cardsDestaColuna = oportunidades.filter(op => Number(op.etapa_id) === Number(etapa.id));
+              
               return (
                 <div key={etapa.id} className="kanban-column">
                   <div className="kanban-column-header">
@@ -693,9 +704,9 @@ export function Funil() {
                       if (op.status === 'naofunciona') { corBorda = '#f1c40f'; bgCard = '#fff9db'; }
                       if (op.status === 'naoatendeu') { corBorda = '#e67e22'; bgCard = '#fff4e6'; }
                       if (op.status === 'tarefa') { corBorda = '#6f42c1'; bgCard = '#f3e8ff'; }
-                      if (op.status === 'inscricao' || op.status === 'ganho') { corBorda = '#195326'; bgCard = '#e6f4ea'; }
-                      if (op.status === 'interessada') { corBorda = '#28a745'; bgCard = '#e9f7ef'; }
-                      if (op.status === 'avaliar') { corBorda = '#007bff'; bgCard = '#e7f3ff'; }
+                      if (op.status === 'ganho' || op.status === 'inscricao') { corBorda = '#195326'; bgCard = '#e7f3ff'; }
+                      if (op.status === 'interessada') { corBorda = '#5bd477'; bgCard = '#e7f3ff'; }
+                      if (op.status === 'avaliar') { corBorda = '#cefaab'; bgCard = '#e7f3ff'; }
                       if (op.status === 'perdido') { corBorda = '#dc3545'; bgCard = '#fdecea'; }
                       
                       let idsModsCard = [];

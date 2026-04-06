@@ -1,383 +1,78 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html>
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inscrição - Gestão na Prática</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root {
-            --primary: #1F4E79;
-            --secondary: #28a745;
-            --text: #333;
-            --bg: #f4f7f6;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 20px;
-        }
-
-        .container {
-            background: #fff;
-            width: 100%;
-            max-width: 450px;
-            padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-            border-top: 8px solid var(--primary);
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .header h1 {
-            color: var(--primary);
-            font-size: 24px;
-            margin-bottom: 10px;
-        }
-
-        .header p {
-            color: #666;
-            font-size: 14px;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        label {
-            display: block;
-            font-weight: 600;
-            margin-bottom: 8px;
-            font-size: 0.9rem;
-        }
-
-        .input-icon {
-            position: relative;
-        }
-
-        .input-icon i {
-            position: absolute;
-            left: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #aaa;
-        }
-
-        input[type="text"], input[type="email"] {
-            width: 100%;
-            padding: 12px 12px 12px 40px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 1rem;
-            box-sizing: border-box;
-            transition: border-color 0.3s;
-        }
-
-        input:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(31, 78, 121, 0.1);
-        }
-
-        /* --- Estilos da Caixa de Módulos --- */
-        .modulos-box {
-            background: #f8f9fa;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            padding: 15px;
-        }
-
-        .modulo-item {
-            display: flex;
-            align-items: center;
-            padding: 8px 0;
-            border-bottom: 1px solid #eee;
-            cursor: pointer;
-        }
-
-        .modulo-item:last-child {
-            border-bottom: none;
-            padding-bottom: 0;
-        }
-
-        .modulo-item input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-            margin-right: 12px;
-            cursor: pointer;
-        }
-
-        .modulo-info {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .modulo-nome {
-            font-weight: bold;
-            color: var(--primary);
-            font-size: 0.95rem;
-        }
-
-        .modulo-valor {
-            font-size: 0.85rem;
-            color: #666;
-        }
-
-        .loading-modulos {
-            text-align: center;
-            color: #999;
-            font-size: 0.85rem;
-        }
-        /* --------------------------------------------- */
-
-        button {
-            width: 100%;
-            padding: 15px;
-            background-color: var(--secondary);
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 1.1rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background 0.3s, transform 0.2s;
-            margin-top: 10px;
-        }
-
-        button:hover {
-            background-color: #218838;
-            transform: translateY(-1px);
-        }
-
-        button:disabled {
-            background-color: #ccc;
-            cursor: not-allowed;
-        }
-
-        #feedback {
-            margin-top: 20px;
-            padding: 15px;
-            border-radius: 6px;
-            text-align: center;
-            display: none;
-            font-weight: 500;
-        }
-
-        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-
-        .footer-info {
-            text-align: center;
-            font-size: 0.75rem;
-            color: #999;
-            margin-top: 25px;
-        }
-    </style>
+    <title>Pesquisa de Cursos</title>
 </head>
-<body>
 
-<div class="container">
-    <div class="header">
-        <h1 id="tituloCurso">Carregando Curso...</h1>
-        <p id="descCurso">Aguarde enquanto preparamos os dados.</p>
-    </div>
-
-    <form id="formInscricao" style="display: none;">
-        <div class="form-group">
-            <label>Nome Completo</label>
-            <div class="input-icon">
-                <i class="fa-solid fa-user"></i>
-                <input type="text" id="nome" placeholder="Seu nome aqui" required>
-            </div>
-        </div>
-
-        <div class="form-group">
-            <label>E-mail Corporativo/Pessoal</label>
-            <div class="input-icon">
-                <i class="fa-solid fa-envelope"></i>
-                <input type="email" id="email" placeholder="exemplo@email.com" required>
-            </div>
-        </div>
-
-        <div class="form-group">
-            <label>WhatsApp (com DDD)</label>
-            <div class="input-icon">
-                <i class="fa-brands fa-whatsapp"></i>
-                <input type="text" id="whatsapp" placeholder="(00) 00000-0000" required>
-            </div>
-        </div>
-
-        <div class="form-group">
-            <label>Cidade / Prefeitura</label>
-            <div class="input-icon">
-                <i class="fa-solid fa-location-dot"></i>
-                <input type="text" id="cidade" placeholder="Sua cidade - UF" required>
-            </div>
-        </div>
-
-        <div class="form-group">
-            <label><i class="fa-solid fa-book" style="color: var(--primary);"></i> Módulos do Curso</label>
-            <div id="containerModulos" class="modulos-box">
-                <div class="loading-modulos">
-                    <i class="fa-solid fa-circle-notch fa-spin"></i> Buscando módulos...
-                </div>
-            </div>
-        </div>
-
-        <button type="submit" id="btnSubmit">FINALIZAR INSCRIÇÃO</button>
-    </form>
-
-    <div id="feedback"></div>
-
-    <p class="footer-info">
-        <i class="fa-solid fa-shield-halved"></i> Seus dados estão protegidos pela LGPD.
-    </p>
-</div>
-
-<script>
-    const API_URL = 'https://server-js-gestao.onrender.com';
-    
-    // O parâmetro 'curso' na URL agora é o slug (ex: teste4)
-    const urlParams = new URLSearchParams(window.location.search);
-    const cursoSlug = urlParams.get('curso');
-
-    let cursoIdOficial = null; // Variável para guardar o ID real que será enviado no formulário
-
-    const containerModulos = document.getElementById('containerModulos');
-    const form = document.getElementById('formInscricao');
-    const tituloCurso = document.getElementById('tituloCurso');
-    const descCurso = document.getElementById('descCurso');
-
-    // 1. CARREGAR DADOS DO CURSO E MÓDULOS DINAMICAMENTE
-    async function carregarDadosDoCurso() {
-        if (!cursoSlug) {
-            tituloCurso.innerText = "Curso não informado";
-            descCurso.innerText = "Por favor, acesse esta página usando um link válido.";
-            containerModulos.innerHTML = '';
-            return;
-        }
-
-        try {
-            // Correção da Rota: Ajustado para chamar a rota /slug/:slug no servidor
-            const res = await fetch(`${API_URL}/api/publico/campanha/slug/${cursoSlug}`);
-            
-            if (!res.ok) throw new Error("Curso não encontrado ou indisponível.");
-            
-            const dados = await res.json();
-
-            // Salva o ID real da campanha retornado do banco
-            cursoIdOficial = dados.curso.id;
-
-            // Atualiza Títulos
-            tituloCurso.innerText = dados.curso.nome;
-            descCurso.innerText = "Preencha os dados abaixo para validar sua participação.";
-            document.title = "Inscrição - " + dados.curso.nome;
-
-            // Renderiza Módulos
-            if (dados.modulos && dados.modulos.length > 0) {
-                containerModulos.innerHTML = ''; 
-                
-                dados.modulos.forEach(mod => {
-                    const valorFormatado = Number(mod.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                    
-                    containerModulos.innerHTML += `
-                        <label class="modulo-item">
-                            <input type="checkbox" name="modulo_id" value="${mod.id}" checked>
-                            <div class="modulo-info">
-                                <span class="modulo-nome">${mod.nome}</span>
-                                <span class="modulo-valor">Investimento: ${valorFormatado}</span>
-                            </div>
-                        </label>
-                    `;
-                });
-            } else {
-                containerModulos.innerHTML = '<p style="text-align:center; color:#999; margin:0; font-size:0.9rem;">Curso sem módulos extras.</p>';
-            }
-
-            // Exibe o formulário após carregar tudo
-            form.style.display = 'block';
-
-        } catch (error) {
-            tituloCurso.innerText = "Ops, algo deu errado";
-            tituloCurso.style.color = "red";
-            descCurso.innerText = error.message;
-            containerModulos.innerHTML = '';
-        }
-    }
-
-    // Chama a função assim que o script carrega
-    carregarDadosDoCurso();
-
-
-    // 2. ENVIAR FORMULÁRIO COM OS MÓDULOS SELECIONADOS
-    const feedback = document.getElementById('feedback');
-    const btn = document.getElementById('btnSubmit');
-
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        // Bloqueia botão e limpa avisos
-        btn.disabled = true;
-        btn.innerText = "PROCESSANDO...";
-        feedback.style.display = "none";
-
-        // Pega as checkboxes marcadas
-        const checkboxes = document.querySelectorAll('input[name="modulo_id"]:checked');
-        const modulosSelecionados = Array.from(checkboxes).map(cb => parseInt(cb.value));
-
-        const payload = {
-            nome: document.getElementById('nome').value,
-            email: document.getElementById('email').value,
-            whatsapp: document.getElementById('whatsapp').value,
-            cidade: document.getElementById('cidade').value,
-            curso_id: cursoIdOficial, // Usa o ID real obtido na primeira requisição
-            modulos_ids: modulosSelecionados
-        };
-
-        try {
-            const response = await fetch(`${API_URL}/webhook/inscricao-externa`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            const result = await response.json();
-
-            if (response.ok) {
-                feedback.className = "success";
-                feedback.innerHTML = "<strong>Sucesso!</strong> Sua inscrição foi processada. Em breve entraremos em contato.";
-                feedback.style.display = "block";
-                
-                form.reset();
-                containerModulos.style.opacity = "0.5";
-                
-                // Esconde o botão para evitar cliques duplicados após sucesso
-                btn.style.display = "none"; 
-            } else {
-                throw new Error(result.erro || "Erro ao processar. Tente novamente.");
-            }
-
-        } catch (error) {
-            feedback.className = "error";
-            feedback.innerHTML = "<strong>Atenção:</strong> " + error.message;
-            feedback.style.display = "block";
-        } finally {
-            btn.disabled = false;
-            if (btn.style.display !== "none") btn.innerText = "FINALIZAR INSCRIÇÃO";
-        }
-    });
-</script>
-
+<body style="margin:0;padding:0;background-color:#f4f6f8;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f6f8;">
+        <tr>
+            <td align="center">
+                <table width="600" cellpadding="0" cellspacing="0" border="0"
+                    style="background-color:#ffffff;font-family:Arial,sans-serif;font-size:14px;color:#1F4E79;">
+                    <tr>
+                        <td
+                            style="background-color:#1F4E79;color:#ffffff;padding:16px 20px;text-align:center;font-weight:bold;font-size:15px;">
+                            Não seguimos tendências genéricas. Queremos realizar capacitações que resolvam problemas
+                            reais. </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:30px 30px 10px 30px;line-height:1.6;text-align:justify;">
+                            <p style="margin:0 0 15px 0;"><strong>Prezado(a) Controlador(a),</strong></p>
+                            <p style="margin:0 0 15px 0;"> O cotidiano do <strong>Controle Interno Municipal</strong>
+                                exige muito mais do que conhecimento teórico. Exige soluções práticas, segurança
+                                jurídica e aderência à realidade de cada município. </p>
+                            <p style="margin:0 0 15px 0;"> Por essa razão, estamos realizando uma escuta técnica junto
+                                aos profissionais do <strong>Controle Interno Municipal</strong>. Nosso objetivo é
+                                estruturar a agenda de cursos dos próximos meses com base no que é, de fato, prioritário
+                                para a sua rotina. </p>
+                            <p style="margin:0 0 15px 0;"> Leva<strong> menos de 2 minutos,</strong> é uma pesquisa
+                                rápida e objetiva. Pedimos que você selecione os cursos ou temas que considera mais
+                                relevantes para a sua atuação hoje. </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="center" style="padding:10px 20px;"> <a
+                                href="https://deccel-ia-n8n-nova-versao.cdqhrl.easypanel.host/webhook/rastreio2?redirect=https://www.gestao.srv.br/confirmaform.php%3Femail=controleinterno@putinga.rs.gov.br&amp;email={{$json.EmailLimpo}}&amp;descricao=Link%20Pesquisa%20Cursos"
+                                target="_blank"
+                                style="display:inline-block;padding:14px 26px;background-color:#218553;color:#ffffff;font-weight:bold;text-decoration:none;font-size:14px;border-radius:6px;border:1px solid;">
+                                Selecionar os temas prioritários </a> </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:10px 24px 10px 24px;color:#1F4E79;text-align:center;">
+                            <p style="margin:0;">Obs: O link acima é oficial e 100% seguro.</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:30px 30px 10px 30px;line-height:1.6;text-align:justify;">
+                            <p style="margin:0 0 15px 0;">Sua contribuição é fundamental para que possamos continuar
+                                entregando capacitações de alto nível, focadas em resolver os problemas reais da
+                                Administração Pública Municipal.</p>
+                            <p style="margin:0 0 15px 0;">Agradecemos pelo seu tempo e pela confiança de sempre.</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:0px 30px 10px 30px;line-height:1.6;text-align:justify;">
+                            <p style="margin:0 0 10px 0;">Fico à disposição!</p>
+                            <p style="margin:0 0 10px 0;">Atenciosamente,</p>
+                            <p style="margin:0;"><strong>Camila Silveira Guimarães</strong></p>
+                            <p style="margin:0;">Setor Comercial</p>
+                            <p style="margin:0;">(51) 3541 3355</p>
+                            <p style="margin:0 0 10px 0;">(51) 98443-2097</p>
+                            <p style="margin:0;"> <a
+                                    href="https://deccel-ia-n8n-nova-versao.cdqhrl.easypanel.host/webhook/rastreio2?redirect=http://www.gestao.srv.br&amp;email={{$json.EmailLimpo}}&amp;descricao=Link%20Site%20Assinatura"
+                                    target="_blank" style="color:#1F4E79;text-decoration:none;font-weight:bold;">
+                                    www.gestao.srv.br </a> </p><br><br> <a
+                                href="https://deccel-ia-n8n-nova-versao.cdqhrl.easypanel.host/webhook/rastreio2?redirect=http://www.gestao.srv.br&amp;email={{$json.EmailLimpo}}&amp;descricao=bot"
+                                target="_blank" style="color:#ffffff;text-decoration:none;font-weight:bold;"> . </a>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
 </body>
+
 </html>

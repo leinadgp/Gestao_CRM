@@ -75,6 +75,24 @@ export function Empresas() {
     return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   }
 
+  // Dentro do seu Empresas.jsx, adicione esta função:
+async function popularEstado() {
+  const uf = prompt("Digite a UF do estado que deseja popular (Ex: RS, SC, SP):");
+  if (!uf || uf.length !== 2) return alert("UF Inválida");
+
+  if (!window.confirm(`Deseja importar todas as prefeituras de ${uf.toUpperCase()}?`)) return;
+
+  setCarregando(true);
+  try {
+    const res = await axios.post(`${API_URL}/empresas/popular/${uf}`, {}, getHeaders());
+    alert(`Sucesso! ${res.data.novos_inseridos} novas prefeituras importadas.`);
+    buscarEmpresas(); // Atualiza a tabela
+  } catch (error) {
+    alert("Erro na importação.");
+  } finally {
+    setCarregando(false);
+  }
+}
   async function buscarEmpresas() {
     setCarregando(true);
     try {
@@ -250,6 +268,9 @@ export function Empresas() {
       <Header titulo="Gestão de Empresas" />
 
       <div className="page-container">
+        <button onClick={popularEstado} style={{ background: '#17a2b8', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', marginRight: '5px' }}>
+  <i className="fa-solid fa-file-import"></i> Importar Estado
+</button>
         
         {/* BARRA DE FILTROS E BUSCA */}
         <div className="panel" style={{ marginBottom: '20px', display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 120px', gap: '15px' }}>
