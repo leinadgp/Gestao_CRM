@@ -12,7 +12,6 @@ export function Campanhas() {
 
   // Estados do formulário
   const [nome, setNome] = useState('');
-  const [slug, setSlug] = useState(''); 
   const [descricao, setDescricao] = useState('');
   const [informacaoExtra, setInformacaoExtra] = useState('');
   const [dataInicio, setDataInicio] = useState('');
@@ -61,7 +60,6 @@ export function Campanhas() {
   function abrirModalNovo() {
     setEditandoId(null); 
     setNome(''); 
-    setSlug(''); 
     setDescricao(''); 
     setInformacaoExtra('');
     setDataInicio(''); 
@@ -75,7 +73,6 @@ export function Campanhas() {
   function abrirModalEdicao(camp) {
     setEditandoId(camp.id); 
     setNome(camp.nome); 
-    setSlug(camp.slug || ''); 
     setDescricao(camp.descricao || '');
     setInformacaoExtra(camp.informacao_extra || '');
     setDataInicio(camp.data_inicio ? camp.data_inicio.split('T')[0] : '');
@@ -91,15 +88,6 @@ export function Campanhas() {
       data_evento_fim: m.data_evento_fim ? m.data_evento_fim.split('T')[0] : ''
     }));
     setModulos(modsFormatados); setMostrarModal(true);
-  }
-
-  function handleSlugChange(e) {
-    const valorFormatado = e.target.value
-      .toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') 
-      .replace(/[\s_]+/g, '-') 
-      .replace(/[^\w-]+/g, ''); 
-    setSlug(valorFormatado);
   }
 
   function toggleCargo(cargo) { setCargosAlvo(prev => prev.includes(cargo) ? prev.filter(c => c !== cargo) : [...prev, cargo]); }
@@ -126,7 +114,15 @@ export function Campanhas() {
     e.preventDefault();
     if (!editandoId && etapas.length === 0) return alert('Adicione pelo menos uma etapa para o funil.');
     
-    const payload = { nome, slug: slug || null, descricao, informacao_extra: informacaoExtra, data_inicio: dataInicio || null, data_fim: dataFim || null, cargos_alvo: cargosAlvo, modulos };
+    const payload = { 
+        nome, 
+        descricao, 
+        informacao_extra: informacaoExtra, 
+        data_inicio: dataInicio || null, 
+        data_fim: dataFim || null, 
+        cargos_alvo: cargosAlvo, 
+        modulos 
+    };
     
     try {
       if (editandoId) { 
@@ -157,7 +153,7 @@ export function Campanhas() {
 
   // --- LÓGICA DE EXCLUSÃO COM SEGURANÇA MATEMÁTICA ---
   function iniciarExclusao(camp) {
-    const a = Math.floor(Math.random() * 10) + 1; // Número de 1 a 10
+    const a = Math.floor(Math.random() * 10) + 1;
     const b = Math.floor(Math.random() * 10) + 1;
     setContaMath({ a, b, resultado: a + b });
     setRespostaMath('');
@@ -189,7 +185,6 @@ export function Campanhas() {
     return data.toLocaleDateString('pt-BR');
   }
 
-  // Filtra as campanhas baseado na aba ativa
   const campanhasFiltradas = campanhas.filter(camp => 
     abaAtiva === 'arquivadas' ? camp.arquivada === true : (camp.arquivada === false || camp.arquivada === null)
   );
@@ -204,7 +199,6 @@ export function Campanhas() {
             <h2 style={{ margin: 0, color: '#333' }}>Cursos e Lançamentos</h2>
             <p style={{ color: '#777', fontSize: '0.9rem', marginTop: '5px' }}>Configure os cursos, público alvo e módulos.</p>
             
-            {/* ABAS DE NAVEGAÇÃO */}
             <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
               <button 
                 onClick={() => setAbaAtiva('ativas')} 
@@ -235,22 +229,14 @@ export function Campanhas() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <h3 style={{ margin: '0 0 10px 0', color: abaAtiva === 'arquivadas' ? '#666' : '#007bff' }}><i className="fa-solid fa-graduation-cap"></i> {camp.nome}</h3>
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    {/* Botão Arquivar/Desarquivar */}
                     <button onClick={() => alternarArquivamento(camp.id, camp.arquivada)} style={{ background: 'none', border: 'none', color: '#6c757d', cursor: 'pointer', padding: '5px', fontSize: '1.2rem' }} title={camp.arquivada ? "Desarquivar" : "Arquivar"}>
                       <i className={`fa-solid ${camp.arquivada ? 'fa-box-open' : 'fa-box-archive'}`}></i>
                     </button>
-                    
                     <button onClick={() => abrirModalEdicao(camp)} style={{ background: 'none', border: 'none', color: '#ffc107', cursor: 'pointer', padding: '5px', fontSize: '1.2rem' }} title="Editar"><i className="fa-solid fa-pen-to-square"></i></button>
-                    
                     <button onClick={() => iniciarExclusao(camp)} style={{ background: 'none', border: 'none', color: '#dc3545', cursor: 'pointer', padding: '5px', fontSize: '1.2rem' }} title="Excluir Definitivamente"><i className="fa-solid fa-trash"></i></button>
                   </div>
                 </div>
                 <p style={{ color: '#555', fontSize: '0.9rem', minHeight: '40px', marginBottom: '10px' }}>{camp.descricao || 'Sem descrição definida.'}</p>
-                
-                <div style={{ fontSize: '0.8rem', background: '#eef2f7', padding: '6px 10px', borderRadius: '4px', color: '#444', marginBottom: '10px', border: '1px dashed #b8cde1' }}>
-                  <i className="fa-solid fa-link" style={{ color: '#007bff', marginRight: '5px' }}></i> 
-                  Link web: <strong>{camp.slug ? `/inscricao.html?curso=${camp.slug}` : 'Não configurado'}</strong>
-                </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', background: '#f4f6f8', padding: '8px', borderRadius: '4px', marginTop: '10px' }}>
                   <div><i className="fa-solid fa-play" style={{ color: '#28a745' }}></i> Início: {formatarDataBR(camp.data_inicio)}</div>
@@ -320,20 +306,14 @@ export function Campanhas() {
               </div>
 
               <form onSubmit={salvarCampanha}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '15px', marginBottom: '15px' }}>
                   
                   <div>
                     <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.9rem' }}>Nome do Curso/Campanha *</label>
                     <input type="text" value={nome} onChange={e => setNome(e.target.value)} required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
                   </div>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.9rem' }}>
-                      Link da Página (Slug) <span style={{fontSize: '0.75rem', fontWeight: 'normal', color: '#666'}}>(sem espaços)</span>
-                    </label>
-                    <input type="text" value={slug} onChange={handleSlugChange} placeholder="ex: gestao-financeira" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #007bff', background: '#f8fbff' }} />
-                  </div>
                   
-                  <div style={{ background: '#f0f4f8', padding: '15px', borderRadius: '8px', border: '1px solid #d0d7de', gridColumn: 'span 2', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                  <div style={{ background: '#f0f4f8', padding: '15px', borderRadius: '8px', border: '1px solid #d0d7de', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                     <div style={{ gridColumn: 'span 2' }}>
                       <h4 style={{ margin: '0', color: '#1F4E79' }}><i className="fa-solid fa-users-gear"></i> Automação: Público e Validade</h4>
                     </div>
@@ -358,12 +338,12 @@ export function Campanhas() {
                     </div>
                   </div>
 
-                  <div style={{ gridColumn: 'span 2', marginBottom: '10px' }}>
+                  <div style={{ marginBottom: '10px' }}>
                     <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.9rem' }}>Descrição Breve</label>
                     <textarea value={descricao} onChange={e => setDescricao(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', resize: 'vertical' }} rows="2"></textarea>
                   </div>
 
-                  <div style={{ gridColumn: 'span 2', marginBottom: '20px' }}>
+                  <div style={{ marginBottom: '20px' }}>
                     <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.9rem' }}>Informação Extra</label>
                     <textarea value={informacaoExtra} onChange={e => setInformacaoExtra(e.target.value)} placeholder="Use este espaço para links, detalhes ou observações..." style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', resize: 'vertical' }} rows="3"></textarea>
                   </div>

@@ -18,6 +18,7 @@ export function Disparos() {
   const [ordemEtapa, setOrdemEtapa] = useState('1');
   const [dataDisparo, setDataDisparo] = useState('');
   const [horasEspera, setHorasEspera] = useState('');
+  const [diasExpiracao, setDiasExpiracao] = useState(''); // <-- NOVO ESTADO
   
   const [tituloemail, setTituloemail] = useState('');
   const [cabecalhoEmail, setCabecalhoEmail] = useState('');
@@ -171,7 +172,6 @@ export function Disparos() {
     } catch (erro) { console.error('Erro ao buscar sequência', erro); }
   }
 
-  // --- MODAIS DE RELATÓRIOS ---
   async function abrirModalCliques(email) {
     setEmailSelecionadoModal(email); 
     setLeadsExpandidos([]); 
@@ -244,10 +244,16 @@ export function Disparos() {
     setSalvandoConfig(true);
 
     const payload = {
-      campanha_id: cursoAlvo, tipo_funil: tipoFunil, ordem_etapa: ordemEtapa,
+      campanha_id: cursoAlvo, 
+      tipo_funil: tipoFunil, 
+      ordem_etapa: ordemEtapa,
       data_disparo_exata: tipoFunil.includes('BROADCAST') ? dataDisparo : null,
       horas_espera: tipoFunil === 'POS_CLIQUE' ? horasEspera : null,
-      cargo_alvo: 'Todos', titulo_email: tituloemail, cabecalho_email: cabecalhoEmail, html_email: emailCru
+      dias_expiracao: tipoFunil === 'POS_CLIQUE' && diasExpiracao ? parseInt(diasExpiracao) : null,
+      cargo_alvo: 'Todos', 
+      titulo_email: tituloemail, 
+      cabecalho_email: cabecalhoEmail, 
+      html_email: emailCru
     };
 
     try {
@@ -273,6 +279,7 @@ export function Disparos() {
     setTituloemail(''); 
     setCabecalhoEmail(''); 
     setEmailCru('');
+    setDiasExpiracao('');
   }
 
   async function deletarCard(id) {
@@ -287,6 +294,7 @@ export function Disparos() {
     setOrdemEtapa(emailConfig.ordem_etapa);
     setDataDisparo(emailConfig.data_disparo_exata ? emailConfig.data_disparo_exata.split('T')[0] : '');
     setHorasEspera(emailConfig.horas_espera || ''); 
+    setDiasExpiracao(emailConfig.dias_expiracao || '');
     setTituloemail(emailConfig.titulo_email || '');
     setCabecalhoEmail(emailConfig.cabecalho_email || ''); 
     setEmailCru(emailConfig.html_email || '');
@@ -314,7 +322,6 @@ export function Disparos() {
     return data.toLocaleString('pt-BR');
   }
 
-  // --- Função Criada para Evitar o "Roubo de 3 Horas" do Fuso Horário ---
   function exibirDataISO(dataIso) {
     if (!dataIso) return 'Sem data';
     const partes = dataIso.split('T')[0].split('-');
@@ -389,7 +396,7 @@ export function Disparos() {
             
             {/* BROADCAST FRIOS */}
             <div style={{ background: '#f8f9fa', padding: '20px', borderRadius: '8px', borderTop: '5px solid #007bff', border: '1px solid #ddd' }}>
-              <h3 style={{ margin: '0 0 15px 0', color: '#007bff', fontSize: '1.1rem' }}><i className="fa-solid fa-snowflake"></i> Broadcast Frios (Mornos)</h3>
+              <h3 style={{ margin: '0 0 15px 0', color: '#007bff', fontSize: '1.1rem' }}><i className="fa-solid fa-snowflake"></i> Broadcast Frios</h3>
               <p style={{ fontSize: '0.8rem', color: '#666', marginBottom: '15px' }}>Disparado para a base geral em datas exatas.</p>
               
               {broadcastsFrios.length === 0 && <div style={{ padding: '15px', textAlign: 'center', background: '#fff', border: '1px dashed #ccc', color: '#999', fontSize: '0.85rem' }}>Nenhum e-mail agendado.</div>}
@@ -442,14 +449,24 @@ export function Disparos() {
             {/* PÓS CLIQUE */}
             <div style={{ background: '#fffcf5', padding: '20px', borderRadius: '8px', borderTop: '5px solid #fd7e14', border: '1px solid #f8e1c5' }}>
               <h3 style={{ margin: '0 0 15px 0', color: '#fd7e14', fontSize: '1.1rem' }}><i className="fa-solid fa-fire"></i> Funil Pós-Clique</h3>
-              <p style={{ fontSize: '0.8rem', color: '#666', marginBottom: '15px' }}>Gatilho de tempo após o clique.</p>
+              <p style={{ fontSize: '0.8rem', color: '#666', marginBottom: '15px' }}>Fila cronológica. E-mails expiram se passarem da validade.</p>
               
               {posCliques.length === 0 && <div style={{ padding: '15px', textAlign: 'center', background: '#fff', border: '1px dashed #ccc', color: '#999', fontSize: '0.85rem' }}>Nenhum e-mail engatilhado.</div>}
               {posCliques.map(email => (
                 <div key={email.id} style={{ background: editandoEmailId === email.id ? '#fff8e7' : '#fff', padding: '15px', borderRadius: '6px', border: editandoEmailId === email.id ? '2px solid #fd7e14' : '1px solid #eee', marginBottom: '10px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                  <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#fd7e14', marginBottom: '5px' }}>Etapa {email.ordem_etapa}</div>
+                  
+                  {/* BADGE VISUAL DE VALIDADE */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#fd7e14' }}>Etapa {email.ordem_etapa}</div>
+                    {email.dias_expiracao ? (
+                       <span style={{ fontSize: '0.65rem', background: '#f8d7da', color: '#721c24', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>Expira: Dia {email.dias_expiracao}</span>
+                    ) : (
+                       <span style={{ fontSize: '0.65rem', background: '#d4edda', color: '#155724', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>Sempre Válido</span>
+                    )}
+                  </div>
+                  
                   <div style={{ fontWeight: 'bold', color: '#333', marginBottom: '5px', fontSize: '0.9rem' }}>{email.titulo_email}</div>
-                  <div style={{ fontSize: '0.8rem', color: '#555', marginBottom: '10px' }}><i className="fa-solid fa-hourglass-half"></i> Espera: + {email.horas_espera} horas</div>
+                  <div style={{ fontSize: '0.8rem', color: '#555', marginBottom: '10px' }}><i className="fa-solid fa-hourglass-half"></i> Delay na Fila: {email.horas_espera}h</div>
                   
                   <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', borderTop: '1px dashed #ddd', paddingTop: '10px', marginTop: '5px' }}>
                     <button onClick={() => carregarParaEdicao(email)} style={{ flex: 1, padding: '5px', fontSize: '0.75rem', background: editandoEmailId === email.id ? '#fd7e14' : '#e9ecef', color: editandoEmailId === email.id ? '#fff' : '#333', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>{editandoEmailId === email.id ? 'Editando' : 'Editar'}</button>
@@ -479,34 +496,42 @@ export function Disparos() {
           </div>
 
           <form onSubmit={salvarCardEmail}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', background: '#f4f7f6', padding: '20px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #e0e0e0' }}>
-              <div>
+            
+            {/* GRID DO FORMULÁRIO AJUSTADO (DE 3 PARA 4 COLUNAS QUANDO PÓS-CLIQUE) */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '15px', background: '#f4f7f6', padding: '20px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #e0e0e0' }}>
+              <div style={{ gridColumn: tipoFunil.includes('BROADCAST') ? 'span 1' : 'span 1' }}>
                 <label style={{ fontWeight: 'bold', fontSize: '0.9rem', display: 'block', marginBottom: '5px' }}>Qual Funil? *</label>
                 <select value={tipoFunil} onChange={e => setTipoFunil(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '2px solid #6f42c1', fontWeight: 'bold', color: '#6f42c1' }}>
                   <option value="BROADCAST_FRIO">Broadcast (Frios / Mornos)</option>
                   <option value="BROADCAST_QUENTE">Broadcast (Quentes / Clientes)</option>
-                  <option value="POS_CLIQUE">Pós-Clique (Gatilho de Tempo)</option>
+                  <option value="POS_CLIQUE">Pós-Clique (Timeline / Expiração)</option>
                 </select>
               </div>
 
               {tipoFunil.includes('BROADCAST') ? (
-                <div>
+                <div style={{ gridColumn: 'span 2' }}>
                   <label style={{ fontWeight: 'bold', fontSize: '0.9rem', display: 'block', marginBottom: '5px', color: '#007bff' }}><i className="fa-regular fa-calendar"></i> Data de Disparo *</label>
                   <input type="date" required value={dataDisparo} onChange={e => setDataDisparo(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
                 </div>
               ) : (
-                <div>
-                  <label style={{ fontWeight: 'bold', fontSize: '0.9rem', display: 'block', marginBottom: '5px', color: '#fd7e14' }}><i className="fa-solid fa-hourglass-half"></i> Aguardar quantas horas? *</label>
-                  <input type="number" required placeholder="Ex: 48 (para 2 dias)" value={horasEspera} onChange={e => setHorasEspera(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
-                </div>
+                <>
+                  <div style={{ gridColumn: 'span 1' }}>
+                    <label style={{ fontWeight: 'bold', fontSize: '0.85rem', display: 'block', marginBottom: '5px', color: '#fd7e14' }}><i className="fa-solid fa-hourglass-half"></i> Espera (Horas) *</label>
+                    <input type="number" required placeholder="Ex: 48" value={horasEspera} onChange={e => setHorasEspera(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+                  </div>
+                  <div style={{ gridColumn: 'span 1' }}>
+                    <label style={{ fontWeight: 'bold', fontSize: '0.85rem', display: 'block', marginBottom: '5px', color: '#dc3545' }}><i className="fa-solid fa-ban"></i> Expira em (Dias)</label>
+                    <input type="number" placeholder="Vazio = Nunca expira" value={diasExpiracao} onChange={e => setDiasExpiracao(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+                  </div>
+                </>
               )}
 
-              <div>
-                <label style={{ fontWeight: 'bold', fontSize: '0.9rem', display: 'block', marginBottom: '5px' }}>Ordem (Etapa) *</label>
+              <div style={{ gridColumn: 'span 1' }}>
+                <label style={{ fontWeight: 'bold', fontSize: '0.9rem', display: 'block', marginBottom: '5px' }}>Ordem (Etapa/Índice) *</label>
                 <input type="number" required placeholder="Ex: 1" value={ordemEtapa} onChange={e => setOrdemEtapa(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
               </div>
 
-              <div style={{ gridColumn: 'span 3' }}>
+              <div style={{ gridColumn: 'span 4' }}>
                 <label style={{ fontWeight: 'bold', fontSize: '0.9rem', display: 'block', marginBottom: '5px' }}>Assunto do E-mail *</label>
                 <input type="text" required value={tituloemail} onChange={e => setTituloemail(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
               </div>
