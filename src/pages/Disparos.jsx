@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import SunEditorModule from 'suneditor-react';
 import 'suneditor/dist/css/suneditor.min.css';
+import styled from 'styled-components';
 import { Header } from '../componentes/Header.jsx';
 
 const SunEditor = SunEditorModule.default || SunEditorModule;
@@ -13,12 +14,17 @@ export function Disparos() {
   const [campanhas, setCampanhas] = useState([]);
   const [sequenciaAtual, setSequenciaAtual] = useState([]);
 
+  // NOVO ESTADO DO FILTRO DROPDOWN
   const [cursoAlvo, setCursoAlvo] = useState('');
+  const [dropdownCampanhaAberto, setDropdownCampanhaAberto] = useState(false);
+  const dropdownRef = useRef(null);
+
   const [tipoFunil, setTipoFunil] = useState('BROADCAST_FRIO'); 
   const [ordemEtapa, setOrdemEtapa] = useState('1');
   const [dataDisparo, setDataDisparo] = useState('');
   const [horasEspera, setHorasEspera] = useState('');
-  const [diasExpiracao, setDiasExpiracao] = useState(''); // <-- NOVO ESTADO
+  const [diasExpiracao, setDiasExpiracao] = useState('');
+  const [emailAtivo, setEmailAtivo] = useState(true); // Controle de Desabilitar/Ativar
   
   const [tituloemail, setTituloemail] = useState('');
   const [cabecalhoEmail, setCabecalhoEmail] = useState('');
@@ -38,7 +44,6 @@ export function Disparos() {
   const [carregandoEnvios, setCarregandoEnvios] = useState(false);
 
   const [emailSelecionadoModal, setEmailSelecionadoModal] = useState(null);
-  
   const [leadsExpandidos, setLeadsExpandidos] = useState([]);
   const [editandoEmailId, setEditandoEmailId] = useState(null);
 
@@ -62,6 +67,17 @@ export function Disparos() {
     return { headers: { Authorization: `Bearer ${token}` } };
   }
 
+  // Fecha o dropdown se clicar fora
+  useEffect(() => {
+    function handleClickFora(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownCampanhaAberto(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickFora);
+    return () => document.removeEventListener('mousedown', handleClickFora);
+  }, []);
+
   function escapeHtml(valor = '') {
     return String(valor).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
   }
@@ -83,15 +99,12 @@ export function Disparos() {
   function inserirAvisoSeguranca() {
     inserirSnippet(`\n<p style="margin: 0px 0 15px 0; padding: 0 24px; color: #1F4E79; text-align: center; font-size: 13px;">Obs: O link acima é oficial e 100% seguro.</p>\n`);
   }
-  
   function inserirListaNaoOrdenada() {
     inserirSnippet(`\n<ul style="margin: 0 0 15px 20px; padding: 0; color: #1F4E79; font-size: 14px; line-height: 1.6;">\n  <li style="margin-bottom: 8px;">Primeiro benefício aqui</li>\n  <li style="margin-bottom: 8px;">Segundo benefício aqui</li>\n  <li style="margin-bottom: 8px;">Terceiro benefício aqui</li>\n</ul>\n`);
   }
-
   function inserirListaOrdenada() {
     inserirSnippet(`\n<ol style="margin: 0 0 15px 20px; padding: 0; color: #1F4E79; font-size: 14px; line-height: 1.6;">\n  <li style="margin-bottom: 8px;">Passo 1 aqui</li>\n  <li style="margin-bottom: 8px;">Passo 2 aqui</li>\n  <li style="margin-bottom: 8px;">Passo 3 aqui</li>\n</ol>\n`);
   }
-
   function inserirBotaoRastreado() {
     const textoBotao = window.prompt('Texto do botão:', 'Selecionar os temas prioritários');
     if (!textoBotao) return;
@@ -109,11 +122,9 @@ export function Disparos() {
       </a>
     </td>
   </tr>
-</table>
-    `;
+</table>`;
     inserirSnippet(htmlBotao);
   }
-
   function inserirLinkTextoRastreado() {
     const textoLink = window.prompt('Texto do link:', 'Programa Avançado');
     if (!textoLink) return;
@@ -182,8 +193,7 @@ export function Disparos() {
       const cliquesReais = res.data.filter(c => c.link_descricao && c.link_descricao.toLowerCase() !== 'bot');
       setDadosCliques(cliquesReais);
     } catch (error) {
-      console.error("ERRO COMPLETO CLIQUES:", error);
-      alert(error.response?.data?.erro || "Erro ao buscar relatório de cliques. Verifique o console (F12).");
+      alert(error.response?.data?.erro || "Erro ao buscar relatório de cliques.");
     } finally {
       setCarregandoCliques(false);
     }
@@ -195,14 +205,9 @@ export function Disparos() {
     setCarregandoEnvios(true);
     try {
       const res = await axios.get(`${API_URL}/campanhas/${email.campanha_id}/funil/${email.tipo_funil}/etapa/${email.ordem_etapa}/envios`, getHeaders());
-      setDadosEnvios({
-        enviados: res.data.enviados || [],
-        fila: res.data.fila || [],
-        falhas: res.data.falhas || []
-      });
+      setDadosEnvios({ enviados: res.data.enviados || [], fila: res.data.fila || [], falhas: res.data.falhas || [] });
     } catch (error) {
-      console.error("ERRO COMPLETO ENVIOS:", error);
-      alert(error.response?.data?.erro || "Erro ao buscar fila e envios deste e-mail. Verifique o console (F12).");
+      alert(error.response?.data?.erro || "Erro ao buscar fila.");
     } finally {
       setCarregandoEnvios(false);
     }
@@ -231,6 +236,34 @@ export function Disparos() {
     } catch (erro) { alert('Erro ao alterar status do motor.'); }
   }
 
+  // --- NOVA FUNÇÃO DE LIGAR/DESLIGAR EMAIL ---
+  async function alternarStatusEmail(email) {
+    const statusAtual = email.ativo === false ? false : true;
+    const novoStatus = !statusAtual;
+    const acao = novoStatus ? 'ATIVAR' : 'DESABILITAR';
+    
+    if (!window.confirm(`Deseja ${acao} este e-mail? Ele ${novoStatus ? 'voltará a ser enviado' : 'será pulado pelo sistema'} a partir de agora.`)) return;
+
+    try {
+      const payload = {
+        tipo_funil: email.tipo_funil,
+        ordem_etapa: email.ordem_etapa,
+        data_disparo_exata: email.data_disparo_exata ? email.data_disparo_exata.split('T')[0] : null,
+        horas_espera: email.horas_espera,
+        dias_expiracao: email.dias_expiracao,
+        titulo_email: email.titulo_email,
+        cabecalho_email: email.cabecalho_email,
+        html_email: email.html_email,
+        ativo: novoStatus // Manda o novo status
+      };
+      
+      await axios.put(`${API_URL}/sequencia-emails/${email.id}`, payload, getHeaders());
+      carregarSequencia(cursoAlvo);
+    } catch (erro) {
+      alert('Erro ao alterar o status do e-mail.');
+    }
+  }
+
   async function salvarCardEmail(e) {
     e.preventDefault();
     if (!cursoAlvo) return alert('Selecione a Campanha.');
@@ -253,7 +286,8 @@ export function Disparos() {
       cargo_alvo: 'Todos', 
       titulo_email: tituloemail, 
       cabecalho_email: cabecalhoEmail, 
-      html_email: emailCru
+      html_email: emailCru,
+      ativo: emailAtivo
     };
 
     try {
@@ -264,7 +298,6 @@ export function Disparos() {
         await axios.post(`${API_URL}/sequencia-emails`, payload, getHeaders());
         alert('💾 E-mail adicionado à sequência com sucesso!');
       }
-      
       carregarSequencia(cursoAlvo);
       limparFormularioEmail();
     } catch (erro) { 
@@ -280,12 +313,7 @@ export function Disparos() {
     setCabecalhoEmail(''); 
     setEmailCru('');
     setDiasExpiracao('');
-  }
-
-  async function deletarCard(id) {
-    if (!window.confirm("Tem certeza que deseja apagar este e-mail da sequência?")) return;
-    try { await axios.delete(`${API_URL}/sequencia-emails/${id}`, getHeaders()); carregarSequencia(cursoAlvo); } 
-    catch (error) { alert("Erro ao deletar e-mail."); }
+    setEmailAtivo(true);
   }
 
   function carregarParaEdicao(emailConfig) {
@@ -298,6 +326,7 @@ export function Disparos() {
     setTituloemail(emailConfig.titulo_email || '');
     setCabecalhoEmail(emailConfig.cabecalho_email || ''); 
     setEmailCru(emailConfig.html_email || '');
+    setEmailAtivo(emailConfig.ativo === false ? false : true);
     if (preparacaoRef.current) preparacaoRef.current.scrollIntoView({ behavior: 'smooth' });
   }
 
@@ -310,7 +339,7 @@ export function Disparos() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ emailCru: emailCruTeste, cabecalhoEmail, tituloemail, etapa: ordemEtapa, curso: cursoAlvo })
       });
-      alert('✅ E-mail de teste enviado para o n8n!');
+      alert('✅ E-mail de teste enviado!');
     } catch (error) { alert('❌ Erro no teste.'); } 
     finally { setEnviandoTeste(false); }
   }
@@ -349,220 +378,253 @@ export function Disparos() {
   }, {}));
 
   return (
-    <div>
+    <>
       <Header titulo="Construtor de Funis e Automação" />
-      <div className="page-container" style={{ maxWidth: '1200px', margin: '0 auto', paddingBottom: '40px' }}>
-
-        <div className="panel" style={{ padding: '20px', marginBottom: '20px', background: '#eef2f5', border: '1px solid #cdd4db', borderRadius: '8px' }}>
-          <label style={{ fontWeight: 'bold', fontSize: '1rem', color: '#1F4E79' }}>1. Selecione a Campanha para gerenciar o Funil e a Automação:</label>
-          <select value={cursoAlvo} onChange={e => { setCursoAlvo(e.target.value); limparFormularioEmail(); }} style={{ width: '100%', padding: '12px', marginTop: '10px', borderRadius: '6px', border: '1px solid #1F4E79', fontSize: '1.1rem', fontWeight: 'bold' }}>
-            <option value="">-- Escolha uma Campanha --</option>
-            {campanhas.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-          </select>
-        </div>
+      <PageContainer>
+        
+        <TopSection>
+          <div>
+            <Title>Máquina de Disparos</Title>
+            <Subtitle>Configure as regras e horários dos e-mails automatizados.</Subtitle>
+          </div>
+          
+          {/* BOTÃO DROPDOWN NOVO (IDÊNTICO À DASHBOARD) */}
+          <FilterPillWrapper ref={dropdownRef}>
+            <FilterButton 
+              $hasValue={!!cursoAlvo} 
+              onClick={() => setDropdownCampanhaAberto(!dropdownCampanhaAberto)}
+            >
+              <i className="fa-solid fa-layer-group icon"></i> 
+              <span>Campanha: <strong>{campanhaSelecionada ? campanhaSelecionada.nome : '-- Selecione --'}</strong></span>
+              <i className={`fa-solid fa-chevron-${dropdownCampanhaAberto ? 'up' : 'down'} arrow`}></i>
+            </FilterButton>
+            
+            {dropdownCampanhaAberto && (
+              <CustomDropdownMenu>
+                <CustomDropdownItem 
+                  $active={cursoAlvo === ''} 
+                  onClick={() => { setCursoAlvo(''); setDropdownCampanhaAberto(false); limparFormularioEmail(); }}
+                >
+                  -- Selecione uma Campanha --
+                </CustomDropdownItem>
+                {campanhas.map(c => (
+                  <CustomDropdownItem 
+                    key={c.id} 
+                    $active={cursoAlvo === String(c.id)} 
+                    onClick={() => { setCursoAlvo(String(c.id)); setDropdownCampanhaAberto(false); limparFormularioEmail(); }}
+                  >
+                    {c.nome}
+                  </CustomDropdownItem>
+                ))}
+              </CustomDropdownMenu>
+            )}
+          </FilterPillWrapper>
+        </TopSection>
 
         {campanhaSelecionada && (
-          <div className="panel" style={{ padding: '20px', marginBottom: '30px', background: '#fff', border: campanhaSelecionada.status_motor === 'rodando' ? '2px solid #28a745' : campanhaSelecionada.status_motor === 'pausado' ? '2px solid #ffc107' : '1px solid #ddd', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <h3 style={{ margin: '0 0 5px 0', color: '#333' }}><i className="fa-solid fa-robot"></i> Motor de Disparos: {campanhaSelecionada.nome}</h3>
-              <p style={{ margin: 0, fontSize: '0.85rem', color: '#666' }}>Controle a injeção de leads e os envios automáticos para esta campanha.</p>
+          <MotorControlPanel>
+            <div className="motor-info">
+              <h3><i className="fa-solid fa-robot"></i> Motor de Disparos: {campanhaSelecionada.nome}</h3>
+              <p>Controle a injeção de leads e os envios automáticos para esta campanha.</p>
             </div>
-            <div style={{ display: 'flex', gap: '10px' }}>
+            <div className="motor-actions">
               {campanhaSelecionada.status_motor === 'rodando' ? (
                 <>
-                  <div style={{ padding: '10px 15px', background: '#e6f4ea', color: '#155724', borderRadius: '6px', fontWeight: 'bold', border: '1px solid #c3e6cb' }}>
-                    <i className="fa-solid fa-check-circle"></i> Automação Rodando
-                  </div>
-                  <button onClick={alternarStatusMotor} style={{ padding: '10px 20px', background: '#ffc107', color: '#333', borderRadius: '6px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}><i className="fa-solid fa-pause"></i> Pausar Disparos</button>
+                  <StatusBadge $color="green"><i className="fa-solid fa-check-circle"></i> Rodando</StatusBadge>
+                  <MotorButton $color="yellow" onClick={alternarStatusMotor}><i className="fa-solid fa-pause"></i> Pausar</MotorButton>
                 </>
               ) : campanhaSelecionada.status_motor === 'pausado' ? (
                 <>
-                  <div style={{ padding: '10px 15px', background: '#fff3cd', color: '#856404', borderRadius: '6px', fontWeight: 'bold', border: '1px solid #ffeeba' }}>
-                    <i className="fa-solid fa-pause-circle"></i> Automação Pausada
-                  </div>
-                  <button onClick={alternarStatusMotor} style={{ padding: '10px 20px', background: '#28a745', color: '#fff', borderRadius: '6px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}><i className="fa-solid fa-play"></i> Retomar Disparos</button>
+                  <StatusBadge $color="yellow"><i className="fa-solid fa-pause-circle"></i> Pausada</StatusBadge>
+                  <MotorButton $color="green" onClick={alternarStatusMotor}><i className="fa-solid fa-play"></i> Retomar</MotorButton>
                 </>
               ) : (
-                <button onClick={iniciarCampanha} style={{ padding: '10px 20px', background: '#28a745', color: '#fff', borderRadius: '6px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}>
-                  <i className="fa-solid fa-rocket"></i> Iniciar Automação (Injetar Leads)
-                </button>
+                <MotorButton $color="green" onClick={iniciarCampanha}>
+                  <i className="fa-solid fa-rocket"></i> Iniciar Automação
+                </MotorButton>
               )}
             </div>
-          </div>
+          </MotorControlPanel>
         )}
 
         {cursoAlvo && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '30px' }}>
-            
+          <FunnelsGrid>
             {/* BROADCAST FRIOS */}
-            <div style={{ background: '#f8f9fa', padding: '20px', borderRadius: '8px', borderTop: '5px solid #007bff', border: '1px solid #ddd' }}>
-              <h3 style={{ margin: '0 0 15px 0', color: '#007bff', fontSize: '1.1rem' }}><i className="fa-solid fa-snowflake"></i> Broadcast Frios</h3>
-              <p style={{ fontSize: '0.8rem', color: '#666', marginBottom: '15px' }}>Disparado para a base geral em datas exatas.</p>
+            <FunnelColumn>
+              <h3 className="text-blue"><i className="fa-solid fa-snowflake"></i> Broadcast Frios</h3>
+              <p>Disparado para a base geral.</p>
               
-              {broadcastsFrios.length === 0 && <div style={{ padding: '15px', textAlign: 'center', background: '#fff', border: '1px dashed #ccc', color: '#999', fontSize: '0.85rem' }}>Nenhum e-mail agendado.</div>}
+              {broadcastsFrios.length === 0 && <EmptyFunnelMsg>Nenhum e-mail agendado.</EmptyFunnelMsg>}
               {broadcastsFrios.map(email => (
-                <div key={email.id} style={{ background: editandoEmailId === email.id ? '#e7f3ff' : '#fff', padding: '15px', borderRadius: '6px', border: editandoEmailId === email.id ? '2px solid #007bff' : '1px solid #eee', marginBottom: '10px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                  <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#007bff', marginBottom: '5px' }}>Etapa {email.ordem_etapa}</div>
-                  <div style={{ fontWeight: 'bold', color: '#333', marginBottom: '5px', fontSize: '0.9rem' }}>{email.titulo_email}</div>
-                  <div style={{ fontSize: '0.8rem', color: '#555', marginBottom: '10px' }}>
-                    <i className="fa-regular fa-clock"></i> Disparo: {email.data_disparo_exata ? exibirDataISO(email.data_disparo_exata) : 'Sem data'}
+                <EmailCard key={email.id} $active={editandoEmailId === email.id} $borderColor="#007bff" $inativo={email.ativo === false}>
+                  <div className="card-header">
+                    <span className="step-badge">Etapa {email.ordem_etapa}</span>
+                    {email.ativo === false && <span className="expire-badge danger">Desabilitado</span>}
                   </div>
+                  <div className="email-title">{email.titulo_email}</div>
+                  <div className="email-meta"><i className="fa-regular fa-clock"></i> Dia {email.data_disparo_exata ? exibirDataISO(email.data_disparo_exata) : '-'}</div>
                   
-                  <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', borderTop: '1px dashed #ddd', paddingTop: '10px', marginTop: '5px' }}>
-                    <button onClick={() => carregarParaEdicao(email)} style={{ flex: 1, padding: '5px', fontSize: '0.75rem', background: editandoEmailId === email.id ? '#007bff' : '#e9ecef', color: editandoEmailId === email.id ? '#fff' : '#333', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>{editandoEmailId === email.id ? 'Editando' : 'Editar'}</button>
-                    {/* <button onClick={() => deletarCard(email.id)} style={{ padding: '5px', fontSize: '0.75rem', background: '#ffeeba', color: '#856404', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Excluir</button> */}
+                  <div className="card-actions-top">
+                    <ActionButton onClick={() => carregarParaEdicao(email)}>{editandoEmailId === email.id ? 'Editando' : 'Editar'}</ActionButton>
+                    <ActionButton className={email.ativo === false ? "success" : "warning"} onClick={() => alternarStatusEmail(email)}>
+                      <i className={`fa-solid ${email.ativo === false ? 'fa-play' : 'fa-ban'}`}></i>
+                      {email.ativo === false ? 'Ativar' : 'Desabilitar'}
+                    </ActionButton>
                   </div>
-                  <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginTop: '5px' }}>
-                    <button onClick={() => abrirModalEnvios(email)} style={{ flex: 1, padding: '5px', fontSize: '0.75rem', background: '#6f42c1', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}><i className="fa-solid fa-paper-plane"></i> Fila</button>
-                    <button onClick={() => abrirModalCliques(email)} style={{ flex: 1, padding: '5px', fontSize: '0.75rem', background: '#17a2b8', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}><i className="fa-solid fa-mouse-pointer"></i> Cliques</button>
+                  <div className="card-actions-bottom">
+                    <ActionButton className="primary" onClick={() => abrirModalEnvios(email)}><i className="fa-solid fa-paper-plane"></i> Fila</ActionButton>
+                    <ActionButton className="info" onClick={() => abrirModalCliques(email)}><i className="fa-solid fa-mouse-pointer"></i> Cliques</ActionButton>
                   </div>
-                </div>
+                </EmailCard>
               ))}
-            </div>
+            </FunnelColumn>
 
             {/* BROADCAST QUENTES */}
-            <div style={{ background: '#fff5f5', padding: '20px', borderRadius: '8px', borderTop: '5px solid #dc3545', border: '1px solid #f5c6cb' }}>
-              <h3 style={{ margin: '0 0 15px 0', color: '#dc3545', fontSize: '1.1rem' }}><i className="fa-solid fa-heart"></i> Broadcast Quentes</h3>
-              <p style={{ fontSize: '0.8rem', color: '#666', marginBottom: '15px' }}>Disparado para Clientes e Assessorados.</p>
+            <FunnelColumn>
+              <h3 className="text-red"><i className="fa-solid fa-heart"></i> Broadcast Quentes</h3>
+              <p>Clientes e assessorados.</p>
               
-              {broadcastsQuentes.length === 0 && <div style={{ padding: '15px', textAlign: 'center', background: '#fff', border: '1px dashed #ccc', color: '#999', fontSize: '0.85rem' }}>Nenhum e-mail agendado.</div>}
+              {broadcastsQuentes.length === 0 && <EmptyFunnelMsg>Nenhum e-mail agendado.</EmptyFunnelMsg>}
               {broadcastsQuentes.map(email => (
-                <div key={email.id} style={{ background: editandoEmailId === email.id ? '#fdecea' : '#fff', padding: '15px', borderRadius: '6px', border: editandoEmailId === email.id ? '2px solid #dc3545' : '1px solid #eee', marginBottom: '10px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                  <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#dc3545', marginBottom: '5px' }}>Etapa {email.ordem_etapa}</div>
-                  <div style={{ fontWeight: 'bold', color: '#333', marginBottom: '5px', fontSize: '0.9rem' }}>{email.titulo_email}</div>
-                  <div style={{ fontSize: '0.8rem', color: '#555', marginBottom: '10px' }}>
-                    <i className="fa-regular fa-clock"></i> Disparo: {email.data_disparo_exata ? exibirDataISO(email.data_disparo_exata) : 'Sem data'}
+                <EmailCard key={email.id} $active={editandoEmailId === email.id} $borderColor="#dc3545" $inativo={email.ativo === false}>
+                  <div className="card-header">
+                    <span className="step-badge">Etapa {email.ordem_etapa}</span>
+                    {email.ativo === false && <span className="expire-badge danger">Desabilitado</span>}
                   </div>
+                  <div className="email-title">{email.titulo_email}</div>
+                  <div className="email-meta"><i className="fa-regular fa-clock"></i> Dia {email.data_disparo_exata ? exibirDataISO(email.data_disparo_exata) : '-'}</div>
                   
-                  <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', borderTop: '1px dashed #ddd', paddingTop: '10px', marginTop: '5px' }}>
-                    <button onClick={() => carregarParaEdicao(email)} style={{ flex: 1, padding: '5px', fontSize: '0.75rem', background: editandoEmailId === email.id ? '#dc3545' : '#e9ecef', color: editandoEmailId === email.id ? '#fff' : '#333', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>{editandoEmailId === email.id ? 'Editando' : 'Editar'}</button>
-                    {/* <button onClick={() => deletarCard(email.id)} style={{ padding: '5px', fontSize: '0.75rem', background: '#ffeeba', color: '#856404', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Excluir</button> */}
+                  <div className="card-actions-top">
+                    <ActionButton onClick={() => carregarParaEdicao(email)}>{editandoEmailId === email.id ? 'Editando' : 'Editar'}</ActionButton>
+                    <ActionButton className={email.ativo === false ? "success" : "warning"} onClick={() => alternarStatusEmail(email)}>
+                      <i className={`fa-solid ${email.ativo === false ? 'fa-play' : 'fa-ban'}`}></i>
+                      {email.ativo === false ? 'Ativar' : 'Desabilitar'}
+                    </ActionButton>
                   </div>
-                  <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginTop: '5px' }}>
-                    <button onClick={() => abrirModalEnvios(email)} style={{ flex: 1, padding: '5px', fontSize: '0.75rem', background: '#6f42c1', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}><i className="fa-solid fa-paper-plane"></i> Fila</button>
-                    <button onClick={() => abrirModalCliques(email)} style={{ flex: 1, padding: '5px', fontSize: '0.75rem', background: '#17a2b8', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}><i className="fa-solid fa-mouse-pointer"></i> Cliques</button>
+                  <div className="card-actions-bottom">
+                    <ActionButton className="primary" onClick={() => abrirModalEnvios(email)}><i className="fa-solid fa-paper-plane"></i> Fila</ActionButton>
+                    <ActionButton className="info" onClick={() => abrirModalCliques(email)}><i className="fa-solid fa-mouse-pointer"></i> Cliques</ActionButton>
                   </div>
-                </div>
+                </EmailCard>
               ))}
-            </div>
+            </FunnelColumn>
 
             {/* PÓS CLIQUE */}
-            <div style={{ background: '#fffcf5', padding: '20px', borderRadius: '8px', borderTop: '5px solid #fd7e14', border: '1px solid #f8e1c5' }}>
-              <h3 style={{ margin: '0 0 15px 0', color: '#fd7e14', fontSize: '1.1rem' }}><i className="fa-solid fa-fire"></i> Funil Pós-Clique</h3>
-              <p style={{ fontSize: '0.8rem', color: '#666', marginBottom: '15px' }}>Fila cronológica. E-mails expiram se passarem da validade.</p>
+            <FunnelColumn>
+              <h3 className="text-orange"><i className="fa-solid fa-fire"></i> Funil Pós-Clique</h3>
+              <p>Gatilho de tempo e expiração.</p>
               
-              {posCliques.length === 0 && <div style={{ padding: '15px', textAlign: 'center', background: '#fff', border: '1px dashed #ccc', color: '#999', fontSize: '0.85rem' }}>Nenhum e-mail engatilhado.</div>}
+              {posCliques.length === 0 && <EmptyFunnelMsg>Nenhum e-mail agendado.</EmptyFunnelMsg>}
               {posCliques.map(email => (
-                <div key={email.id} style={{ background: editandoEmailId === email.id ? '#fff8e7' : '#fff', padding: '15px', borderRadius: '6px', border: editandoEmailId === email.id ? '2px solid #fd7e14' : '1px solid #eee', marginBottom: '10px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                  
-                  {/* BADGE VISUAL DE VALIDADE */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
-                    <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#fd7e14' }}>Etapa {email.ordem_etapa}</div>
-                    {email.dias_expiracao ? (
-                       <span style={{ fontSize: '0.65rem', background: '#f8d7da', color: '#721c24', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>Expira: Dia {email.dias_expiracao}</span>
-                    ) : (
-                       <span style={{ fontSize: '0.65rem', background: '#d4edda', color: '#155724', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>Sempre Válido</span>
-                    )}
+                <EmailCard key={email.id} $active={editandoEmailId === email.id} $borderColor="#fd7e14" $inativo={email.ativo === false}>
+                  <div className="card-header">
+                    <span className="step-badge">Etapa {email.ordem_etapa}</span>
+                    <div style={{display:'flex', gap:'5px'}}>
+                      {email.dias_expiracao ? (
+                         <span className="expire-badge danger">Expira: Dia {email.dias_expiracao}</span>
+                      ) : (
+                         <span className="expire-badge success">Sempre Válido</span>
+                      )}
+                      {email.ativo === false && <span className="expire-badge danger">Desabilitado</span>}
+                    </div>
                   </div>
+                  <div className="email-title">{email.titulo_email}</div>
+                  <div className="email-meta"><i className="fa-solid fa-hourglass-half"></i> Delay na Fila: {email.horas_espera}h</div>
                   
-                  <div style={{ fontWeight: 'bold', color: '#333', marginBottom: '5px', fontSize: '0.9rem' }}>{email.titulo_email}</div>
-                  <div style={{ fontSize: '0.8rem', color: '#555', marginBottom: '10px' }}><i className="fa-solid fa-hourglass-half"></i> Delay na Fila: {email.horas_espera}h</div>
-                  
-                  <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', borderTop: '1px dashed #ddd', paddingTop: '10px', marginTop: '5px' }}>
-                    <button onClick={() => carregarParaEdicao(email)} style={{ flex: 1, padding: '5px', fontSize: '0.75rem', background: editandoEmailId === email.id ? '#fd7e14' : '#e9ecef', color: editandoEmailId === email.id ? '#fff' : '#333', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>{editandoEmailId === email.id ? 'Editando' : 'Editar'}</button>
-                    {/* <button onClick={() => deletarCard(email.id)} style={{ padding: '5px', fontSize: '0.75rem', background: '#ffeeba', color: '#856404', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Excluir</button> */}
+                  <div className="card-actions-top">
+                    <ActionButton onClick={() => carregarParaEdicao(email)}>{editandoEmailId === email.id ? 'Editando' : 'Editar'}</ActionButton>
+                    <ActionButton className={email.ativo === false ? "success" : "warning"} onClick={() => alternarStatusEmail(email)}>
+                      <i className={`fa-solid ${email.ativo === false ? 'fa-play' : 'fa-ban'}`}></i>
+                      {email.ativo === false ? 'Ativar' : 'Desabilitar'}
+                    </ActionButton>
                   </div>
-                  <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginTop: '5px' }}>
-                    <button onClick={() => abrirModalEnvios(email)} style={{ flex: 1, padding: '5px', fontSize: '0.75rem', background: '#6f42c1', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}><i className="fa-solid fa-paper-plane"></i> Fila</button>
-                    <button onClick={() => abrirModalCliques(email)} style={{ flex: 1, padding: '5px', fontSize: '0.75rem', background: '#17a2b8', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}><i className="fa-solid fa-mouse-pointer"></i> Cliques</button>
+                  <div className="card-actions-bottom">
+                    <ActionButton className="primary" onClick={() => abrirModalEnvios(email)}><i className="fa-solid fa-paper-plane"></i> Fila</ActionButton>
+                    <ActionButton className="info" onClick={() => abrirModalCliques(email)}><i className="fa-solid fa-mouse-pointer"></i> Cliques</ActionButton>
                   </div>
-                </div>
+                </EmailCard>
               ))}
-            </div>
-            
-          </div>
+            </FunnelColumn>
+          </FunnelsGrid>
         )}
 
-        <div ref={preparacaoRef} className="panel" style={{ borderTop: '5px solid #6f42c1', padding: '30px', marginBottom: '30px', opacity: cursoAlvo ? 1 : 0.5, pointerEvents: cursoAlvo ? 'auto' : 'none' }}>
-          <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 style={{ margin: 0, color: '#333' }}>
-              {editandoEmailId ? `Editando E-mail (Ordem ${ordemEtapa})` : '2. Adicionar Novo E-mail ao Funil'}
-            </h2>
+        <EditorPanel ref={preparacaoRef} $visible={!!cursoAlvo}>
+          <div className="editor-header">
+            <h2>{editandoEmailId ? `Editando E-mail (Ordem ${ordemEtapa})` : '2. Adicionar Novo E-mail ao Funil'}</h2>
             {editandoEmailId && (
-              <button onClick={limparFormularioEmail} style={{ background: '#eee', color: '#333', border: 'none', padding: '8px 15px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
+              <button onClick={limparFormularioEmail} className="cancel-btn">
                 <i className="fa-solid fa-times"></i> Cancelar Edição
               </button>
             )}
           </div>
 
           <form onSubmit={salvarCardEmail}>
-            
-            {/* GRID DO FORMULÁRIO AJUSTADO (DE 3 PARA 4 COLUNAS QUANDO PÓS-CLIQUE) */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '15px', background: '#f4f7f6', padding: '20px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #e0e0e0' }}>
-              <div style={{ gridColumn: tipoFunil.includes('BROADCAST') ? 'span 1' : 'span 1' }}>
-                <label style={{ fontWeight: 'bold', fontSize: '0.9rem', display: 'block', marginBottom: '5px' }}>Qual Funil? *</label>
-                <select value={tipoFunil} onChange={e => setTipoFunil(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '2px solid #6f42c1', fontWeight: 'bold', color: '#6f42c1' }}>
-                  <option value="BROADCAST_FRIO">Broadcast (Frios / Mornos)</option>
-                  <option value="BROADCAST_QUENTE">Broadcast (Quentes / Clientes)</option>
-                  <option value="POS_CLIQUE">Pós-Clique (Timeline / Expiração)</option>
-                </select>
-              </div>
+            <FormGrid $isPosClique={tipoFunil === 'POS_CLIQUE'}>
+              <FormGroup>
+                <label>Qual Funil? *</label>
+                <div className="select-container highlight">
+                  <select value={tipoFunil} onChange={e => setTipoFunil(e.target.value)} required>
+                    <option value="BROADCAST_FRIO">Broadcast (Frios / Mornos)</option>
+                    <option value="BROADCAST_QUENTE">Broadcast (Quentes / Clientes)</option>
+                    <option value="POS_CLIQUE">Pós-Clique (Timeline / Expiração)</option>
+                  </select>
+                  <i className="fa-solid fa-chevron-down arrow"></i>
+                </div>
+              </FormGroup>
 
               {tipoFunil.includes('BROADCAST') ? (
-                <div style={{ gridColumn: 'span 2' }}>
-                  <label style={{ fontWeight: 'bold', fontSize: '0.9rem', display: 'block', marginBottom: '5px', color: '#007bff' }}><i className="fa-regular fa-calendar"></i> Data de Disparo *</label>
-                  <input type="date" required value={dataDisparo} onChange={e => setDataDisparo(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
-                </div>
+                <FormGroup className="span-2">
+                  <label className="text-blue"><i className="fa-regular fa-calendar"></i> Data de Disparo *</label>
+                  <input type="date" required value={dataDisparo} onChange={e => setDataDisparo(e.target.value)} />
+                </FormGroup>
               ) : (
                 <>
-                  <div style={{ gridColumn: 'span 1' }}>
-                    <label style={{ fontWeight: 'bold', fontSize: '0.85rem', display: 'block', marginBottom: '5px', color: '#fd7e14' }}><i className="fa-solid fa-hourglass-half"></i> Espera (Horas) *</label>
-                    <input type="number" required placeholder="Ex: 48" value={horasEspera} onChange={e => setHorasEspera(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
-                  </div>
-                  <div style={{ gridColumn: 'span 1' }}>
-                    <label style={{ fontWeight: 'bold', fontSize: '0.85rem', display: 'block', marginBottom: '5px', color: '#dc3545' }}><i className="fa-solid fa-ban"></i> Expira em (Dias)</label>
-                    <input type="number" placeholder="Vazio = Nunca expira" value={diasExpiracao} onChange={e => setDiasExpiracao(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
-                  </div>
+                  <FormGroup>
+                    <label className="text-orange"><i className="fa-solid fa-hourglass-half"></i> Espera (Horas) *</label>
+                    <input type="number" required placeholder="Ex: 48" value={horasEspera} onChange={e => setHorasEspera(e.target.value)} />
+                  </FormGroup>
+                  <FormGroup>
+                    <label className="text-red"><i className="fa-solid fa-ban"></i> Expira em (Dias)</label>
+                    <input type="number" placeholder="Nunca expira" value={diasExpiracao} onChange={e => setDiasExpiracao(e.target.value)} />
+                  </FormGroup>
                 </>
               )}
 
-              <div style={{ gridColumn: 'span 1' }}>
-                <label style={{ fontWeight: 'bold', fontSize: '0.9rem', display: 'block', marginBottom: '5px' }}>Ordem (Etapa/Índice) *</label>
-                <input type="number" required placeholder="Ex: 1" value={ordemEtapa} onChange={e => setOrdemEtapa(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
-              </div>
+              <FormGroup>
+                <label>Ordem (Etapa/Índice) *</label>
+                <input type="number" required placeholder="Ex: 1" value={ordemEtapa} onChange={e => setOrdemEtapa(e.target.value)} />
+              </FormGroup>
 
-              <div style={{ gridColumn: 'span 4' }}>
-                <label style={{ fontWeight: 'bold', fontSize: '0.9rem', display: 'block', marginBottom: '5px' }}>Assunto do E-mail *</label>
-                <input type="text" required value={tituloemail} onChange={e => setTituloemail(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
-              </div>
-            </div>
+              <FormGroup className="span-full">
+                <label>Assunto do E-mail *</label>
+                <input type="text" required value={tituloemail} onChange={e => setTituloemail(e.target.value)} />
+              </FormGroup>
+            </FormGrid>
 
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ fontWeight: 'bold', fontSize: '0.9rem', display: 'block', marginBottom: '5px', color: '#1F4E79' }}>
-                <i className="fa-solid fa-window-maximize"></i> Texto da Faixa Azul Superior (Opcional)
-              </label>
-              <input type="text" value={cabecalhoEmail} onChange={e => setCabecalhoEmail(e.target.value)} placeholder="Ex: Não seguimos tendências genéricas. Queremos realizar capacitações que resolvam problemas reais." style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #1F4E79', backgroundColor: '#eef4fa' }} />
-            </div>
+            <FormGroup style={{marginBottom: '20px'}}>
+              <label className="text-dark-blue"><i className="fa-solid fa-window-maximize"></i> Texto da Faixa Azul Superior (Opcional)</label>
+              <input type="text" className="bg-light-blue" value={cabecalhoEmail} onChange={e => setCabecalhoEmail(e.target.value)} placeholder="Ex: Não seguimos tendências genéricas. Queremos realizar capacitações que resolvam problemas reais." />
+            </FormGroup>
 
             <div style={{ marginBottom: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '10px', gap: '10px', flexWrap: 'wrap' }}>
                 <label style={{ fontWeight: 'bold', fontSize: '0.9rem', color: '#333' }}>Conteúdo do E-mail (Miolo) *</label>
                 <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                  <button type="button" onClick={() => setMostrarPreview(true)} style={{ background: '#17a2b8', color: '#fff', border: 'none', padding: '5px 15px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold' }}><i className="fa-solid fa-eye"></i> Pré-visualizar HTML Final</button>
-                  <button type="button" onClick={() => setModoVisual(!modoVisual)} style={{ background: '#eee', color: '#333', border: '1px solid #ccc', padding: '5px 15px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem' }}><i className="fa-solid fa-code"></i> {modoVisual ? 'Modo HTML Cru' : 'Modo Visual (Editor)'}</button>
+                  <ActionButton className="info" type="button" onClick={() => setMostrarPreview(true)}><i className="fa-solid fa-eye"></i> Pré-visualizar HTML</ActionButton>
+                  <ActionButton className="secondary" type="button" onClick={() => setModoVisual(!modoVisual)}><i className="fa-solid fa-code"></i> {modoVisual ? 'Modo HTML Cru' : 'Modo Visual (Editor)'}</ActionButton>
                 </div>
               </div>
 
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                <button type="button" onClick={inserirParagrafo} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #ccc', background: '#fff', cursor: 'pointer' }}>+ Parágrafo</button>
-                <button type="button" onClick={inserirTituloSecundario} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #ccc', background: '#fff', cursor: 'pointer' }}>+ Título</button>
-                <button type="button" onClick={inserirListaNaoOrdenada} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #ccc', background: '#fff', cursor: 'pointer' }}>+ Lista (Bolinhas)</button>
-                <button type="button" onClick={inserirListaOrdenada} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #ccc', background: '#fff', cursor: 'pointer' }}>+ Lista (Números)</button>
-                <button type="button" onClick={inserirLinhaSeparadora} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #ccc', background: '#fff', cursor: 'pointer' }}>+ Linha</button>
-                <button type="button" onClick={inserirLinkTextoRastreado} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #007bff', background: '#e7f3ff', cursor: 'pointer', fontWeight: 'bold', color: '#0056b3' }}>+ Link rastreado</button>
-                <button type="button" onClick={inserirBotaoRastreado} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #28a745', background: '#eaf7ed', cursor: 'pointer', fontWeight: 'bold', color: '#19692c' }}>+ Botão Verde</button>
-                <button type="button" onClick={inserirAvisoSeguranca} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #17a2b8', background: '#e0f3f8', cursor: 'pointer', fontWeight: 'bold', color: '#0c5460' }}>+ Aviso de Segurança</button>
-                <button type="button" onClick={() => setEmailCru(getEmailPadrao())} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #dc3545', background: '#fdecea', cursor: 'pointer', fontWeight: 'bold', color: '#b02a37' }}>Restaurar modelo</button>
+                <SmallButton type="button" onClick={inserirParagrafo}>+ Parágrafo</SmallButton>
+                <SmallButton type="button" onClick={inserirTituloSecundario}>+ Título</SmallButton>
+                <SmallButton type="button" onClick={inserirListaNaoOrdenada}>+ Lista (Bolinhas)</SmallButton>
+                <SmallButton type="button" onClick={inserirListaOrdenada}>+ Lista (Números)</SmallButton>
+                <SmallButton type="button" onClick={inserirLinhaSeparadora}>+ Linha</SmallButton>
+                <SmallButton type="button" className="text-blue font-bold border-blue" onClick={inserirLinkTextoRastreado}>+ Link rastreado</SmallButton>
+                <SmallButton type="button" className="text-green font-bold border-green" onClick={inserirBotaoRastreado}>+ Botão Verde</SmallButton>
+                <SmallButton type="button" className="text-cyan font-bold border-cyan" onClick={inserirAvisoSeguranca}>+ Aviso de Segurança</SmallButton>
+                <SmallButton type="button" className="text-red font-bold border-red" onClick={() => setEmailCru(getEmailPadrao())}>Restaurar modelo</SmallButton>
               </div>
 
               {modoVisual ? (
@@ -575,153 +637,134 @@ export function Disparos() {
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '15px', flexWrap: 'wrap' }}>
-              <button type="button" onClick={handleEnviarTeste} disabled={enviandoTeste} style={{ background: '#6c757d', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}><i className="fa-solid fa-paper-plane"></i> Disparo de Teste</button>
-              <button type="submit" disabled={salvandoConfig} style={{ background: editandoEmailId ? '#ffc107' : '#6f42c1', color: editandoEmailId ? '#333' : '#fff', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
+              <ActionButton className="secondary" type="button" onClick={handleEnviarTeste} disabled={enviandoTeste}>
+                <i className="fa-solid fa-paper-plane"></i> Disparo de Teste
+              </ActionButton>
+              <ActionButton className="primary" type="submit" disabled={salvandoConfig}>
                 <i className={`fa-solid ${editandoEmailId ? 'fa-save' : 'fa-plus'}`}></i> {editandoEmailId ? 'Salvar Alterações' : 'Adicionar à Sequência'}
-              </button>
+              </ActionButton>
             </div>
           </form>
-        </div>
+        </EditorPanel>
 
+        {/* MODAL DE PREVIEW HTML */}
         {mostrarPreview && (
-          <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }} onClick={() => setMostrarPreview(false)}>
-            <div style={{ background: '#fff', width: '100%', maxWidth: '800px', maxHeight: '90vh', borderRadius: '8px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
-              <div style={{ padding: '15px 20px', background: '#f8f9fa', borderBottom: '1px solid #ddd', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 style={{ margin: 0, color: '#333' }}>Visualização Final do E-mail</h3>
-                <button onClick={() => setMostrarPreview(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer' }}>&times;</button>
-              </div>
+          <ModalOverlay onClick={() => setMostrarPreview(false)}>
+            <ModalContent onClick={e => e.stopPropagation()}>
+              <ModalHeader>
+                <h3>Visualização Final do E-mail</h3>
+                <CloseButton onClick={() => setMostrarPreview(false)}>&times;</CloseButton>
+              </ModalHeader>
               <div style={{ padding: '0', flex: 1, backgroundColor: '#f4f6f8' }}>
-                <iframe srcDoc={htmlPreviewFinal} style={{ width: '100%', height: '100%', border: 'none' }} title="Preview" />
+                <iframe srcDoc={htmlPreviewFinal} style={{ width: '100%', height: '100%', minHeight: '500px', border: 'none' }} title="Preview" />
               </div>
-            </div>
-          </div>
+            </ModalContent>
+          </ModalOverlay>
         )}
 
-        {/* MODAL 1: CLIQUES */}
+        {/* MODAL 1: CLIQUES DETALHADOS */}
         {mostrarModalCliques && (
-          <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }} onClick={() => setMostrarModalCliques(false)}>
-            <div style={{ background: '#fff', width: '100%', maxWidth: '800px', maxHeight: '90vh', borderRadius: '8px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
-              <div style={{ padding: '15px 20px', background: '#f8f9fa', borderBottom: '1px solid #ddd', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <ModalOverlay onClick={() => setMostrarModalCliques(false)}>
+            <ModalContent onClick={e => e.stopPropagation()}>
+              <ModalHeader>
                 <div>
-                  <h3 style={{ margin: 0, color: '#17a2b8' }}><i className="fa-solid fa-chart-bar"></i> Relatório de Cliques</h3>
-                  <div style={{ fontSize: '0.85rem', color: '#666', marginTop: '5px' }}>{emailSelecionadoModal?.titulo_email}</div>
+                  <h3 className="text-blue"><i className="fa-solid fa-mouse-pointer"></i> Relatório de Cliques</h3>
+                  <div className="subtitle">{emailSelecionadoModal?.titulo_email} (Etapa {emailSelecionadoModal?.ordem_etapa})</div>
                 </div>
-                <button onClick={() => setMostrarModalCliques(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer' }}>&times;</button>
-              </div>
-              <div style={{ padding: '20px', flex: 1, overflowY: 'auto' }}>
+                <CloseButton onClick={() => setMostrarModalCliques(false)}>&times;</CloseButton>
+              </ModalHeader>
+              
+              <div style={{ padding: '20px', maxHeight: '60vh', overflowY: 'auto' }}>
                 {carregandoCliques ? (
-                  <div style={{ textAlign: 'center', padding: '50px', color: '#666' }}><i className="fa-solid fa-spinner fa-spin fa-2x"></i><br/>Carregando relatórios...</div>
+                  <LoadingContainer><i className="fa-solid fa-spinner fa-spin"></i><br/>Buscando detalhes...</LoadingContainer>
                 ) : leadsAgrupados.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '50px', background: '#f8f9fa', borderRadius: '8px', color: '#999', fontStyle: 'italic' }}>Nenhum clique real registrado para este e-mail ainda.</div>
+                  <EmptyMsg>Nenhum clique registrado para este e-mail.</EmptyMsg>
                 ) : (
-                  <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '15px' }}>
-                    <thead>
-                      <tr style={{ background: '#f4f6f8', textAlign: 'left', color: '#555', fontSize: '0.85rem' }}>
-                        <th style={{ padding: '12px', borderBottom: '2px solid #ddd' }}>CONTATO (LEAD)</th>
-                        <th style={{ padding: '12px', borderBottom: '2px solid #ddd' }}>HISTÓRICO DE CLIQUES</th>
-                      </tr>
+                  <Table>
+                    <thead className="sticky-head">
+                      <tr><th>Contato (Lead)</th><th>Links Clicados</th></tr>
                     </thead>
                     <tbody>
-                      {leadsAgrupados.map((lead) => {
-                        const interacoes = lead.interacoes;
-                        const ultimaInteracao = interacoes[0]; 
-                        const historicoAntigo = interacoes.slice(1); 
-                        const estaExpandido = leadsExpandidos.includes(lead.id);
+                      {leadsAgrupados.map(lead => {
+                         const interacoes = lead.interacoes;
+                         const ultimaInteracao = interacoes[0]; 
+                         const historicoAntigo = interacoes.slice(1); 
+                         const estaExpandido = leadsExpandidos.includes(lead.id);
 
-                        return (
-                          <tr key={lead.id} style={{ borderBottom: '1px solid #eee' }}>
-                            <td style={{ padding: '15px 12px', verticalAlign: 'top', width: '40%' }}>
-                              <strong style={{ color: '#333', fontSize: '1rem', display: 'block' }}>{lead.nome}</strong>
-                              <span style={{ color: '#777', fontSize: '0.85rem' }}>{lead.email}</span>
+                         return (
+                          <tr key={lead.id}>
+                            <td style={{ verticalAlign: 'top', width: '40%' }}>
+                              <strong>{lead.nome}</strong>
+                              <div className="contact-subtext">{lead.email}</div>
                             </td>
-                            <td style={{ padding: '15px 12px', verticalAlign: 'top' }}>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8f9fa', padding: '8px 12px', borderRadius: '6px', borderLeft: '3px solid #007bff' }}>
-                                  <span style={{ color: '#007bff', fontWeight: 'bold', fontSize: '0.85rem', background: '#e7f3ff', padding: '4px 8px', borderRadius: '4px' }}>
-                                    {ultimaInteracao.link}
-                                  </span>
-                                  <span style={{ color: '#666', fontSize: '0.8rem' }}>
-                                    {formatarDataHora(ultimaInteracao.data)}
-                                  </span>
-                                </div>
+                            <td style={{ verticalAlign: 'top' }}>
+                              <ClickBadge>
+                                <span className="link-name">{ultimaInteracao.link}</span>
+                                <span className="link-time">{formatarDataHora(ultimaInteracao.data)}</span>
+                              </ClickBadge>
 
-                                {historicoAntigo.length > 0 && (
-                                  <button 
-                                    onClick={() => toggleLeadHistorico(lead.id)} 
-                                    style={{ background: 'none', border: 'none', color: '#17a2b8', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer', textAlign: 'left', padding: '5px 0', marginTop: '5px' }}
-                                  >
-                                    <i className={`fa-solid ${estaExpandido ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i> 
-                                    {estaExpandido ? ' Ocultar histórico' : ` Ver mais ${historicoAntigo.length} clique(s) anterior(es)`}
-                                  </button>
-                                )}
+                              {historicoAntigo.length > 0 && (
+                                <ExpandButton onClick={() => toggleLeadHistorico(lead.id)}>
+                                  <i className={`fa-solid ${estaExpandido ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i> 
+                                  {estaExpandido ? ' Ocultar histórico' : ` Ver mais ${historicoAntigo.length} clique(s) anterior(es)`}
+                                </ExpandButton>
+                              )}
 
-                                {estaExpandido && historicoAntigo.map((int, i) => (
-                                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f1f3f5', padding: '8px 12px', borderRadius: '6px', borderLeft: '3px solid #ccc', marginTop: '4px', opacity: 0.8 }}>
-                                    <span style={{ color: '#555', fontWeight: 'bold', fontSize: '0.85rem', background: '#e2e3e5', padding: '4px 8px', borderRadius: '4px' }}>
-                                      {int.link}
-                                    </span>
-                                    <span style={{ color: '#888', fontSize: '0.8rem' }}>
-                                      {formatarDataHora(int.data)}
-                                    </span>
-                                  </div>
-                                ))}
-
-                              </div>
+                              {estaExpandido && historicoAntigo.map((int, i) => (
+                                <ClickBadge key={i} className="faded">
+                                  <span className="link-name">{int.link}</span>
+                                  <span className="link-time">{formatarDataHora(int.data)}</span>
+                                </ClickBadge>
+                              ))}
                             </td>
                           </tr>
-                        );
+                         );
                       })}
                     </tbody>
-                  </table>
+                  </Table>
                 )}
               </div>
-            </div>
-          </div>
+            </ModalContent>
+          </ModalOverlay>
         )}
 
         {/* MODAL 2: FILA E ENVIOS */}
         {mostrarModalEnvios && (
-          <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }} onClick={() => setMostrarModalEnvios(false)}>
-            <div style={{ background: '#fff', width: '100%', maxWidth: '1100px', maxHeight: '90vh', borderRadius: '8px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
-              <div style={{ padding: '15px 20px', background: '#6f42c1', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <ModalOverlay onClick={() => setMostrarModalEnvios(false)}>
+            <ModalContent $large onClick={e => e.stopPropagation()}>
+              <ModalHeader $bg="#6f42c1" $color="#fff">
                 <div>
-                  <h3 style={{ margin: 0, color: '#fff' }}><i className="fa-solid fa-paper-plane"></i> Relatório de Envios e Fila</h3>
-                  <div style={{ fontSize: '0.85rem', color: '#e6e6e6', marginTop: '5px' }}>{emailSelecionadoModal?.titulo_email}</div>
+                  <h3 style={{color: '#fff', margin: 0}}><i className="fa-solid fa-paper-plane"></i> Relatório de Envios e Fila</h3>
+                  <div className="subtitle" style={{color: '#e2e8f0'}}>{emailSelecionadoModal?.titulo_email}</div>
                 </div>
-                <button onClick={() => setMostrarModalEnvios(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#fff' }}>&times;</button>
-              </div>
+                <CloseButton $color="#fff" onClick={() => setMostrarModalEnvios(false)}>&times;</CloseButton>
+              </ModalHeader>
               
               <div style={{ padding: '20px', flex: 1, overflowY: 'auto', background: '#f4f6f8' }}>
                 {carregandoEnvios ? (
-                  <div style={{ textAlign: 'center', padding: '50px', color: '#666' }}><i className="fa-solid fa-spinner fa-spin fa-2x"></i><br/>Carregando dados da fila...</div>
+                  <LoadingContainer><i className="fa-solid fa-spinner fa-spin"></i><br/>Carregando dados da fila...</LoadingContainer>
                 ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
-                    
+                  <Grid3Col>
                     {/* COLUNA 1: JÁ ENVIADOS */}
-                    <div style={{ background: '#fff', borderRadius: '8px', border: '1px solid #ddd', overflow: 'hidden' }}>
-                      <div style={{ background: '#e6f4ea', padding: '12px 15px', borderBottom: '1px solid #c3e6cb', fontWeight: 'bold', color: '#155724' }}>
-                        <i className="fa-solid fa-check-double"></i> Já Enviados ({dadosEnvios.enviados?.length || 0})
-                      </div>
-                      <div style={{ padding: '10px', maxHeight: '450px', overflowY: 'auto' }}>
-                        {dadosEnvios.enviados?.length === 0 && <p style={{color:'#999', textAlign:'center', fontSize:'0.8rem'}}>Nenhum envio registrado.</p>}
+                    <div className="col-wrapper">
+                      <div className="col-header success"><i className="fa-solid fa-check-double"></i> Já Enviados ({dadosEnvios.enviados?.length || 0})</div>
+                      <div className="col-body">
+                        {dadosEnvios.enviados?.length === 0 && <EmptyMsg>Nenhum envio registrado.</EmptyMsg>}
                         {dadosEnvios.enviados?.map((envio, idx) => (
-                          <div key={idx} style={{ padding: '10px', borderBottom: '1px solid #eee' }}>
-                            <strong style={{ display: 'block', color: '#333', fontSize: '0.85rem' }}>{envio.nome}</strong>
-                            <span style={{ display: 'block', color: '#777', fontSize: '0.75rem' }}>{envio.email_destino}</span>
-                            <span style={{ display: 'block', color: '#28a745', fontSize: '0.7rem', marginTop: '3px' }}>{formatarDataHora(envio.data_envio)}</span>
+                          <div key={idx} className="list-item">
+                            <strong>{envio.nome}</strong>
+                            <span className="sub">{envio.email_destino}</span>
+                            <span className="date success">{formatarDataHora(envio.data_envio)}</span>
                           </div>
                         ))}
                       </div>
                     </div>
 
                     {/* COLUNA 2: NA FILA */}
-                    <div style={{ background: '#fff', borderRadius: '8px', border: '1px solid #ddd', overflow: 'hidden' }}>
-                      <div style={{ background: '#fff3cd', padding: '12px 15px', borderBottom: '1px solid #ffeeba', fontWeight: 'bold', color: '#856404' }}>
-                        <i className="fa-solid fa-hourglass-half"></i> Na Fila ({dadosEnvios.fila?.length || 0})
-                      </div>
-                      <div style={{ padding: '10px', maxHeight: '450px', overflowY: 'auto' }}>
-                        {dadosEnvios.fila?.length === 0 && <p style={{color:'#999', textAlign:'center', fontSize:'0.8rem'}}>Fila vazia para esta etapa.</p>}
+                    <div className="col-wrapper">
+                      <div className="col-header warning"><i className="fa-solid fa-hourglass-half"></i> Na Fila ({dadosEnvios.fila?.length || 0})</div>
+                      <div className="col-body">
+                        {dadosEnvios.fila?.length === 0 && <EmptyMsg>Fila vazia para esta etapa.</EmptyMsg>}
                         {dadosEnvios.fila?.map((lead, idx) => {
                           let emailExibicao = 'Sem e-mail';
                           try {
@@ -729,10 +772,10 @@ export function Disparos() {
                             if (emailsArray && emailsArray.length > 0) emailExibicao = emailsArray[0];
                           } catch(e) {}
                           return (
-                            <div key={idx} style={{ padding: '10px', borderBottom: '1px solid #eee' }}>
-                              <strong style={{ display: 'block', color: '#333', fontSize: '0.85rem' }}>{lead.nome}</strong>
-                              <span style={{ display: 'block', color: '#777', fontSize: '0.75rem' }}>{emailExibicao}</span>
-                              <span style={{ display: 'block', color: '#856404', fontSize: '0.7rem', marginTop: '3px' }}>Aguardando disparo</span>
+                            <div key={idx} className="list-item">
+                              <strong>{lead.nome}</strong>
+                              <span className="sub">{emailExibicao}</span>
+                              <span className="date warning">Aguardando disparo</span>
                             </div>
                           );
                         })}
@@ -740,32 +783,271 @@ export function Disparos() {
                     </div>
 
                     {/* COLUNA 3: ERROS / BLACKLIST */}
-                    <div style={{ background: '#fff', borderRadius: '8px', border: '1px solid #ddd', overflow: 'hidden' }}>
-                      <div style={{ background: '#f8d7da', padding: '12px 15px', borderBottom: '1px solid #f5c6cb', fontWeight: 'bold', color: '#721c24' }}>
-                        <i className="fa-solid fa-circle-exclamation"></i> Falhas / Bloqueados ({dadosEnvios.falhas?.length || 0})
-                      </div>
-                      <div style={{ padding: '10px', maxHeight: '450px', overflowY: 'auto' }}>
-                        {dadosEnvios.falhas?.length === 0 && <p style={{color:'#999', textAlign:'center', fontSize:'0.8rem'}}>Nenhuma falha registrada.</p>}
+                    <div className="col-wrapper">
+                      <div className="col-header danger"><i className="fa-solid fa-circle-exclamation"></i> Falhas / Bloqueados ({dadosEnvios.falhas?.length || 0})</div>
+                      <div className="col-body">
+                        {dadosEnvios.falhas?.length === 0 && <EmptyMsg>Nenhuma falha registrada.</EmptyMsg>}
                         {dadosEnvios.falhas?.map((falha, idx) => (
-                          <div key={idx} style={{ padding: '10px', borderBottom: '1px solid #eee', background: '#fff5f5' }}>
-                            <strong style={{ display: 'block', color: '#333', fontSize: '0.85rem' }}>{falha.nome}</strong>
-                            <span style={{ display: 'block', color: '#c00', fontSize: '0.75rem', fontWeight: 'bold' }}>{falha.email}</span>
-                            <span style={{ display: 'block', color: '#721c24', fontSize: '0.7rem', marginTop: '3px', fontStyle: 'italic' }}>
-                              Motivo: {falha.motivo}
-                            </span>
+                          <div key={idx} className="list-item danger-bg">
+                            <strong>{falha.nome}</strong>
+                            <span className="sub danger-text">{falha.email}</span>
+                            <span className="reason">Motivo: {falha.motivo}</span>
                           </div>
                         ))}
                       </div>
                     </div>
-
-                  </div>
+                  </Grid3Col>
                 )}
               </div>
-            </div>
-          </div>
+            </ModalContent>
+          </ModalOverlay>
         )}
 
-      </div>
-    </div>
+      </PageContainer>
+    </>
   );
 }
+
+// ==========================================
+// STYLED COMPONENTS
+// ==========================================
+
+const PageContainer = styled.div`
+  padding: 30px; background-color: #f4f7f6; min-height: calc(100vh - 70px);
+`;
+
+const TopSection = styled.div`
+  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; margin-bottom: 25px;
+`;
+const Title = styled.h2`
+  margin: 0; color: #2c3e50; font-size: 1.8rem; font-weight: 700;
+`;
+const Subtitle = styled.p`
+  color: #6c757d; font-size: 0.95rem; margin: 5px 0 0 0;
+`;
+
+const FilterPillWrapper = styled.div`
+  position: relative; display: inline-block;
+`;
+const FilterButton = styled.button`
+  display: flex; align-items: center; background: ${props => props.$hasValue ? '#eef4fa' : '#ffffff'};
+  border: 1px solid ${props => props.$hasValue ? '#b8cde1' : '#cbd5e1'}; color: #2c3e50; padding: 10px 18px; border-radius: 50px; font-size: 0.95rem; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+
+  &:hover { background: #e7f3ff; border-color: #007bff; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,123,255,0.1); }
+  span { margin: 0 10px; strong { color: #007bff; } }
+  .icon { color: #6c757d; font-size: 1.05rem; }
+  .arrow { color: #007bff; font-size: 0.8rem; }
+`;
+
+const CustomDropdownMenu = styled.ul`
+  position: absolute; top: calc(100% + 8px); right: 0; background: #ffffff; border: 1px solid #edf2f9; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); min-width: 250px; max-height: 300px; overflow-y: auto; z-index: 1000; padding: 8px 0; list-style: none; margin: 0; animation: fadeInDown 0.2s ease-out;
+  @keyframes fadeInDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+`;
+const CustomDropdownItem = styled.li`
+  padding: 12px 20px; font-size: 0.95rem; color: ${props => props.$active ? '#007bff' : '#495057'}; background: ${props => props.$active ? '#f0f7ff' : 'transparent'}; font-weight: ${props => props.$active ? '700' : '500'}; cursor: pointer; transition: background 0.2s;
+  &:hover { background: #f8fafc; color: #007bff; }
+`;
+
+const MotorControlPanel = styled.div`
+  background: #ffffff; padding: 20px 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #edf2f9; display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; flex-wrap: wrap; gap: 15px;
+
+  .motor-info {
+    h3 { margin: 0 0 5px 0; color: #2c3e50; display: flex; align-items: center; gap: 8px; font-size: 1.2rem;}
+    p { margin: 0; font-size: 0.9rem; color: #6c757d; }
+  }
+  .motor-actions { display: flex; align-items: center; gap: 15px; }
+`;
+
+const StatusBadge = styled.div`
+  padding: 10px 15px; border-radius: 8px; font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; gap: 8px;
+  background: ${props => props.$color === 'green' ? '#e6f4ea' : '#fff3cd'};
+  color: ${props => props.$color === 'green' ? '#155724' : '#856404'};
+  border: 1px solid ${props => props.$color === 'green' ? '#c3e6cb' : '#ffeeba'};
+`;
+
+const MotorButton = styled.button`
+  padding: 10px 20px; border-radius: 8px; font-weight: 700; font-size: 0.95rem; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s ease;
+  background: ${props => props.$color === 'green' ? '#28a745' : '#ffc107'};
+  color: ${props => props.$color === 'green' ? '#fff' : '#333'};
+  &:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+`;
+
+// --- FUNIS DE EMAILS ---
+const FunnelsGrid = styled.div`
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 30px;
+`;
+
+const FunnelColumn = styled.div`
+  background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 12px;
+
+  h3 { margin: 0; font-size: 1.15rem; display: flex; align-items: center; gap: 8px;}
+  p { font-size: 0.85rem; color: #6c757d; margin: 0 0 5px 0; }
+  .text-blue { color: #007bff; } .text-red { color: #dc3545; } .text-orange { color: #fd7e14; }
+`;
+
+const EmptyFunnelMsg = styled.div`
+  padding: 20px; text-align: center; background: #ffffff; border: 1px dashed #cbd5e1; border-radius: 8px; color: #a0aec0; font-size: 0.9rem; font-style: italic;
+`;
+
+const EmailCard = styled.div`
+  background: ${props => props.$active ? '#f0f7ff' : '#ffffff'};
+  padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; border-left: 4px solid ${props => props.$inativo ? '#cbd5e1' : props.$borderColor};
+  box-shadow: 0 2px 5px rgba(0,0,0,0.02); transition: transform 0.2s;
+  opacity: ${props => props.$inativo ? 0.6 : 1}; /* Deixa o cartão apagado se inativo */
+
+  &:hover { transform: ${props => props.$inativo ? 'none' : 'translateY(-2px)'}; box-shadow: ${props => props.$inativo ? 'none' : '0 4px 10px rgba(0,0,0,0.05)'}; }
+
+  .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .step-badge { font-size: 0.75rem; font-weight: 700; color: ${props => props.$inativo ? '#64748b' : props.$borderColor}; background: #ffffff; padding: 2px 8px; border-radius: 4px; border: 1px solid ${props => props.$inativo ? '#cbd5e1' : props.$borderColor}; }
+  .expire-badge { font-size: 0.65rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+  .expire-badge.success { background: #d4edda; color: #155724; }
+  .expire-badge.danger { background: #f8d7da; color: #721c24; }
+
+  .email-title { font-weight: 700; color: #2c3e50; font-size: 0.95rem; margin-bottom: 5px; text-decoration: ${props => props.$inativo ? 'line-through' : 'none'}; }
+  .email-meta { font-size: 0.8rem; color: #6c757d; margin-bottom: 12px; display: flex; align-items: center; gap: 5px;}
+
+  .card-actions-top, .card-actions-bottom { display: flex; gap: 5px; }
+  .card-actions-top { border-top: 1px dashed #e2e8f0; padding-top: 12px; margin-bottom: 5px;}
+`;
+
+// --- EDITOR ---
+const EditorPanel = styled.div`
+  background: #ffffff; border-top: 5px solid #6f42c1; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); margin-bottom: 30px;
+  opacity: ${props => props.$visible ? 1 : 0.5}; pointer-events: ${props => props.$visible ? 'auto' : 'none'};
+
+  .editor-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+  h2 { margin: 0; color: #2c3e50; font-size: 1.4rem; }
+  .cancel-btn { background: #e9ecef; color: #495057; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; &:hover{background:#dde2e6;} }
+`;
+
+const FormGrid = styled.div`
+  display: grid; gap: 15px; background: #f8fafc; padding: 25px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 25px;
+  grid-template-columns: ${props => props.$isPosClique ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)'};
+  
+  .span-2 { grid-column: span 2; }
+  .span-full { grid-column: 1 / -1; }
+  
+  @media (max-width: 768px) { grid-template-columns: 1fr !important; .span-2, .span-full { grid-column: span 1 !important; } }
+`;
+
+const FormGroup = styled.div`
+  display: flex; flex-direction: column; gap: 6px;
+
+  label { font-weight: 600; font-size: 0.9rem; color: #495057; display: flex; align-items: center; gap: 6px;}
+  .text-blue { color: #007bff; } .text-orange { color: #fd7e14; } .text-red { color: #dc3545; } .text-dark-blue { color: #1F4E79; }
+
+  input, select {
+    width: 100%; padding: 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #333; outline: none; transition: 0.2s;
+    &:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); }
+    &.bg-light-blue { background: #eef4fa; border-color: #b8cde1; }
+  }
+
+  .select-container {
+    position: relative;
+    &.highlight select { border: 2px solid #6f42c1; color: #6f42c1; font-weight: 700; appearance: none; padding-right: 30px;}
+    .arrow { position: absolute; right: 12px; top: 15px; color: #6f42c1; pointer-events: none; font-size: 0.8rem; }
+  }
+`;
+
+// --- BOTÕES GENÉRICOS ---
+const ActionButton = styled.button`
+  flex: 1; padding: 8px 12px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; border: none; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px;
+
+  background: #e2e8f0; color: #475569; /* Default */
+  &:hover { background: #cbd5e1; }
+
+  &.primary { background: #007bff; color: #fff; &:hover { background: #0056b3; } }
+  &.secondary { background: #6c757d; color: #fff; &:hover { background: #5a6268; } }
+  &.danger { background: #ffeeba; color: #856404; &:hover { background: #f5d371; } }
+  &.info { background: #17a2b8; color: #fff; &:hover { background: #117a8b; } }
+  
+  /* Botões de Status Ativar/Desabilitar */
+  &.success { background: #d4edda; color: #155724; &:hover { background: #c3e6cb; } }
+  &.warning { background: #fff3cd; color: #856404; &:hover { background: #ffeeba; } }
+  
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+`;
+
+const SmallButton = styled.button`
+  padding: 8px 12px; border-radius: 6px; font-size: 0.85rem; border: 1px solid #cbd5e1; background: #fff; cursor: pointer; transition: 0.2s; color: #495057;
+
+  &:hover { background: #f8fafc; border-color: #a0aec0; }
+  &.text-blue { color: #0056b3; background: #e7f3ff; border-color: #b8daff; }
+  &.text-green { color: #155724; background: #d4edda; border-color: #c3e6cb; }
+  &.text-cyan { color: #0c5460; background: #d1ecf1; border-color: #bee5eb; }
+  &.text-red { color: #721c24; background: #f8d7da; border-color: #f5c6cb; }
+`;
+
+// --- MODAIS ---
+const ModalOverlay = styled.div`
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(2px); padding: 20px;
+`;
+const ModalContent = styled.div`
+  background: #ffffff; border-radius: 12px; width: 100%; max-width: ${props => props.$large ? '1100px' : '800px'}; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 15px 40px rgba(0,0,0,0.2); animation: slideUp 0.3s ease-out;
+  @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+`;
+const ModalHeader = styled.div`
+  display: flex; justify-content: space-between; align-items: center; padding: 20px; background: ${props => props.$bg || '#fbfbfc'}; border-bottom: 1px solid #edf2f9;
+  h3 { margin: 0; font-size: 1.2rem; display: flex; align-items: center; gap: 8px; color: ${props => props.$color || '#333'}; }
+  .text-blue { color: #007bff; }
+  .subtitle { font-size: 0.85rem; margin-top: 4px; font-weight: 600; color: ${props => props.$color ? 'rgba(255,255,255,0.8)' : '#6c757d'}; }
+`;
+const CloseButton = styled.button`
+  background: none; border: none; font-size: 1.8rem; cursor: pointer; transition: 0.2s; color: ${props => props.$color || '#a0aec0'};
+  &:hover { color: #dc3545; }
+`;
+
+// --- TABELAS DOS MODAIS ---
+const Table = styled.table`
+  width: 100%; border-collapse: collapse;
+  th { text-align: left; padding: 15px 20px; background: #f8fafc; color: #6c757d; font-size: 0.85rem; text-transform: uppercase; border-bottom: 2px solid #edf2f9; }
+  td { padding: 15px 20px; border-bottom: 1px solid #edf2f9; color: #2c3e50; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background-color: #fbfbfc; }
+  .sticky-head th { position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 2px -1px rgba(0,0,0,0.1); }
+  .contact-subtext { font-size: 0.8rem; color: #6c757d; margin-top: 3px; }
+`;
+
+const ClickBadge = styled.div`
+  display: flex; justify-content: space-between; align-items: center; background: #f0f7ff; border: 1px solid #cce5ff; border-radius: 6px; padding: 8px 12px; margin-bottom: 6px;
+  .link-name { font-size: 0.85rem; font-weight: 700; color: #007bff; }
+  .link-time { font-size: 0.75rem; color: #6c757d; }
+  &.faded { background: #f8f9fa; border-color: #e2e8f0; .link-name { color: #6c757d; } }
+`;
+
+const ExpandButton = styled.button`
+  background: none; border: none; color: #17a2b8; font-size: 0.8rem; font-weight: 700; cursor: pointer; padding: 5px 0; margin-top: 5px; display: flex; align-items: center; gap: 5px;
+  &:hover { text-decoration: underline; }
+`;
+
+const EmptyMsg = styled.div`
+  text-align: center; padding: 40px; background: #ffffff; border-radius: 8px; color: #a0aec0; font-style: italic; border: 1px dashed #cbd5e1;
+`;
+
+const LoadingContainer = styled.div`
+  text-align: center; padding: 60px; color: #6c757d; font-size: 1.1rem; i { font-size: 2.5rem; margin-bottom: 15px; color: #cbd5e1; }
+`;
+
+const Grid3Col = styled.div`
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;
+  @media (max-width: 900px) { grid-template-columns: 1fr; }
+
+  .col-wrapper { background: #fff; border-radius: 8px; border: 1px solid #ddd; overflow: hidden; }
+  .col-header { padding: 12px 15px; font-weight: 700; border-bottom: 1px solid transparent; display: flex; align-items: center; gap: 8px;}
+  .col-header.success { background: #e6f4ea; color: #155724; border-color: #c3e6cb; }
+  .col-header.warning { background: #fff3cd; color: #856404; border-color: #ffeeba; }
+  .col-header.danger { background: #f8d7da; color: #721c24; border-color: #f5c6cb; }
+
+  .col-body { padding: 10px; max-height: 450px; overflow-y: auto; }
+  .list-item { padding: 10px; border-bottom: 1px solid #edf2f9; }
+  .list-item:last-child { border-bottom: none; }
+  .list-item.danger-bg { background: #fff5f5; border-radius: 6px; margin-bottom: 5px; border-bottom: none;}
+
+  .list-item strong { display: block; color: #2c3e50; font-size: 0.9rem; }
+  .list-item .sub { display: block; color: #6c757d; font-size: 0.8rem; margin-top: 2px;}
+  .list-item .sub.danger-text { color: #dc3545; font-weight: 600; }
+  .list-item .date { display: block; font-size: 0.75rem; margin-top: 4px; font-weight: 600;}
+  .list-item .date.success { color: #28a745; }
+  .list-item .date.warning { color: #d39e00; }
+  .list-item .reason { display: block; color: #721c24; font-size: 0.75rem; margin-top: 4px; font-style: italic; }
+`;

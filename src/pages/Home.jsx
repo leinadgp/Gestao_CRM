@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom'; 
+import styled from 'styled-components';
 import { Header } from '../componentes/Header.jsx';
 import { CardInfo } from '../componentes/CardInfo.jsx';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
@@ -13,6 +14,7 @@ export function Home() {
   const [oportunidades, setOportunidades] = useState([]);
   const [campanhas, setCampanhas] = useState([]);
   const [carregando, setCarregando] = useState(true);
+  const [primeiroNome, setPrimeiroNome] = useState('Usuário'); // <-- Estado do nome
 
   // Saudação dinâmica baseada na hora do dia
   const horaAtual = new Date().getHours();
@@ -20,7 +22,6 @@ export function Home() {
   if (horaAtual >= 5 && horaAtual < 12) saudacao = 'Bom dia';
   else if (horaAtual >= 12 && horaAtual < 18) saudacao = 'Boa tarde';
 
-  const nomeUsuario = localStorage.getItem('nome') || 'Usuário';
   const perfilUsuario = localStorage.getItem('perfil'); // admin, gestor ou vendedor
   const meuUsuarioId = parseInt(localStorage.getItem('usuarioId') || '0');
 
@@ -31,6 +32,27 @@ export function Home() {
     return { headers: { Authorization: `Bearer ${token}` } };
   }
 
+  // EFEITO 1: Descobrir o nome do usuário lendo o Token JWT
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        
+        const payload = JSON.parse(jsonPayload); 
+        // Pega apenas a primeira palavra do nome
+        setPrimeiroNome(payload.nome.split(' ')[0]);
+      } catch (error) {
+        console.error('Erro ao ler nome do usuário na Home', error);
+      }
+    }
+  }, []);
+
+  // EFEITO 2: Carregar os dados da Dashboard
   useEffect(() => {
     async function carregarHome() {
       setCarregando(true);
@@ -91,106 +113,107 @@ export function Home() {
   ].filter(d => d.value > 0);
 
   return (
-    <div>
+    <>
       <Header titulo="Centro de Comando" />
 
-      <div className="page-container">
-        
+      <PageContainer>
         {/* === BOAS VINDAS === */}
-        <div style={{ marginBottom: '25px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div>
-            <h2 style={{ color: '#333', margin: 0 }}>{saudacao}, {nomeUsuario}! 👋</h2>
-            <p style={{ color: '#777', fontSize: '0.95rem', marginTop: '5px' }}>
+        <WelcomeSection>
+          <div className="welcome-text">
+            <h2>{saudacao}, {primeiroNome}! 👋</h2>
+            <p>
               {perfilUsuario === 'vendedor' 
                 ? 'Aqui está o resumo da sua carteira de clientes.' 
                 : 'Aqui está o resumo da operação de toda a empresa.'}
             </p>
           </div>
           {perfilUsuario !== 'admin' && (
-            <div style={{ background: '#e9ecef', padding: '5px 15px', borderRadius: '20px', fontSize: '0.85rem', color: '#555', fontWeight: 'bold' }}>
-              <i className="fa-solid fa-user" style={{marginRight: '5px'}}></i> Conta Vendedor
-            </div>
+            <BadgeRole>
+              <i className="fa-solid fa-user"></i> Conta Vendedor
+            </BadgeRole>
           )}
-        </div>
+        </WelcomeSection>
 
         {/* === CARDS SUPERIORES === */}
-        <div className="card-info-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+        <CardsGrid>
           <CardInfo icone="fa-folder-open" label="Negócios em Andamento" valor={carregando ? "..." : negociosAbertos.length} cor="blue" />
           <CardInfo icone="fa-check-circle" label={perfilUsuario === 'vendedor' ? "Minhas Vendas" : "Faturamento Total"} valor={carregando ? "..." : formatarMoeda(valorGanho)} cor="green" />
           <CardInfo icone="fa-bullhorn" label="Cursos / Campanhas" valor={carregando ? "..." : campanhasAtivas} cor="yellow" />
           <CardInfo icone="fa-address-book" label="Base de Contatos" valor={carregando ? "..." : totalContatos} cor="purple" />
-        </div>
+        </CardsGrid>
 
         {/* === ÁREA CENTRAL DIVIDIDA (GRID) === */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '20px' }}>
+        <DashboardGrid>
           
           {/* LADO ESQUERDO: Tabela de Negócios em Aberto */}
-          <div className="panel" style={{ margin: 0, gridColumn: 'span 2' }}>
-            <div className="panel-title" style={{ padding: '15px 20px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div><i className="fa-solid fa-fire" style={{color: '#ff9800'}}></i> Negócios em Andamento (Recentes)</div>
-              <button onClick={() => navigate('/funil')} style={{ background: 'none', border: 'none', color: '#007bff', cursor: 'pointer', fontWeight: 'bold' }}>Ver Funil Completo &rarr;</button>
-            </div>
+          <Panel className="span-2">
+            <PanelHeader>
+              <div className="title">
+                <i className="fa-solid fa-fire" style={{ color: '#ff9800' }}></i> Negócios em Andamento (Recentes)
+              </div>
+              <ActionLink onClick={() => navigate('/funil')}>Ver Funil Completo &rarr;</ActionLink>
+            </PanelHeader>
             
-            <div className="table-responsive" style={{ padding: '10px 20px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <TableContainer>
+              <Table>
                 <thead>
-                  <tr style={{ textAlign: 'left', borderBottom: '2px solid #eee', color: '#666' }}>
-                    <th style={{ padding: '10px 0' }}>Título / Prefeitura</th>
+                  <tr>
+                    <th>Título / Prefeitura</th>
                     <th>Campanha</th>
                     {perfilUsuario !== 'vendedor' && <th>Vendedor</th>}
-                    <th style={{ textAlign: 'right' }}>Valor Estimado</th>
+                    <th className="align-right">Valor Estimado</th>
                   </tr>
                 </thead>
                 <tbody>
                   {carregando ? (
-                    <tr><td colSpan={perfilUsuario !== 'vendedor' ? 4 : 3} style={{textAlign: 'center', padding: '20px'}}>Carregando dados...</td></tr>
+                    <tr><td colSpan={perfilUsuario !== 'vendedor' ? 4 : 3} className="text-center">Carregando dados...</td></tr>
                   ) : ultimosNegocios.length === 0 ? (
-                    <tr><td colSpan={perfilUsuario !== 'vendedor' ? 4 : 3} style={{textAlign: 'center', padding: '20px', color: '#999'}}>Nenhum negócio em aberto no momento.</td></tr>
+                    <tr><td colSpan={perfilUsuario !== 'vendedor' ? 4 : 3} className="text-center text-muted">Nenhum negócio em aberto no momento.</td></tr>
                   ) : (
                     ultimosNegocios.map(op => (
-                      <tr key={op.id} style={{ borderBottom: '1px dashed #eee' }}>
-                        <td style={{ padding: '12px 0' }}>
-                          <strong style={{ color: '#333' }}>{op.titulo}</strong>
-                          <div style={{ fontSize: '0.8rem', color: '#777', marginTop: '3px' }}>
+                      <tr key={op.id}>
+                        <td>
+                          <strong className="title-text">{op.titulo}</strong>
+                          <div className="subtitle-text">
                             <i className="fa-solid fa-building"></i> {op.empresa_nome || 'Avulso'}
                           </div>
                         </td>
                         <td>
                           {op.campanha_nome ? (
-                            <span style={{ background: '#e9ecef', padding: '3px 8px', borderRadius: '10px', fontSize: '0.75rem', fontWeight: 'bold', color: '#555' }}>
-                              {op.campanha_nome}
-                            </span>
+                            <CampanhaBadge>{op.campanha_nome}</CampanhaBadge>
                           ) : '-'}
                         </td>
                         {perfilUsuario !== 'vendedor' && (
-                          <td style={{ fontSize: '0.85rem', color: '#666' }}>
-                            <i className="fa-solid fa-user-tie" style={{color: '#722ed1', marginRight: '4px'}}></i> {op.vendedor_nome || 'Não Atribuído'}
+                          <td className="seller-cell">
+                            <i className="fa-solid fa-user-tie"></i> {op.vendedor_nome || 'Não Atribuído'}
                           </td>
                         )}
-                        <td style={{ textAlign: 'right', fontWeight: 'bold', color: '#007bff' }}>
+                        <td className="align-right value-cell">
                           {formatarMoeda(op.valor)}
                         </td>
                       </tr>
                     ))
                   )}
                 </tbody>
-              </table>
-            </div>
-          </div>
+              </Table>
+            </TableContainer>
+          </Panel>
 
-          {/* LADO DIREITO: Gráfico de Eficiência */}
-          <div className="panel" style={{ margin: 0, display: 'flex', flexDirection: 'column' }}>
-            <div className="panel-title" style={{ padding: '15px 20px', borderBottom: '1px solid #eee' }}>
-              <i className="fa-solid fa-chart-pie" style={{color: '#17a2b8'}}></i> Taxa de Conversão
-            </div>
-            <div style={{ flex: 1, padding: '15px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          {/* LADO DIREITO SUPERIOR: Gráfico de Eficiência */}
+          <Panel>
+            <PanelHeader>
+              <div className="title">
+                <i className="fa-solid fa-chart-pie" style={{ color: '#17a2b8' }}></i> Taxa de Conversão
+              </div>
+            </PanelHeader>
+            <ChartWrapper>
               {carregando ? (
-                <div style={{ color: '#999', fontSize: '0.85rem' }}>Calculando...</div>
+                <div className="text-muted">Calculando...</div>
               ) : dadosGrafico.length === 0 ? (
-                <div style={{ color: '#999', fontSize: '0.85rem', fontStyle: 'italic', textAlign: 'center' }}>Nenhum dado de negócio para gerar o gráfico.</div>
+                <div className="text-muted text-center">Nenhum dado de negócio para gerar o gráfico.</div>
               ) : (
                 <>
-                  <div style={{ width: '100%', height: '200px' }}>
+                  <div className="chart-container">
                     <ResponsiveContainer>
                       <PieChart>
                         <Pie data={dadosGrafico} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={5} dataKey="value">
@@ -202,46 +225,323 @@ export function Home() {
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', flexWrap: 'wrap', marginTop: '10px' }}>
+                  <LegendContainer>
                     {dadosGrafico.map(d => (
-                      <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.8rem', color: '#555', fontWeight: 'bold' }}>
-                        <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: d.color }}></div>
+                      <LegendItem key={d.name}>
+                        <div className="color-box" style={{ background: d.color }}></div>
                         {d.name} ({d.value})
-                      </div>
+                      </LegendItem>
                     ))}
-                  </div>
+                  </LegendContainer>
                 </>
               )}
-            </div>
-          </div>
+            </ChartWrapper>
+          </Panel>
 
           {/* LADO DIREITO INFERIOR: Ações Rápidas */}
-          <div className="panel" style={{ margin: 0 }}>
-            <div className="panel-title" style={{ padding: '15px 20px', borderBottom: '1px solid #eee' }}>
-              <i className="fa-solid fa-bolt" style={{color: '#52c41a'}}></i> Atalhos Rápidos
-            </div>
-            <div style={{ padding: '15px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <button onClick={() => navigate('/contatos')} style={{ width: '100%', padding: '12px', background: '#f8f9fa', border: '1px solid #ddd', borderRadius: '8px', cursor: 'pointer', textAlign: 'left', fontWeight: 'bold', color: '#333', transition: '0.2s' }}>
-                <i className="fa-solid fa-user-plus" style={{color: '#007bff', width: '25px'}}></i> Gerenciar Contatos
-              </button>
-              <button onClick={() => navigate('/funil')} style={{ width: '100%', padding: '12px', background: '#f8f9fa', border: '1px solid #ddd', borderRadius: '8px', cursor: 'pointer', textAlign: 'left', fontWeight: 'bold', color: '#333', transition: '0.2s' }}>
-                <i className="fa-solid fa-layer-group" style={{color: '#faad14', width: '25px'}}></i> Acessar o Pipeline
-              </button>
-              <button onClick={() => navigate('/empresas')} style={{ width: '100%', padding: '12px', background: '#f8f9fa', border: '1px solid #ddd', borderRadius: '8px', cursor: 'pointer', textAlign: 'left', fontWeight: 'bold', color: '#333', transition: '0.2s' }}>
-                <i className="fa-solid fa-building-columns" style={{color: '#722ed1', width: '25px'}}></i> Base de Prefeituras
-              </button>
+          <Panel>
+            <PanelHeader>
+              <div className="title">
+                <i className="fa-solid fa-bolt" style={{ color: '#52c41a' }}></i> Atalhos Rápidos
+              </div>
+            </PanelHeader>
+            <QuickActionsWrapper>
+              <ShortcutButton onClick={() => navigate('/contatos')}>
+                <i className="fa-solid fa-user-plus text-blue"></i> Gerenciar Contatos
+              </ShortcutButton>
+              <ShortcutButton onClick={() => navigate('/funil')}>
+                <i className="fa-solid fa-layer-group text-yellow"></i> Acessar o Pipeline
+              </ShortcutButton>
+              <ShortcutButton onClick={() => navigate('/empresas')}>
+                <i className="fa-solid fa-building-columns text-purple"></i> Base de Prefeituras
+              </ShortcutButton>
               
-              {/* O vendedor não vê o Dashboard de Inteligência, só as telas operacionais */}
+              {/* O vendedor não vê o Dashboard de Inteligência */}
               {perfilUsuario !== 'vendedor' && (
-                <button onClick={() => navigate('/dashboard')} style={{ width: '100%', padding: '12px', background: '#e6f4ea', border: '1px solid #c3e6cb', borderRadius: '8px', cursor: 'pointer', textAlign: 'left', fontWeight: 'bold', color: '#155724', transition: '0.2s' }}>
-                  <i className="fa-solid fa-chart-line" style={{color: '#28a745', width: '25px'}}></i> Ver Dashboard Completo
-                </button>
+                <DashboardButton onClick={() => navigate('/dashboard')}>
+                  <i className="fa-solid fa-chart-line text-green"></i> Ver Dashboard Completo
+                </DashboardButton>
               )}
-            </div>
-          </div>
+            </QuickActionsWrapper>
+          </Panel>
 
-        </div>
-      </div>
-    </div>
+        </DashboardGrid>
+      </PageContainer>
+    </>
   );
 }
+
+// ==========================================
+// STYLED COMPONENTS
+// ==========================================
+
+const PageContainer = styled.div`
+  padding: 30px;
+  background-color: #f4f7f6;
+  min-height: calc(100vh - 70px);
+`;
+
+const WelcomeSection = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 25px;
+  gap: 15px;
+
+  .welcome-text {
+    h2 {
+      color: #2c3e50;
+      margin: 0;
+      font-size: 1.8rem;
+      font-weight: 700;
+    }
+    p {
+      color: #6c757d;
+      font-size: 0.95rem;
+      margin: 5px 0 0 0;
+    }
+  }
+`;
+
+const BadgeRole = styled.div`
+  background: #e9ecef;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  color: #495057;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+`;
+
+const CardsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+`;
+
+const DashboardGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 20px;
+
+  @media (min-width: 1024px) {
+    .span-2 {
+      grid-column: span 2;
+    }
+  }
+`;
+
+const Panel = styled.div`
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+  border: 1px solid #edf2f9;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; 
+`;
+
+const PanelHeader = styled.div`
+  padding: 18px 24px;
+  border-bottom: 1px solid #edf2f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #fbfbfc;
+
+  .title {
+    font-weight: 600;
+    color: #2c3e50;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1.05rem;
+  }
+`;
+
+const ActionLink = styled.button`
+  background: none;
+  border: none;
+  color: #007bff;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: color 0.2s;
+
+  &:hover {
+    color: #0056b3;
+    text-decoration: underline;
+  }
+`;
+
+// --- TABELA ---
+const TableContainer = styled.div`
+  padding: 10px 24px;
+  overflow-x: auto;
+`;
+
+const Table = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+
+  th {
+    text-align: left;
+    padding: 12px 0;
+    border-bottom: 2px solid #edf2f9;
+    color: #6c757d;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+
+  td {
+    padding: 15px 0;
+    border-bottom: 1px solid #edf2f9;
+    vertical-align: middle;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+
+  tr:hover td {
+    background-color: #f8fafc;
+  }
+
+  .align-right { text-align: right; }
+  .text-center { text-align: center; padding: 20px; }
+  .text-muted { color: #999; font-style: italic; }
+
+  .title-text {
+    color: #2c3e50;
+    font-size: 0.95rem;
+    display: block;
+  }
+
+  .subtitle-text {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-top: 4px;
+  }
+
+  .seller-cell {
+    font-size: 0.85rem;
+    color: #495057;
+    i { color: #722ed1; }
+  }
+
+  .value-cell {
+    font-weight: 700;
+    color: #007bff;
+    font-size: 1rem;
+  }
+`;
+
+const CampanhaBadge = styled.span`
+  background: #e9ecef;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #495057;
+`;
+
+// --- GRÁFICOS ---
+const ChartWrapper = styled.div`
+  flex: 1;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  .chart-container {
+    width: 100%;
+    height: 200px;
+  }
+`;
+
+const LegendContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  flex-wrap: wrap;
+  margin-top: 15px;
+`;
+
+const LegendItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: #495057;
+  font-weight: 600;
+
+  .color-box {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+  }
+`;
+
+// --- ATALHOS ---
+const QuickActionsWrapper = styled.div`
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`;
+
+const ShortcutButton = styled.button`
+  width: 100%;
+  padding: 14px 18px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  i {
+    width: 20px;
+    text-align: center;
+    font-size: 1.1rem;
+  }
+
+  .text-blue { color: #007bff; }
+  .text-yellow { color: #faad14; }
+  .text-purple { color: #722ed1; }
+
+  &:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    transform: translateX(4px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+  }
+`;
+
+const DashboardButton = styled(ShortcutButton)`
+  background: #f6ffed;
+  border-color: #b7eb8f;
+  color: #135200;
+
+  .text-green { color: #52c41a; }
+
+  &:hover {
+    background: #e6f7ff;
+    border-color: #91d5ff;
+    color: #0050b3;
+    
+    .text-green { color: #1890ff; }
+  }
+`;

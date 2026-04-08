@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import styled from 'styled-components';
 
 export function Login() {
   const [login, setLogin] = useState('');
@@ -10,7 +11,6 @@ export function Login() {
   const [carregando, setCarregando] = useState(false);
 
   const navigate = useNavigate();
-
   const API_URL = 'https://server-js-gestao.onrender.com';
 
   async function fazerLogin(e) {
@@ -19,24 +19,17 @@ export function Login() {
     setCarregando(true);
 
     try {
-      const resposta = await axios.post(`${API_URL}/login`, {
-        login,
-        senha
-      });
+      const resposta = await axios.post(`${API_URL}/login`, { login, senha });
 
-      // 1. Guarda o Token e os Dados de Segurança
       localStorage.setItem('token', resposta.data.token);
       localStorage.setItem('perfil', resposta.data.perfil || 'usuario');
       
-      // Guarda o ID e Nome para a Dashboard/Home ausar depois
       if (resposta.data.usuarioId) localStorage.setItem('usuarioId', resposta.data.usuarioId);
       if (resposta.data.nome) localStorage.setItem('nome', resposta.data.nome);
 
-      // 2. Redireciona de forma nativa do React
       navigate('/'); 
 
     } catch (error) {
-      // 3. Tratamento de Erros Corrigido
       if (error.response && error.response.status === 401) {
         setErro('Usuário ou senha inválidos.');
       } else {
@@ -49,74 +42,212 @@ export function Login() {
   }
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f4f7f6' }}>
-      <div style={{ background: '#fff', padding: '40px', borderRadius: '10px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', width: '100%', maxWidth: '400px' }}>
+    <PageContainer>
+      <LoginCard>
         
-        <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-          <h2 style={{ color: '#333', marginBottom: '10px' }}>
-            <i className="fa-solid fa-right-to-bracket" style={{ color: '#007bff' }}></i> Acesso ao Sistema
+        <Header>
+          <h2>
+            <i className="fa-solid fa-right-to-bracket"></i> Acesso ao Sistema
           </h2>
-          <p style={{ color: '#777', fontSize: '0.9rem' }}>Insira suas credenciais para continuar.</p>
-        </div>
+          <p>Insira suas credenciais para continuar.</p>
+        </Header>
 
         {erro && (
-          <div style={{ background: '#f8d7da', color: '#721c24', padding: '10px', borderRadius: '6px', marginBottom: '20px', fontSize: '0.9rem', textAlign: 'center', border: '1px solid #f5c6cb' }}>
+          <ErrorMessage>
             <i className="fa-solid fa-circle-exclamation"></i> {erro}
-          </div>
+          </ErrorMessage>
         )}
 
-        <form onSubmit={fazerLogin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div>
-            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#555' }}>Usuário</label>
-            <div style={{ position: 'relative' }}>
-              <i className="fa-solid fa-user" style={{ position: 'absolute', left: '12px', top: '14px', color: '#aaa' }}></i>
-              <input 
+        <Form onSubmit={fazerLogin}>
+          <InputGroup>
+            <label>Usuário</label>
+            <div className="input-wrapper">
+              <i className="fa-solid fa-user"></i>
+              <Input 
                 type="text" 
                 placeholder="Digite seu usuário..." 
                 value={login} 
                 onChange={e => setLogin(e.target.value)} 
                 required 
-                style={{ width: '100%', padding: '12px 12px 12px 35px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '1rem' }} 
               />
             </div>
-          </div>
+          </InputGroup>
 
-          <div>
-            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: '#555' }}>Senha</label>
-            <div style={{ position: 'relative' }}>
-              <i className="fa-solid fa-lock" style={{ position: 'absolute', left: '12px', top: '14px', color: '#aaa' }}></i>
-              <input 
+          <InputGroup>
+            <label>Senha</label>
+            <div className="input-wrapper">
+              <i className="fa-solid fa-lock"></i>
+              <Input 
                 type="password" 
                 placeholder="Sua senha secreta..." 
                 value={senha} 
                 onChange={e => setSenha(e.target.value)} 
                 required 
-                style={{ width: '100%', padding: '12px 12px 12px 35px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '1rem' }} 
               />
             </div>
-          </div>
+          </InputGroup>
 
-          <button 
-            type="submit" 
-            disabled={carregando}
-            style={{ 
-              background: carregando ? '#ccc' : '#007bff', 
-              color: '#fff', 
-              padding: '12px', 
-              border: 'none', 
-              borderRadius: '6px', 
-              fontSize: '1rem', 
-              fontWeight: 'bold', 
-              cursor: carregando ? 'not-allowed' : 'pointer',
-              marginTop: '10px',
-              transition: 'background 0.3s'
-            }}
-          >
+          <SubmitButton type="submit" disabled={carregando}>
             {carregando ? 'Entrando...' : 'Entrar'}
-          </button>
-        </form>
+          </SubmitButton>
+        </Form>
 
-      </div>
-    </div>
+      </LoginCard>
+    </PageContainer>
   );
 }
+
+// ==========================================
+// STYLED COMPONENTS
+// ==========================================
+
+const PageContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  /* Gradiente moderno baseado na paleta da sua aplicação */
+  background: linear-gradient(135deg, #1F4E79 0%, #0056b3 100%);
+  padding: 20px;
+`;
+
+const LoginCard = styled.div`
+  background: #ffffff;
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  max-width: 420px;
+  animation: fadeIn 0.4s ease-out;
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+`;
+
+const Header = styled.div`
+  text-align: center;
+  margin-bottom: 30px;
+
+  h2 {
+    color: #333;
+    margin: 0 0 8px 0;
+    font-size: 1.8rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+
+    i {
+      color: #007bff;
+    }
+  }
+
+  p {
+    color: #777;
+    font-size: 0.95rem;
+    margin: 0;
+  }
+`;
+
+const ErrorMessage = styled.div`
+  background: #f8d7da;
+  color: #721c24;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-align: center;
+  border: 1px solid #f5c6cb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+`;
+
+const Form = styled.form`
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+`;
+
+const InputGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+
+  label {
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #444;
+    font-size: 0.9rem;
+  }
+
+  .input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+
+    i {
+      position: absolute;
+      left: 14px;
+      color: #aaa;
+      font-size: 1rem;
+      transition: color 0.3s;
+    }
+  }
+
+  /* Muda a cor do ícone quando o input ganha foco */
+  &:focus-within i {
+    color: #007bff;
+  }
+`;
+
+const Input = styled.input`
+  width: 100%;
+  padding: 14px 14px 14px 40px;
+  border-radius: 8px;
+  border: 1px solid #dcdcdc;
+  font-size: 1rem;
+  color: #333;
+  background-color: #fcfcfc;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+
+  &::placeholder {
+    color: #bbb;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: #007bff;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
+  }
+`;
+
+const SubmitButton = styled.button`
+  background: ${props => props.disabled ? '#cccccc' : '#007bff'};
+  color: #ffffff;
+  padding: 14px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: ${props => props.disabled ? 'not-allowed' : 'pointer'};
+  margin-top: 10px;
+  transition: all 0.3s ease;
+  box-shadow: ${props => props.disabled ? 'none' : '0 4px 12px rgba(0, 123, 255, 0.3)'};
+
+  &:hover {
+    background: ${props => props.disabled ? '#cccccc' : '#0056b3'};
+    transform: ${props => props.disabled ? 'none' : 'translateY(-2px)'};
+    box-shadow: ${props => props.disabled ? 'none' : '0 6px 15px rgba(0, 123, 255, 0.4)'};
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+`;

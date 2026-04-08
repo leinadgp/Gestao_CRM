@@ -1,6 +1,7 @@
 // src/pages/Funil.jsx
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import styled from 'styled-components';
 import { Header } from '../componentes/Header.jsx';
 
 export function Funil() {
@@ -15,7 +16,11 @@ export function Funil() {
   const meuUsuarioId = localStorage.getItem('usuarioId');
 
   const [carregando, setCarregando] = useState(false);
+  
+  // === NOVO DROPDOWN DE CAMPANHA ===
   const [filtroCampanha, setFiltroCampanha] = useState('');
+  const [dropdownCampanhaAberto, setDropdownCampanhaAberto] = useState(false);
+  const dropdownCampanhaRef = useRef(null);
 
   const [modulosCampanha, setModulosCampanha] = useState([]);
   const [modulosSelecionados, setModulosSelecionados] = useState([]);
@@ -83,6 +88,9 @@ export function Funil() {
       if (dropdownContatoRef.current && !dropdownContatoRef.current.contains(event.target)) {
         setMostrarDropdownContato(false);
         if (contatoId) { const atual = contatos.find(c => c.id === parseInt(contatoId)); if (atual) setBuscaContatoNoModal(atual.nome); } else { setBuscaContatoNoModal(''); }
+      }
+      if (dropdownCampanhaRef.current && !dropdownCampanhaRef.current.contains(event.target)) {
+        setDropdownCampanhaAberto(false);
       }
     };
     document.addEventListener('mousedown', handleClickFora);
@@ -283,11 +291,8 @@ export function Funil() {
     setMostrarModal(true);
   }
 
-  function fecharModal() { setMostrarModal(false); }
-
   function formatarMoeda(v) { return Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
 
-  // NOVA FUNÇÃO: Limpar telefone para ser usado no link "tel:" (remove espaços e parênteses)
   function formatarTelefoneParaLink(telefoneStr) {
     if (!telefoneStr) return '';
     return telefoneStr.replace(/[^0-9]/g, '');
@@ -307,95 +312,165 @@ export function Funil() {
     try {
       if (editandoId) await axios.put(`${API_URL}/oportunidades/${editandoId}`, dados, getHeaders());
       else await axios.post(`${API_URL}/oportunidades`, dados, getHeaders());
-      fecharModal(); carregarFunilDaCampanha(filtroCampanha);
+      setMostrarModal(false); carregarFunilDaCampanha(filtroCampanha);
     } catch (erro) { alert('Erro ao salvar oportunidade.'); }
   }
 
   async function deletarOportunidade() {
     if (!window.confirm('Excluir este negócio? O histórico de notas também será apagado.')) return;
-    try { await axios.delete(`${API_URL}/oportunidades/${editandoId}`, getHeaders()); fecharModal(); carregarFunilDaCampanha(filtroCampanha); }
+    try { await axios.delete(`${API_URL}/oportunidades/${editandoId}`, getHeaders()); setMostrarModal(false); carregarFunilDaCampanha(filtroCampanha); }
     catch (error) { console.error(error); }
   }
 
   const campanhaSelecionadaObj = campanhas.find(c => c.id === parseInt(filtroCampanha));
 
   return (
-    <div>
+    <>
       <Header titulo="Funil de Vendas" />
 
-      <div className="page-container">
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
+      <PageContainer>
+        <TopSection>
           <div>
-            <h2 style={{ color: '#333', margin: 0 }}>Gestão de Pipeline</h2>
-            <p style={{ color: '#777', fontSize: '0.9rem', marginTop: '5px' }}>Selecione um Funil / Campanha abaixo para trabalhar.</p>
+            <Title>Gestão de Pipeline</Title>
+            <Subtitle>Selecione um Funil / Campanha abaixo para trabalhar.</Subtitle>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#007bff', padding: '8px 15px', borderRadius: '8px', border: '1px solid #0056b3', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', maxWidth: '100%' }}>
-              <label style={{ color: '#fff', fontWeight: 'bold', fontSize: '1rem', whiteSpace: 'nowrap' }}><i className="fa-solid fa-layer-group"></i> Funil Ativo:</label>
-              <select
-                value={filtroCampanha} onChange={(e) => setFiltroCampanha(e.target.value)}
-                style={{ border: 'none', background: 'transparent', outline: 'none', fontWeight: 'bold', color: '#fff', cursor: 'pointer', fontSize: '1rem', maxWidth: '220px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}
+          <ActionsContainer>
+            <FilterPillWrapper ref={dropdownCampanhaRef}>
+              <FilterButton 
+                $hasValue={!!filtroCampanha} 
+                $isPrimary
+                onClick={() => setDropdownCampanhaAberto(!dropdownCampanhaAberto)}
               >
-                <option value="" style={{ color: '#333' }}>-- Selecione um Curso/Campanha --</option>
-                {campanhas.map(c => <option key={c.id} value={c.id} style={{ color: '#333' }}>{c.nome}</option>)}
-              </select>
-            </div>
+                <i className="fa-solid fa-layer-group icon" style={{color: '#fff'}}></i> 
+                <span style={{color: '#fff'}}>
+                  Funil: <strong>{campanhaSelecionadaObj ? campanhaSelecionadaObj.nome : '-- Selecione o Curso --'}</strong>
+                </span>
+                <i className={`fa-solid fa-chevron-${dropdownCampanhaAberto ? 'up' : 'down'} arrow`} style={{color: '#fff'}}></i>
+              </FilterButton>
+              
+              {dropdownCampanhaAberto && (
+                <CustomDropdownMenu>
+                  {campanhas.map(c => (
+                    <CustomDropdownItem 
+                      key={c.id} 
+                      $active={filtroCampanha === String(c.id)} 
+                      onClick={() => { setFiltroCampanha(String(c.id)); setDropdownCampanhaAberto(false); }}
+                    >
+                      {c.nome}
+                    </CustomDropdownItem>
+                  ))}
+                </CustomDropdownMenu>
+              )}
+            </FilterPillWrapper>
+
             {filtroCampanha && (
-              <button onClick={abrirModalNovo} style={{ background: '#28a745', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
-                <i className="fa-solid fa-plus-circle"></i>  Nova Oportunidade
-              </button>
+              <PrimaryButton onClick={abrirModalNovo}>
+                <i className="fa-solid fa-plus-circle"></i> Nova Oportunidade
+              </PrimaryButton>
             )}
-          </div>
-        </div>
+          </ActionsContainer>
+        </TopSection>
 
+        {!filtroCampanha ? (
+          <EmptyState>
+            <i className="fa-solid fa-filter-circle-xmark"></i>
+            <h2>Nenhum Funil Selecionado</h2>
+            <p>Selecione uma campanha no topo da tela para carregar as etapas e negócios.</p>
+          </EmptyState>
+        ) : carregando ? (
+          <LoadingContainer>
+            <i className="fa-solid fa-spinner fa-spin"></i><br />Carregando seu Funil...
+          </LoadingContainer>
+        ) : (
+          <KanbanBoard ref={boardRef} onMouseDown={onBoardMouseDown} onMouseLeave={onBoardMouseLeave} onMouseUp={onBoardMouseUp} onMouseMove={onBoardMouseMove}>
+            {etapas.map((etapa) => {
+              const cardsDestaColuna = oportunidades.filter(op => Number(op.etapa_id) === Number(etapa.id));
+              
+              return (
+                <KanbanColumn key={etapa.id}>
+                  <ColumnHeader>
+                    <span className="title">{etapa.nome}</span>
+                    <span className="badge">{cardsDestaColuna.length}</span>
+                  </ColumnHeader>
+                  
+                  <CardsContainer>
+                    {cardsDestaColuna.map(op => {
+                      let statusConfig = { border: '#cbd5e1', bg: '#ffffff' };
+                      if (op.status === 'naofunciona') statusConfig = { border: '#f1c40f', bg: '#fff9db' };
+                      if (op.status === 'naoatendeu') statusConfig = { border: '#e67e22', bg: '#fff4e6' };
+                      if (op.status === 'tarefa') statusConfig = { border: '#6f42c1', bg: '#f3e8ff' };
+                      if (op.status === 'ganho' || op.status === 'inscricao') statusConfig = { border: '#195326', bg: '#e7f3ff' };
+                      if (op.status === 'interessada') statusConfig = { border: '#5bd477', bg: '#e7f3ff' };
+                      if (op.status === 'avaliar') statusConfig = { border: '#cefaab', bg: '#e7f3ff' };
+                      if (op.status === 'perdido') statusConfig = { border: '#dc3545', bg: '#fdecea' };
+                      
+                      let idsModsCard = [];
+                      try { if (op.modulos_ids) { idsModsCard = typeof op.modulos_ids === 'string' ? JSON.parse(op.modulos_ids) : op.modulos_ids; if (!Array.isArray(idsModsCard)) idsModsCard = []; } } catch (e) {}
+                      const nomesModsCard = idsModsCard.map(id => { const m = modulosCampanha.find(mod => mod.id === id); return m ? m.nome : null; }).filter(Boolean);
+
+                      return (
+                        <KanbanCard key={op.id} className="kanban-card" $status={statusConfig} onClick={() => abrirModalEdicao(op)}>
+                          <div className="card-title">{op.titulo}</div>
+                          <div className="card-value">{formatarMoeda(op.valor)}</div>
+
+                          {nomesModsCard.length > 0 && (
+                            <CardModules>
+                              {nomesModsCard.map((nome, idx) => (
+                                <span key={idx}><i className="fa-solid fa-calendar-check"></i> {nome}</span>
+                              ))}
+                            </CardModules>
+                          )}
+
+                          {op.empresa_nome && <div className="card-company"><i className="fa-solid fa-building"></i> {op.empresa_nome}</div>}
+                          
+                          {op.vendedor_nome && (
+                            <SellerBadge>
+                              <i className="fa-solid fa-user-tie"></i> {op.vendedor_nome}
+                            </SellerBadge>
+                          )}
+                        </KanbanCard>
+                      );
+                    })}
+                  </CardsContainer>
+                </KanbanColumn>
+              )
+            })}
+          </KanbanBoard>
+        )}
+
+        {/* MODAL DE EDIÇÃO DE OPORTUNIDADE */}
         {mostrarModal && (
-          <div className="modal-overlay" onClick={fecharModal} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', zIndex: 9998 }}>
-            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '30px', borderRadius: '12px' }}>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #eee', paddingBottom: '10px' }}>
-                <div style={{ maxWidth: '80%' }}>
-                  <h3 style={{ color: '#333', margin: 0 }}>{editandoId ? 'Editar Negócio' : 'Criar Novo Negócio'}</h3>
-                  <div style={{ fontSize: '0.85rem', color: '#007bff', fontWeight: 'bold', marginTop: '5px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={campanhaSelecionadaObj?.nome}>
+          <ModalOverlay onClick={() => setMostrarModal(false)}>
+            <ModalContent onClick={e => e.stopPropagation()}>
+              <ModalHeader>
+                <div>
+                  <h3>{editandoId ? 'Editar Negócio' : 'Criar Novo Negócio'}</h3>
+                  <div className="subtitle" title={campanhaSelecionadaObj?.nome}>
                     <i className="fa-solid fa-bullhorn"></i> Vinculado à campanha: {campanhaSelecionadaObj?.nome}
                   </div>
                 </div>
-                <button onClick={fecharModal} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#999', padding: 0 }}>&times;</button>
-              </div>
+                <CloseButton onClick={() => setMostrarModal(false)}>&times;</CloseButton>
+              </ModalHeader>
 
-              <form onSubmit={salvarOportunidade}>
+              <form onSubmit={salvarOportunidade} style={{ padding: '20px', overflowY: 'auto' }}>
                 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px' }}>
-                  <div style={{ gridColumn: 'span 2' }}>
-                    <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>Título da Negociação *</label>
-                    <input type="text" value={titulo} onChange={(e) => setTitulo(e.target.value)} required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
-                  </div>
+                <FormGrid $columns="1fr 1fr">
+                  <FormGroup className="span-2">
+                    <label>Título da Negociação *</label>
+                    <Input type="text" value={titulo} onChange={(e) => setTitulo(e.target.value)} required />
+                  </FormGroup>
 
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>Etapa no Funil *</label>
-                    <select value={etapaId} onChange={(e) => setEtapaId(e.target.value)} required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #007bff', background: '#f8f9fa' }}>
+                  <FormGroup>
+                    <label>Etapa no Funil *</label>
+                    <Select value={etapaId} onChange={(e) => setEtapaId(e.target.value)} required className="highlight">
                       {etapas.map(etp => <option key={etp.id} value={etp.id}>{etp.nome}</option>)}
-                    </select>
-                  </div>
+                    </Select>
+                  </FormGroup>
 
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>Status da Negociação</label>
-                    <select
-                      value={statusOp}
-                      onChange={(e) => setStatusOp(e.target.value)}
-                      style={{
-                        width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc',
-                        background:
-                          statusOp === 'naofunciona' ? '#fff9db' :
-                            statusOp === 'naoatendeu' ? '#fff4e6' :
-                              statusOp === 'tarefa' ? '#f3e8ff' :
-                                statusOp === 'inscricao' || statusOp === 'ganho' ? '#e6f4ea' :
-                                  statusOp === 'interessada' ? '#e9f7ef' :
-                                    statusOp === 'avaliar' ? '#e7f3ff' :
-                                      statusOp === 'perdido' ? '#fdecea' : '#fff'
-                      }}
-                    >
+                  <FormGroup>
+                    <label>Status da Negociação</label>
+                    <Select value={statusOp} onChange={(e) => setStatusOp(e.target.value)} $status={statusOp}>
                       <option value="aberto">⚪ Em Aberto</option>
                       <option value="avaliar">🔵 Avaliar</option>
                       <option value="interessada">🟢 Interessada</option>
@@ -405,357 +480,570 @@ export function Funil() {
                       <option value="naoatendeu">🟠 Não Atendeu</option>
                       <option value="naofunciona">🟡 Não Funciona</option>
                       <option value="perdido">🔴 Perdido</option>
-                    </select>
-                  </div>
-                </div>
+                    </Select>
+                  </FormGroup>
+                </FormGrid>
 
-                <div style={{ background: '#f4f6f8', padding: '15px', borderRadius: '8px', border: '1px solid #ddd', marginBottom: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '5px', color: '#333', fontSize: '0.9rem', fontWeight: 'bold' }}><i className="fa-solid fa-building"></i> Prefeitura Alvo</label>
-                    <div className="custom-select-container" ref={dropdownEmpresaRef}>
-                      <input type="text" className="custom-select-input" placeholder="🔍 Buscar prefeitura..." value={buscaEmpresaNoModal} autoComplete="off" onFocus={() => { setBuscaEmpresaNoModal(''); setMostrarDropdownEmpresa(true); }} onChange={(e) => {
-                        setBuscaEmpresaNoModal(e.target.value); setMostrarDropdownEmpresa(true);
-                        if (e.target.value === '') { setEmpresaId(''); setContatoId(''); setBuscaContatoNoModal(''); }
-                      }} />
-                      {mostrarDropdownEmpresa && (
-                        <div className="custom-select-dropdown">
-                          <div className="custom-select-option" style={{ color: '#dc3545', fontWeight: 'bold' }} onClick={() => { setEmpresaId(''); setBuscaEmpresaNoModal(''); setContatoId(''); setBuscaContatoNoModal(''); setMostrarDropdownEmpresa(false); }}><i className="fa-solid fa-eraser"></i> Limpar Seleção</div>
-                          {empresasFiltradasParaSelect.map(emp => (
-                            <div key={emp.id} className="custom-select-option" onClick={() => { setEmpresaId(emp.id); setBuscaEmpresaNoModal(emp.nome); setMostrarDropdownEmpresa(false); }}>{emp.nome}</div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                <SectionCard>
+                  <FormGrid $columns="1fr 1fr">
+                    <FormGroup>
+                      <label><i className="fa-solid fa-building text-blue"></i> Prefeitura Alvo</label>
+                      <AutocompleteContainer ref={dropdownEmpresaRef}>
+                        <Input 
+                          type="text" 
+                          placeholder="🔍 Buscar prefeitura..." 
+                          value={buscaEmpresaNoModal} 
+                          onFocus={() => { setBuscaEmpresaNoModal(''); setMostrarDropdownEmpresa(true); }} 
+                          onChange={(e) => {
+                            setBuscaEmpresaNoModal(e.target.value); setMostrarDropdownEmpresa(true);
+                            if (e.target.value === '') { setEmpresaId(''); setContatoId(''); setBuscaContatoNoModal(''); }
+                          }} 
+                        />
+                        {mostrarDropdownEmpresa && (
+                          <AutocompleteList>
+                            <AutocompleteOption className="danger" onClick={() => { setEmpresaId(''); setBuscaEmpresaNoModal(''); setContatoId(''); setBuscaContatoNoModal(''); setMostrarDropdownEmpresa(false); }}>
+                              <i className="fa-solid fa-eraser"></i> Limpar Seleção
+                            </AutocompleteOption>
+                            {empresasFiltradasParaSelect.map(emp => (
+                              <AutocompleteOption key={emp.id} onClick={() => { setEmpresaId(emp.id); setBuscaEmpresaNoModal(emp.nome); setMostrarDropdownEmpresa(false); }}>
+                                {emp.nome}
+                              </AutocompleteOption>
+                            ))}
+                          </AutocompleteList>
+                        )}
+                      </AutocompleteContainer>
+                    </FormGroup>
 
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '5px', color: '#333', fontSize: '0.9rem', fontWeight: 'bold' }}><i className="fa-solid fa-address-book"></i> Contato Principal</label>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                      <div className="custom-select-container" ref={dropdownContatoRef} style={{ flex: 1 }}>
-                        <input type="text" className="custom-select-input" placeholder={empresaId ? "🔍 Buscar contato desta prefeitura..." : "🔍 Buscar contato..."} value={buscaContatoNoModal} autoComplete="off" onFocus={() => { setBuscaContatoNoModal(''); setMostrarDropdownContato(true); }} onChange={(e) => { setBuscaContatoNoModal(e.target.value); setMostrarDropdownContato(true); }} />
-
-                        {mostrarDropdownContato && (
-                          <div className="custom-select-dropdown">
-                            <div className="custom-select-option" style={{ color: '#dc3545', fontWeight: 'bold' }} onClick={() => { setContatoId(''); setBuscaContatoNoModal(''); setMostrarDropdownContato(false); }}><i className="fa-solid fa-eraser"></i> Limpar Seleção</div>
-
-                            {contatosFiltradosParaSelect.length > 0 ? (
-                              contatosFiltradosParaSelect.map(cont => (
-                                <div key={cont.id} className="custom-select-option" onClick={() => { setContatoId(cont.id); setBuscaContatoNoModal(cont.nome); setMostrarDropdownContato(false); }}>
-                                  <strong style={{ color: '#333' }}>{cont.nome}</strong>
-                                </div>
-                              ))
-                            ) : (
-                              <div className="custom-select-no-results" style={{ fontStyle: 'italic', color: '#888' }}>Nenhum contato encontrado.</div>
-                            )}
-                          </div>
+                    <FormGroup>
+                      <label><i className="fa-solid fa-address-book text-green"></i> Contato Principal</label>
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <AutocompleteContainer ref={dropdownContatoRef} style={{ flex: 1 }}>
+                          <Input 
+                            type="text" 
+                            placeholder={empresaId ? "🔍 Buscar contato desta prefeitura..." : "🔍 Buscar contato..."} 
+                            value={buscaContatoNoModal} 
+                            onFocus={() => { setBuscaContatoNoModal(''); setMostrarDropdownContato(true); }} 
+                            onChange={(e) => { setBuscaContatoNoModal(e.target.value); setMostrarDropdownContato(true); }} 
+                          />
+                          {mostrarDropdownContato && (
+                            <AutocompleteList>
+                              <AutocompleteOption className="danger" onClick={() => { setContatoId(''); setBuscaContatoNoModal(''); setMostrarDropdownContato(false); }}>
+                                <i className="fa-solid fa-eraser"></i> Limpar Seleção
+                              </AutocompleteOption>
+                              {contatosFiltradosParaSelect.length > 0 ? (
+                                contatosFiltradosParaSelect.map(cont => (
+                                  <AutocompleteOption key={cont.id} onClick={() => { setContatoId(cont.id); setBuscaContatoNoModal(cont.nome); setMostrarDropdownContato(false); }}>
+                                    <strong>{cont.nome}</strong>
+                                  </AutocompleteOption>
+                                ))
+                              ) : (
+                                <AutocompleteOption className="no-results">Nenhum contato encontrado.</AutocompleteOption>
+                              )}
+                            </AutocompleteList>
+                          )}
+                        </AutocompleteContainer>
+                        
+                        {contatoId && (
+                          <IconButton type="button" onClick={abrirDetalheContato} title="Visualizar ou Editar Contato">
+                            <i className="fa-solid fa-user-pen"></i>
+                          </IconButton>
                         )}
                       </div>
-                      
-                      {contatoId && (
-                        <button type="button" onClick={abrirDetalheContato} style={{ background: '#e7f3ff', color: '#007bff', border: '1px solid #b8daff', borderRadius: '6px', padding: '0 15px', cursor: 'pointer', fontWeight: 'bold', transition: '0.2s' }} title="Visualizar ou Editar Contato">
-                          <i className="fa-solid fa-user-pen"></i>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                    </FormGroup>
+                  </FormGrid>
+                </SectionCard>
 
-                <div style={{ background: '#f4fbf5', padding: '15px', borderRadius: '8px', border: '1px solid #c3e6cb', marginBottom: '20px' }}>
-                  <label style={{ display: 'block', marginBottom: '10px', color: '#28a745', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                <SectionCard $bgColor="#f4fbf5" $borderColor="#c3e6cb">
+                  <label style={{ display: 'block', marginBottom: '15px', color: '#28a745', fontSize: '0.95rem', fontWeight: 'bold' }}>
                     <i className="fa-solid fa-cart-shopping"></i> Composição do Pacote (Turmas / Módulos)
                   </label>
 
                   {modulosCampanha.length === 0 ? (
                     <div style={{ fontSize: '0.85rem', color: '#666', fontStyle: 'italic' }}>Este curso não possui módulos. O valor deverá ser inserido manualmente abaixo.</div>
                   ) : (
-                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    <ModulesGrid>
                       {modulosCampanha.map(mod => (
-                        <label key={mod.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: modulosSelecionados.includes(mod.id) ? '#d4edda' : '#fff', padding: '8px 12px', borderRadius: '6px', border: modulosSelecionados.includes(mod.id) ? '1px solid #28a745' : '1px solid #ccc', cursor: 'pointer', transition: '0.2s' }}>
-                          <input type="checkbox" checked={modulosSelecionados.includes(mod.id)} onChange={() => toggleModulo(mod.id)} style={{ cursor: 'pointer', transform: 'scale(1.2)' }} />
-                          <span style={{ fontSize: '0.85rem', color: '#333', fontWeight: modulosSelecionados.includes(mod.id) ? 'bold' : 'normal' }}>
-                            {mod.nome} <span style={{ color: '#28a745' }}>({formatarMoeda(mod.valor)})</span>
-                          </span>
-                        </label>
+                        <ModuleCard key={mod.id} $active={modulosSelecionados.includes(mod.id)} onClick={() => toggleModulo(mod.id)}>
+                          <input type="checkbox" checked={modulosSelecionados.includes(mod.id)} readOnly style={{ pointerEvents: 'none' }} />
+                          <div className="mod-info">
+                            <span className="mod-name">{mod.nome}</span>
+                            <span className="mod-price">{formatarMoeda(mod.valor)}</span>
+                          </div>
+                        </ModuleCard>
                       ))}
-                    </div>
+                    </ModulesGrid>
                   )}
 
                   {modulosSelecionados.length > 0 && (
-                    <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #c3e6cb', display: 'flex', gap: '15px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                    <TotalsBox>
                       <div>
-                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', color: '#555', marginBottom: '4px' }}>Subtotal</label>
-                        <div style={{ padding: '8px 12px', background: '#e9ecef', borderRadius: '4px', fontWeight: 'bold', color: '#555' }}>{formatarMoeda(subtotalModulos)}</div>
+                        <label>Subtotal</label>
+                        <div className="val bg-gray">{formatarMoeda(subtotalModulos)}</div>
                       </div>
                       <div>
-                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', color: '#007bff', marginBottom: '4px' }}>Desconto (%)</label>
-                        <input type="number" min="0" max="100" value={desconto} onChange={e => setDesconto(e.target.value)} style={{ width: '100px', padding: '8px', borderRadius: '4px', border: '1px solid #007bff', background: '#e7f3ff' }} />
+                        <label className="text-blue">Desconto (%)</label>
+                        <Input type="number" min="0" max="100" value={desconto} onChange={e => setDesconto(e.target.value)} className="highlight-blue" style={{width: '100px'}} />
                       </div>
                       <div>
-                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', color: '#28a745', marginBottom: '4px' }}>Valor a Cobrar</label>
-                        <div style={{ padding: '8px 12px', background: '#d4edda', borderRadius: '4px', fontWeight: 'bold', color: '#155724', border: '1px solid #c3e6cb' }}>{formatarMoeda(valorFinalCalculado)}</div>
+                        <label className="text-green">Valor a Cobrar</label>
+                        <div className="val bg-green">{formatarMoeda(valorFinalCalculado)}</div>
                       </div>
-                    </div>
+                    </TotalsBox>
                   )}
 
-                  <div style={{ marginTop: '15px' }}>
-                    <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>Valor Final da Negociação (R$)</label>
-                    <input
+                  <FormGroup style={{marginTop: '15px'}}>
+                    <label>Valor Final da Negociação (R$)</label>
+                    <Input
                       type="number" step="0.01"
                       value={modulosSelecionados.length > 0 ? valorFinalCalculado : valor}
                       onChange={(e) => setValor(e.target.value)}
                       disabled={modulosSelecionados.length > 0}
-                      placeholder={modulosSelecionados.length > 0 ? "Calculado automaticamente pelos módulos acima" : "Digite o valor manualmente..."}
-                      style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', background: modulosSelecionados.length > 0 ? '#e9ecef' : '#fff' }}
+                      placeholder={modulosSelecionados.length > 0 ? "Calculado pelos módulos" : "Digite o valor..."}
+                      className={modulosSelecionados.length > 0 ? 'disabled' : ''}
                     />
-                  </div>
-                </div>
+                  </FormGroup>
+                </SectionCard>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '15px' }}>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>
-                      <i className="fa-solid fa-user-tie" style={{ color: '#722ed1' }}></i> Vendedor Responsável
-                    </label>
-                    <select
-                      value={vendedorId} onChange={(e) => setVendedorId(e.target.value)} disabled={perfilUsuario === 'vendedor'}
-                      style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', background: perfilUsuario === 'vendedor' ? '#eee' : '#fff' }}
-                    >
+                <FormGrid $columns="1fr">
+                  <FormGroup>
+                    <label><i className="fa-solid fa-user-tie text-purple"></i> Vendedor Responsável</label>
+                    <Select value={vendedorId} onChange={(e) => setVendedorId(e.target.value)} disabled={perfilUsuario === 'vendedor'} className={perfilUsuario === 'vendedor' ? 'disabled' : ''}>
                       <option value="">-- Sem dono definido --</option>
                       {equipe.map(user => <option key={user.id} value={user.id}>{user.nome} ({user.perfil})</option>)}
-                    </select>
-                  </div>
+                    </Select>
+                  </FormGroup>
 
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '5px', color: '#555', fontSize: '0.9rem', fontWeight: 'bold' }}>Resumo Geral do Negócio</label>
-                    <textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows="2" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', resize: 'vertical' }} />
-                  </div>
+                  <FormGroup>
+                    <label>Resumo Geral do Negócio</label>
+                    <TextArea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows="2" />
+                  </FormGroup>
 
-                  <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '8px', border: '1px solid #eee' }}>
-                    <label style={{ display: 'block', marginBottom: '10px', color: '#333', fontSize: '0.95rem', fontWeight: 'bold' }}>
-                      <i className="fa-solid fa-comments"></i> Histórico de Interações (Notas)
+                  <SectionCard>
+                    <label style={{ display: 'block', marginBottom: '15px', color: '#333', fontSize: '0.95rem', fontWeight: 'bold' }}>
+                      <i className="fa-solid fa-comments text-blue"></i> Histórico de Interações (Notas)
                     </label>
 
-                    <div style={{ maxHeight: '200px', overflowY: 'auto', marginBottom: '15px', paddingRight: '5px' }}>
+                    <NotesFeed>
                       {notas.length === 0 ? (
-                        <div style={{ color: '#999', fontSize: '0.85rem', textAlign: 'center', padding: '10px 0' }}>Nenhuma nota registada nesta negociação.</div>
+                        <div className="empty-notes">Nenhuma nota registada nesta negociação.</div>
                       ) : (
                         notas.map(n => (
-                          <div key={n.id} style={{ background: '#fff', borderLeft: '4px solid #007bff', padding: '12px', borderRadius: '6px', marginBottom: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                          <NoteItem key={n.id}>
                             {editandoNotaId === n.id ? (
-                              <div>
-                                <textarea value={textoNotaEditada} onChange={e => setTextoNotaEditada(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #007bff', resize: 'vertical' }} rows="2" />
-                                <div style={{ display: 'flex', gap: '5px', marginTop: '5px', justifyContent: 'flex-end' }}>
-                                  <button type="button" onClick={cancelarEdicaoNota} style={{ padding: '5px 10px', fontSize: '0.8rem', background: '#ccc', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Cancelar</button>
-                                  <button type="button" onClick={() => salvarNotaEditada(n.id)} style={{ padding: '5px 10px', fontSize: '0.8rem', background: '#007bff', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Salvar</button>
+                              <>
+                                <TextArea value={textoNotaEditada} onChange={e => setTextoNotaEditada(e.target.value)} rows="2" className="highlight-blue" />
+                                <div className="note-actions">
+                                  <button type="button" className="btn-cancel" onClick={cancelarEdicaoNota}>Cancelar</button>
+                                  <button type="button" className="btn-save" onClick={() => salvarNotaEditada(n.id)}>Salvar</button>
                                 </div>
-                              </div>
+                              </>
                             ) : (
                               <>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', fontSize: '0.8rem', color: '#666' }}>
-                                  <strong style={{ color: '#333' }}><i className="fa-solid fa-user-circle"></i> {n.usuario_nome}</strong>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <NoteHeader>
+                                  <strong className="user"><i className="fa-solid fa-user-circle"></i> {n.usuario_nome}</strong>
+                                  <div className="meta">
                                     <span>{new Date(n.criado_em).toLocaleString('pt-BR')}</span>
-                                    <button type="button" onClick={() => iniciarEdicaoNota(n)} style={{ background: 'none', border: 'none', color: '#007bff', cursor: 'pointer', padding: 0 }} title="Editar nota"><i className="fa-solid fa-pen"></i></button>
+                                    <button type="button" className="btn-edit" onClick={() => iniciarEdicaoNota(n)}><i className="fa-solid fa-pen"></i></button>
                                   </div>
-                                </div>
-                                <div style={{ fontSize: '0.9rem', color: '#444', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>{n.nota}</div>
+                                </NoteHeader>
+                                <NoteBody>{n.nota}</NoteBody>
                               </>
                             )}
-                          </div>
+                          </NoteItem>
                         ))
                       )}
-                    </div>
+                    </NotesFeed>
 
                     {editandoId && (
-                      <div style={{ display: 'flex', gap: '10px' }}>
-                        <input type="text" value={novaNota} onChange={e => setNovaNota(e.target.value)} placeholder="Escreva o que conversou hoje..." style={{ flex: 1, padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); adicionarNota(); } }} />
-                        <button type="button" onClick={adicionarNota} style={{ background: '#28a745', color: '#fff', border: 'none', padding: '0 20px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
-                          <i className="fa-solid fa-paper-plane"></i>
-                        </button>
-                      </div>
+                      <AddNoteBox>
+                        <Input type="text" value={novaNota} onChange={e => setNovaNota(e.target.value)} placeholder="Escreva o que conversou hoje..." onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); adicionarNota(); } }} />
+                        <button type="button" onClick={adicionarNota} className="btn-send"><i className="fa-solid fa-paper-plane"></i></button>
+                      </AddNoteBox>
                     )}
-                  </div>
-                </div>
+                  </SectionCard>
+                </FormGrid>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
-                  {editandoId ? <button type="button" onClick={deletarOportunidade} style={{ background: '#dc3545', color: '#fff', border: 'none', padding: '10px 15px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}><i className="fa-solid fa-trash-can"></i> Excluir</button> : <div></div>}
+                <ModalFooter>
+                  {editandoId ? <DangerButton type="button" onClick={deletarOportunidade}><i className="fa-solid fa-trash-can"></i> Excluir</DangerButton> : <div></div>}
                   <div style={{ display: 'flex', gap: '10px' }}>
-                    <button type="button" onClick={fecharModal} style={{ background: '#6c757d', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer' }}>Cancelar</button>
-                    <button type="submit" style={{ background: '#007bff', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
-                      <i className="fa-solid fa-save"></i> Salvar Negócio
-                    </button>
+                    <SecondaryButton type="button" onClick={() => setMostrarModal(false)}>Cancelar</SecondaryButton>
+                    <PrimaryButton type="submit"><i className="fa-solid fa-save"></i> Salvar Negócio</PrimaryButton>
                   </div>
-                </div>
+                </ModalFooter>
+
               </form>
-            </div>
-          </div>
+            </ModalContent>
+          </ModalOverlay>
         )}
 
-        {/* ======================================================== */}
-        {/* SUB-MODAL: VISUALIZAR E EDITAR CONTATO (Z-INDEX 9999)    */}
-        {/* ======================================================== */}
+        {/* SUB-MODAL DE CONTATO */}
         {mostrarModalContato && contatoSelecionado && (
-          <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
-            <div style={{ background: '#fff', width: '100%', maxWidth: '600px', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 15px 40px rgba(0,0,0,0.4)' }} onClick={e => e.stopPropagation()}>
-              
-              <div style={{ padding: '15px 20px', background: '#1F4E79', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 style={{ margin: 0, fontSize: '1.2rem' }}>
-                  <i className="fa-solid fa-user-pen"></i> Detalhes do Contato
-                </h3>
-                <button onClick={() => setMostrarModalContato(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#fff' }}>&times;</button>
-              </div>
+          <ModalOverlay onClick={() => setMostrarModalContato(false)} style={{zIndex: 9999}}>
+            <ModalContent $small onClick={e => e.stopPropagation()}>
+              <ModalHeader $bg="#1F4E79" $color="#fff">
+                <div>
+                  <h3 style={{color: '#fff'}}><i className="fa-solid fa-user-pen"></i> Detalhes do Contato</h3>
+                </div>
+                <CloseButton $color="#fff" onClick={() => setMostrarModalContato(false)}>&times;</CloseButton>
+              </ModalHeader>
 
               <div style={{ padding: '20px' }}>
                 {!editandoContatoRapido ? (
                   // MODO VISUALIZAÇÃO
-                  <div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px' }}>
-                      <div style={{ background: '#f4f6f8', padding: '15px', borderRadius: '6px', border: '1px solid #ddd' }}>
-                        <label style={{ fontSize: '0.8rem', color: '#666', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>NOME COMPLETO</label>
-                        <div style={{ fontSize: '1rem', color: '#333' }}>{contatoNome}</div>
-                      </div>
-                      <div style={{ background: '#f4f6f8', padding: '15px', borderRadius: '6px', border: '1px solid #ddd' }}>
-                        <label style={{ fontSize: '0.8rem', color: '#666', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>CARGO</label>
-                        <div style={{ fontSize: '1rem', color: '#333' }}>{contatoCargo || '-'}</div>
-                      </div>
-                      <div style={{ background: '#f4f6f8', padding: '15px', borderRadius: '6px', border: '1px solid #ddd', gridColumn: 'span 2' }}>
-                        <label style={{ fontSize: '0.8rem', color: '#666', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}><i className="fa-regular fa-envelope"></i> E-MAILS (Lista de Disparo)</label>
-                        <div style={{ fontSize: '1rem', color: '#007bff' }}>{contatoEmails || '-'}</div>
-                      </div>
-                      <div style={{ background: '#f4f6f8', padding: '15px', borderRadius: '6px', border: '1px solid #ddd', gridColumn: 'span 2' }}>
-                        <label style={{ fontSize: '0.8rem', color: '#666', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}><i className="fa-solid fa-phone"></i> TELEFONES (WhatsApp)</label>
-                        <div style={{ fontSize: '1rem', color: '#333' }}>
-                          {/* MÁGICA DOS TELEFONES CLICÁVEIS */}
+                  <>
+                    <FormGrid $columns="1fr 1fr" style={{marginBottom: '20px'}}>
+                      <InfoBox>
+                        <label>NOME COMPLETO</label>
+                        <div>{contatoNome}</div>
+                      </InfoBox>
+                      <InfoBox>
+                        <label>CARGO</label>
+                        <div>{contatoCargo || '-'}</div>
+                      </InfoBox>
+                      <InfoBox className="span-2">
+                        <label><i className="fa-regular fa-envelope"></i> E-MAILS (Lista de Disparo)</label>
+                        <div className="text-blue">{contatoEmails || '-'}</div>
+                      </InfoBox>
+                      <InfoBox className="span-2">
+                        <label><i className="fa-solid fa-phone"></i> TELEFONES (WhatsApp)</label>
+                        <div className="phones">
                           {contatoTelefones ? contatoTelefones.split(',').map((tel, idx) => (
-                            <a key={idx} href={`tel:${formatarTelefoneParaLink(tel)}`} title="Clique para ligar" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#e7f3ff', color: '#007bff', padding: '6px 12px', borderRadius: '20px', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.9rem', marginRight: '8px', border: '1px solid #b8daff', transition: '0.2s' }}>
-                              <i className="fa-solid fa-phone" style={{ color: '#28a745' }}></i> {tel.trim()}
+                            <a key={idx} href={`tel:${formatarTelefoneParaLink(tel)}`} title="Clique para ligar" className="phone-pill">
+                              <i className="fa-solid fa-phone text-green"></i> {tel.trim()}
                             </a>
                           )) : '-'}
                         </div>
-                      </div>
-                    </div>
-                    
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                      <button onClick={() => setMostrarModalContato(false)} style={{ background: '#eee', color: '#333', padding: '10px 20px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Voltar</button>
-                      <button onClick={() => setEditandoContatoRapido(true)} style={{ background: '#ffc107', color: '#333', padding: '10px 20px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
+                      </InfoBox>
+                    </FormGrid>
+                    <ModalFooter $justify="flex-end">
+                      <SecondaryButton onClick={() => setMostrarModalContato(false)}>Voltar</SecondaryButton>
+                      <WarningButton onClick={() => setEditandoContatoRapido(true)}>
                         <i className="fa-solid fa-pen"></i> Editar Contato
-                      </button>
-                    </div>
-                  </div>
+                      </WarningButton>
+                    </ModalFooter>
+                  </>
                 ) : (
                   // MODO EDIÇÃO
                   <form onSubmit={salvarContatoRapido}>
-                    <div style={{ display: 'grid', gap: '15px', marginBottom: '20px' }}>
-                      <div>
-                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.9rem' }}>Nome *</label>
-                        <input type="text" required value={contatoNome} onChange={e => setContatoNome(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.9rem' }}>Cargo</label>
-                        <input type="text" value={contatoCargo} onChange={e => setContatoCargo(e.target.value)} placeholder="Ex: Secretário da Fazenda" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.9rem' }}><i className="fa-regular fa-envelope"></i> E-mails (Separe por vírgula)</label>
-                        <input type="text" value={contatoEmails} onChange={e => setContatoEmails(e.target.value)} placeholder="email1@teste.com, email2@teste.com" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #007bff' }} />
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.9rem' }}><i className="fa-solid fa-phone"></i> Telefones (Separe por vírgula)</label>
-                        <input type="text" value={contatoTelefones} onChange={e => setContatoTelefones(e.target.value)} placeholder="51999999999, 5133333333" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #28a745' }} />
-                      </div>
-                    </div>
+                    <FormGrid $columns="1fr" style={{marginBottom: '20px'}}>
+                      <FormGroup>
+                        <label>Nome *</label>
+                        <Input type="text" required value={contatoNome} onChange={e => setContatoNome(e.target.value)} />
+                      </FormGroup>
+                      <FormGroup>
+                        <label>Cargo</label>
+                        <Input type="text" value={contatoCargo} onChange={e => setContatoCargo(e.target.value)} placeholder="Ex: Secretário da Fazenda" />
+                      </FormGroup>
+                      <FormGroup>
+                        <label><i className="fa-regular fa-envelope"></i> E-mails (Separe por vírgula)</label>
+                        <Input type="text" value={contatoEmails} onChange={e => setContatoEmails(e.target.value)} placeholder="email1@teste.com, email2@teste.com" className="highlight-blue" />
+                      </FormGroup>
+                      <FormGroup>
+                        <label><i className="fa-solid fa-phone"></i> Telefones (Separe por vírgula)</label>
+                        <Input type="text" value={contatoTelefones} onChange={e => setContatoTelefones(e.target.value)} placeholder="51999999999, 5133333333" className="highlight-green" />
+                      </FormGroup>
+                    </FormGrid>
 
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
-                      <button type="button" onClick={() => setEditandoContatoRapido(false)} style={{ background: '#eee', color: '#333', padding: '10px 20px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Cancelar</button>
-                      <button type="submit" style={{ background: '#007bff', color: '#fff', padding: '10px 20px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
-                        <i className="fa-solid fa-save"></i> Salvar Alterações
-                      </button>
-                    </div>
+                    <ModalFooter $justify="flex-end">
+                      <SecondaryButton type="button" onClick={() => setEditandoContatoRapido(false)}>Cancelar</SecondaryButton>
+                      <PrimaryButton type="submit"><i className="fa-solid fa-save"></i> Salvar Alterações</PrimaryButton>
+                    </ModalFooter>
                   </form>
                 )}
               </div>
-              
-            </div>
-          </div>
+            </ModalContent>
+          </ModalOverlay>
         )}
 
-        {!filtroCampanha ? (
-          <div style={{ textAlign: 'center', padding: '100px 20px', background: '#fff', borderRadius: '12px', border: '2px dashed #ccc', marginTop: '20px' }}>
-            <h2 style={{ color: '#555' }}>Nenhum Funil Selecionado</h2>
-          </div>
-        ) : carregando ? (
-          <div style={{ textAlign: 'center', padding: '50px' }}><i className="fa-solid fa-spinner fa-spin fa-2x"></i><br />Carregando seu Funil...</div>
-        ) : (
-          <div className="kanban-board" ref={boardRef} onMouseDown={onBoardMouseDown} onMouseLeave={onBoardMouseLeave} onMouseUp={onBoardMouseUp} onMouseMove={onBoardMouseMove} style={{ userSelect: 'none', marginTop: '20px' }}>
-            {etapas.map((etapa) => {
-              
-              const cardsDestaColuna = oportunidades.filter(op => Number(op.etapa_id) === Number(etapa.id));
-              
-              return (
-                <div key={etapa.id} className="kanban-column">
-                  <div className="kanban-column-header">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span className="kanban-column-title" style={{ fontWeight: 'bold', color: '#333' }}>{etapa.nome}</span>
-                    </div>
-                  </div>
-                  <div className="kanban-cards-container">
-                    {cardsDestaColuna.map(op => {
-                      let corBorda = '#c9c5c5';
-                      let bgCard = '#fff';
-
-                      if (op.status === 'naofunciona') { corBorda = '#f1c40f'; bgCard = '#fff9db'; }
-                      if (op.status === 'naoatendeu') { corBorda = '#e67e22'; bgCard = '#fff4e6'; }
-                      if (op.status === 'tarefa') { corBorda = '#6f42c1'; bgCard = '#f3e8ff'; }
-                      if (op.status === 'ganho' || op.status === 'inscricao') { corBorda = '#195326'; bgCard = '#e7f3ff'; }
-                      if (op.status === 'interessada') { corBorda = '#5bd477'; bgCard = '#e7f3ff'; }
-                      if (op.status === 'avaliar') { corBorda = '#cefaab'; bgCard = '#e7f3ff'; }
-                      if (op.status === 'perdido') { corBorda = '#dc3545'; bgCard = '#fdecea'; }
-                      
-                      let idsModsCard = [];
-                      try {
-                        if (op.modulos_ids) {
-                          idsModsCard = typeof op.modulos_ids === 'string' ? JSON.parse(op.modulos_ids) : op.modulos_ids;
-                          if (!Array.isArray(idsModsCard)) idsModsCard = [];
-                        }
-                      } catch (e) { idsModsCard = []; }
-
-                      const nomesModsCard = idsModsCard.map(id => {
-                        const m = modulosCampanha.find(mod => mod.id === id);
-                        return m ? m.nome : null;
-                      }).filter(Boolean);
-
-                      return (
-                        <div key={op.id} className="kanban-card" style={{ borderLeft: `5px solid ${corBorda}`, backgroundColor: bgCard, marginBottom: '12px', padding: '12px', borderRadius: '6px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', cursor: 'pointer' }} onClick={() => abrirModalEdicao(op)}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                            <div style={{ fontWeight: 'bold', marginBottom: '5px', fontSize: '0.95rem' }}>{op.titulo}</div>
-                          </div>
-                          <div style={{ color: corBorda, fontSize: '0.9rem', fontWeight: 'bold' }}>{formatarMoeda(op.valor)}</div>
-
-                          {nomesModsCard.length > 0 && (
-                            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '6px' }}>
-                              {nomesModsCard.map((nome, idx) => (
-                                <span key={idx} style={{ fontSize: '0.7rem', color: '#28a745', fontWeight: 'bold', background: '#e6f4ea', padding: '2px 6px', borderRadius: '4px' }}>
-                                  <i className="fa-solid fa-calendar-check"></i> {nome}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-
-                          {op.empresa_nome && <div style={{ fontSize: '0.8rem', color: '#666', marginTop: '8px' }}><i className="fa-solid fa-building"></i> {op.empresa_nome}</div>}
-                          {op.vendedor_nome && (
-                            <div style={{ display: 'inline-block', marginTop: '10px', background: '#f0f0f0', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', color: '#555', border: '1px solid #ddd' }}>
-                              <i className="fa-solid fa-user-tie" style={{ color: '#722ed1', marginRight: '4px' }}></i> {op.vendedor_nome}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                    <div style={{ height: '40px' }}></div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
-    </div>
+      </PageContainer>
+    </>
   );
 }
+
+// ==========================================
+// STYLED COMPONENTS
+// ==========================================
+
+const PageContainer = styled.div`
+  padding: 30px; background-color: #f4f7f6; min-height: calc(100vh - 70px);
+`;
+
+const TopSection = styled.div`
+  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; margin-bottom: 25px;
+`;
+const Title = styled.h2`
+  margin: 0; color: #2c3e50; font-size: 1.8rem; font-weight: 700;
+`;
+const Subtitle = styled.p`
+  color: #6c757d; font-size: 0.95rem; margin: 5px 0 0 0;
+`;
+
+const ActionsContainer = styled.div`
+  display: flex; align-items: center; gap: 15px; flex-wrap: wrap;
+`;
+
+/* === ÁREA DE FILTROS MODERNOS === */
+const FilterPillWrapper = styled.div`
+  position: relative; display: inline-block;
+`;
+const FilterButton = styled.button`
+  display: flex; align-items: center; background: ${props => props.$isPrimary ? '#007bff' : (props.$hasValue ? '#eef4fa' : '#ffffff')};
+  border: 1px solid ${props => props.$isPrimary ? '#0056b3' : (props.$hasValue ? '#b8cde1' : '#cbd5e1')}; 
+  color: ${props => props.$isPrimary ? '#ffffff' : '#2c3e50'}; 
+  padding: 10px 18px; border-radius: 50px; font-size: 0.95rem; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+
+  &:hover { 
+    background: ${props => props.$isPrimary ? '#0056b3' : '#e7f3ff'};
+    transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,123,255,0.2); 
+  }
+
+  span { margin: 0 10px; font-weight: 600; strong { font-weight: 800;} }
+  .icon { font-size: 1.05rem; }
+  .arrow { font-size: 0.8rem; }
+`;
+
+const CustomDropdownMenu = styled.ul`
+  position: absolute; top: calc(100% + 8px); left: 0; background: #ffffff; border: 1px solid #edf2f9; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); min-width: 250px; max-height: 300px; overflow-y: auto; z-index: 1000; padding: 8px 0; list-style: none; margin: 0; animation: fadeInDown 0.2s ease-out;
+  @keyframes fadeInDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+`;
+const CustomDropdownItem = styled.li`
+  padding: 12px 20px; font-size: 0.95rem; color: ${props => props.$active ? '#007bff' : '#495057'}; background: ${props => props.$active ? '#f0f7ff' : 'transparent'}; font-weight: ${props => props.$active ? '700' : '500'}; cursor: pointer; transition: background 0.2s;
+  &:hover { background: #f8fafc; color: #007bff; }
+`;
+
+// --- STATUS E ESTADOS VAZIOS ---
+const EmptyState = styled.div`
+  text-align: center; padding: 80px 20px; background: #ffffff; border-radius: 12px; border: 2px dashed #cbd5e1; margin-top: 20px;
+  i { font-size: 3rem; color: #a0aec0; margin-bottom: 15px; }
+  h2 { color: #475569; margin: 0 0 10px 0; }
+  p { color: #64748b; margin: 0; }
+`;
+const LoadingContainer = styled.div`
+  text-align: center; padding: 60px; color: #6c757d; font-size: 1.1rem; i { font-size: 2.5rem; margin-bottom: 15px; color: #cbd5e1; }
+`;
+
+// --- KANBAN BOARD ---
+const KanbanBoard = styled.div`
+  display: flex; gap: 20px; overflow-x: auto; padding-bottom: 20px; align-items: flex-start; min-height: 60vh; user-select: none;
+  scrollbar-width: thin;
+  &::-webkit-scrollbar { height: 8px; }
+  &::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 8px; }
+  &::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+`;
+
+const KanbanColumn = styled.div`
+  min-width: 320px; max-width: 320px; min-height: 350px; background-color: #f4f5f7; border-radius: 10px; display: flex; flex-direction: column; gap: 10px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); padding: 10px;
+`;
+
+const ColumnHeader = styled.div`
+  display: flex; justify-content: space-between; align-items: center; padding: 5px 5px 10px 5px;
+  .title { font-weight: 700; color: #444; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px; }
+  .badge { background: #e2e4e9; color: #555; padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; }
+`;
+
+const CardsContainer = styled.div`
+  display: flex; flex-direction: column; gap: 12px; flex: 1; overflow-y: auto; padding-bottom: 40px;
+  &::-webkit-scrollbar { display: none; }
+`;
+
+const KanbanCard = styled.div`
+  background: ${props => props.$status.bg}; padding: 15px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); border-left: 4px solid ${props => props.$status.border}; transition: transform 0.2s, box-shadow 0.2s; display: flex; flex-direction: column; gap: 6px; cursor: grab;
+  &:hover { transform: translateY(-3px); box-shadow: 0 6px 15px rgba(0,0,0,0.08); }
+  &:active { cursor: grabbing; opacity: 0.9; transform: scale(0.98); }
+
+  .card-title { font-weight: 700; font-size: 1rem; color: #2c3e50; line-height: 1.3; }
+  .card-value { color: ${props => props.$status.border}; font-weight: 800; font-size: 1.1rem; }
+  .card-company { font-size: 0.8rem; color: #6c757d; display: flex; align-items: center; gap: 6px; }
+`;
+
+const CardModules = styled.div`
+  display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px;
+  span { font-size: 0.7rem; color: #28a745; font-weight: 700; background: #e6f4ea; padding: 2px 6px; border-radius: 4px; display: flex; align-items: center; gap: 4px; }
+`;
+
+const SellerBadge = styled.div`
+  display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; background: #f8f9fa; padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; color: #495057; border: 1px solid #e2e8f0; width: fit-content;
+  i { color: #722ed1; }
+`;
+
+// --- MODAIS GERAIS ---
+const ModalOverlay = styled.div`
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; z-index: 9998;
+`;
+
+const ModalContent = styled.div`
+  background: white; border-radius: 12px; width: 100%; max-width: ${props => props.$small ? '600px' : '900px'}; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.2); animation: modalSobe 0.3s ease-out;
+  @keyframes modalSobe { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+`;
+
+const ModalHeader = styled.div`
+  display: flex; justify-content: space-between; align-items: center; padding: 20px 25px; border-bottom: 1px solid #edf2f9; background: ${props => props.$bg || '#fff'}; color: ${props => props.$color || '#333'};
+  h3 { margin: 0; font-size: 1.3rem; display: flex; align-items: center; gap: 8px;}
+  .subtitle { font-size: 0.85rem; color: ${props => props.$color ? 'rgba(255,255,255,0.8)' : '#007bff'}; font-weight: 700; margin-top: 4px; display: flex; align-items: center; gap: 6px; }
+`;
+
+const ModalFooter = styled.div`
+  display: flex; justify-content: ${props => props.$justify || 'space-between'}; align-items: center; padding: 20px 25px; border-top: 1px solid #edf2f9; background: #fbfbfc;
+`;
+
+const CloseButton = styled.button`
+  background: none; border: none; font-size: 1.8rem; cursor: pointer; color: ${props => props.$color || '#94a3b8'}; transition: 0.2s;
+  &:hover { color: #dc3545; }
+`;
+
+// --- FORMS & INPUTS ---
+const FormGrid = styled.div`
+  display: grid; grid-template-columns: ${props => props.$columns || '1fr'}; gap: 15px;
+  .span-2 { grid-column: span 2; }
+  @media (max-width: 768px) { grid-template-columns: 1fr; .span-2 { grid-column: span 1; } }
+`;
+
+const FormGroup = styled.div`
+  display: flex; flex-direction: column; gap: 6px;
+  label { font-weight: 700; font-size: 0.9rem; color: #475569; display: flex; align-items: center; gap: 6px;}
+  .text-blue { color: #007bff; } .text-green { color: #28a745; } .text-purple { color: #722ed1; }
+`;
+
+const Input = styled.input`
+  width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #333; outline: none; transition: 0.2s;
+  &:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); }
+  &.highlight-blue { border-color: #007bff; background: #f0f7ff; font-weight: 700;}
+  &.highlight-green { border-color: #28a745; background: #f4fbf5; font-weight: 700;}
+  &.disabled { background: #f8fafc; color: #94a3b8; cursor: not-allowed; }
+`;
+
+const Select = styled.select`
+  width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #333; outline: none; cursor: pointer; transition: 0.2s;
+  &:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); }
+  &.highlight { background: #f8f9fa; border-color: #007bff; font-weight: 600;}
+  &.disabled { background: #f8fafc; color: #94a3b8; cursor: not-allowed; }
+  
+  /* Dinâmica de cor baseada no status */
+  background-color: ${props => {
+    switch(props.$status) {
+      case 'naofunciona': return '#fff9db';
+      case 'naoatendeu': return '#fff4e6';
+      case 'tarefa': return '#f3e8ff';
+      case 'inscricao': case 'ganho': return '#e6f4ea';
+      case 'interessada': return '#e9f7ef';
+      case 'avaliar': return '#e7f3ff';
+      case 'perdido': return '#fdecea';
+      default: return '#fff';
+    }
+  }};
+`;
+
+const TextArea = styled.textarea`
+  width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #333; outline: none; resize: vertical; transition: 0.2s;
+  &:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); }
+  &.highlight-blue { border-color: #007bff; background: #f0f7ff; }
+`;
+
+const SectionCard = styled.div`
+  background: ${props => props.$bgColor || '#f8fafc'}; border: 1px solid ${props => props.$borderColor || '#e2e8f0'}; padding: 20px; border-radius: 12px; margin-bottom: 20px;
+`;
+
+// --- AUTOCOMPLETE CUSTOMIZADO ---
+const AutocompleteContainer = styled.div`
+  position: relative; width: 100%;
+`;
+const AutocompleteList = styled.ul`
+  position: absolute; top: calc(100% + 5px); left: 0; width: 100%; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); max-height: 200px; overflow-y: auto; z-index: 100; list-style: none; padding: 5px 0; margin: 0;
+`;
+const AutocompleteOption = styled.li`
+  padding: 10px 15px; font-size: 0.9rem; color: #333; cursor: pointer; transition: 0.2s; border-bottom: 1px solid #f1f5f9;
+  &:hover { background: #f0f7ff; color: #007bff; }
+  &.danger { color: #dc3545; font-weight: 700; &:hover { background: #fff5f5; } }
+  &.no-results { color: #94a3b8; font-style: italic; cursor: default; &:hover { background: #fff; } }
+`;
+const IconButton = styled.button`
+  background: #e7f3ff; color: #007bff; border: 1px solid #b8daff; border-radius: 8px; padding: 0 15px; cursor: pointer; font-size: 1.1rem; transition: 0.2s;
+  &:hover { background: #007bff; color: #fff; }
+`;
+
+// --- MÓDULOS E CÁLCULOS ---
+const ModulesGrid = styled.div`
+  display: flex; gap: 10px; flex-wrap: wrap;
+`;
+const ModuleCard = styled.label`
+  display: flex; align-items: center; gap: 10px; padding: 10px 15px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease;
+  background: ${props => props.$active ? '#e6f4ea' : '#ffffff'};
+  border: 1px solid ${props => props.$active ? '#28a745' : '#cbd5e1'};
+  
+  &:hover { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+  
+  input[type="checkbox"] { transform: scale(1.2); accent-color: #28a745; cursor: pointer;}
+  
+  .mod-info { display: flex; flex-direction: column; }
+  .mod-name { font-size: 0.85rem; color: #333; font-weight: ${props => props.$active ? '700' : '600'}; }
+  .mod-price { font-size: 0.8rem; color: #28a745; font-weight: 700; }
+`;
+
+const TotalsBox = styled.div`
+  margin-top: 20px; padding-top: 15px; border-top: 1px dashed #c3e6cb; display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-end;
+  
+  label { display: block; font-size: 0.8rem; font-weight: 700; color: #64748b; margin-bottom: 6px; }
+  .text-blue { color: #007bff; } .text-green { color: #28a745; }
+  
+  .val { padding: 10px 15px; border-radius: 8px; font-weight: 800; font-size: 1.1rem; border: 1px solid transparent; }
+  .bg-gray { background: #f1f5f9; color: #475569; border-color: #e2e8f0; }
+  .bg-green { background: #d4edda; color: #155724; border-color: #c3e6cb; }
+`;
+
+// --- FEED DE NOTAS ---
+const NotesFeed = styled.div`
+  display: flex; flex-direction: column; gap: 12px; max-height: 250px; overflow-y: auto; padding-right: 5px; margin-bottom: 15px;
+  &::-webkit-scrollbar { width: 6px; } &::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  .empty-notes { text-align: center; color: #94a3b8; font-size: 0.9rem; padding: 20px; font-style: italic; }
+`;
+const NoteItem = styled.div`
+  background: #ffffff; border: 1px solid #e2e8f0; border-left: 4px solid #007bff; border-radius: 8px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+  
+  .note-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+  .btn-cancel { background: #f1f5f9; border: none; padding: 6px 12px; border-radius: 4px; color: #475569; font-weight: 600; cursor: pointer; }
+  .btn-save { background: #007bff; border: none; padding: 6px 12px; border-radius: 4px; color: #fff; font-weight: 600; cursor: pointer; }
+`;
+const NoteHeader = styled.div`
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
+  .user { display: flex; align-items: center; gap: 6px; color: #2c3e50; font-size: 0.9rem; }
+  .meta { display: flex; align-items: center; gap: 10px; color: #94a3b8; font-size: 0.8rem; font-weight: 600; }
+  .btn-edit { background: none; border: none; color: #007bff; cursor: pointer; opacity: 0.5; transition: 0.2s; &:hover{ opacity: 1; transform: scale(1.1); } }
+`;
+const NoteBody = styled.div`
+  color: #475569; font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap;
+`;
+
+const AddNoteBox = styled.div`
+  display: flex; gap: 10px;
+  .btn-send { background: #28a745; color: #fff; border: none; padding: 0 20px; border-radius: 8px; font-size: 1.1rem; cursor: pointer; transition: 0.2s; &:hover{ background: #218838; } }
+`;
+
+// --- BOTÕES GENÉRICOS ---
+const ButtonBase = styled.button`
+  padding: 12px 20px; border-radius: 8px; font-weight: 700; font-size: 0.95rem; cursor: pointer; border: none; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
+  &:active { transform: scale(0.98); }
+`;
+const PrimaryButton = styled(ButtonBase)`
+  background: #007bff; color: #fff; &:hover { background: #0056b3; box-shadow: 0 4px 10px rgba(0,123,255,0.2); }
+`;
+const SecondaryButton = styled(ButtonBase)`
+  background: #e2e8f0; color: #475569; &:hover { background: #cbd5e1; }
+`;
+const DangerButton = styled(ButtonBase)`
+  background: #fff5f5; color: #dc3545; border: 1px solid #f8d7da; &:hover { background: #dc3545; color: #fff; box-shadow: 0 4px 10px rgba(220,53,69,0.2); }
+`;
+const WarningButton = styled(ButtonBase)`
+  background: #ffc107; color: #333; &:hover { background: #e0a800; box-shadow: 0 4px 10px rgba(255,193,7,0.2); }
+`;
+
+// --- INFO BOX (MODAL CONTATO) ---
+const InfoBox = styled.div`
+  background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;
+  &.span-2 { grid-column: span 2; }
+  label { font-size: 0.75rem; color: #64748b; font-weight: 800; display: block; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;}
+  div { font-size: 1rem; color: #2c3e50; font-weight: 600; }
+  .text-blue { color: #007bff; }
+  .phones { display: flex; gap: 10px; flex-wrap: wrap; }
+  .phone-pill { display: inline-flex; align-items: center; gap: 6px; background: #e6f4ea; color: #155724; padding: 6px 12px; border-radius: 20px; text-decoration: none; font-size: 0.9rem; border: 1px solid #c3e6cb; transition: 0.2s; &:hover{ background: #28a745; color: #fff; .text-green{color: #fff;} } }
+  .text-green { color: #28a745; }
+`;
