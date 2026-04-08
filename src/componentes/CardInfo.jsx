@@ -7,7 +7,7 @@ export function CardInfo({ icone, label, valor, cor }) {
       </div>
       <div className="card-info-content">
         <span className="card-info-label">{label}</span>
-        <span className="card-info-value">{valor}</span>
+        <span className="card-info-value">{valor}fa</span>
       </div>
     </div>
   );
