@@ -410,7 +410,7 @@ export function Disparos() {
                   
                   <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', borderTop: '1px dashed #ddd', paddingTop: '10px', marginTop: '5px' }}>
                     <button onClick={() => carregarParaEdicao(email)} style={{ flex: 1, padding: '5px', fontSize: '0.75rem', background: editandoEmailId === email.id ? '#007bff' : '#e9ecef', color: editandoEmailId === email.id ? '#fff' : '#333', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>{editandoEmailId === email.id ? 'Editando' : 'Editar'}</button>
-                    <button onClick={() => deletarCard(email.id)} style={{ padding: '5px', fontSize: '0.75rem', background: '#ffeeba', color: '#856404', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Excluir</button>
+                    {/* <button onClick={() => deletarCard(email.id)} style={{ padding: '5px', fontSize: '0.75rem', background: '#ffeeba', color: '#856404', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Excluir</button> */}
                   </div>
                   <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginTop: '5px' }}>
                     <button onClick={() => abrirModalEnvios(email)} style={{ flex: 1, padding: '5px', fontSize: '0.75rem', background: '#6f42c1', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}><i className="fa-solid fa-paper-plane"></i> Fila</button>
@@ -436,7 +436,7 @@ export function Disparos() {
                   
                   <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', borderTop: '1px dashed #ddd', paddingTop: '10px', marginTop: '5px' }}>
                     <button onClick={() => carregarParaEdicao(email)} style={{ flex: 1, padding: '5px', fontSize: '0.75rem', background: editandoEmailId === email.id ? '#dc3545' : '#e9ecef', color: editandoEmailId === email.id ? '#fff' : '#333', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>{editandoEmailId === email.id ? 'Editando' : 'Editar'}</button>
-                    <button onClick={() => deletarCard(email.id)} style={{ padding: '5px', fontSize: '0.75rem', background: '#ffeeba', color: '#856404', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Excluir</button>
+                    {/* <button onClick={() => deletarCard(email.id)} style={{ padding: '5px', fontSize: '0.75rem', background: '#ffeeba', color: '#856404', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Excluir</button> */}
                   </div>
                   <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginTop: '5px' }}>
                     <button onClick={() => abrirModalEnvios(email)} style={{ flex: 1, padding: '5px', fontSize: '0.75rem', background: '#6f42c1', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}><i className="fa-solid fa-paper-plane"></i> Fila</button>
@@ -470,7 +470,7 @@ export function Disparos() {
                   
                   <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', borderTop: '1px dashed #ddd', paddingTop: '10px', marginTop: '5px' }}>
                     <button onClick={() => carregarParaEdicao(email)} style={{ flex: 1, padding: '5px', fontSize: '0.75rem', background: editandoEmailId === email.id ? '#fd7e14' : '#e9ecef', color: editandoEmailId === email.id ? '#fff' : '#333', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>{editandoEmailId === email.id ? 'Editando' : 'Editar'}</button>
-                    <button onClick={() => deletarCard(email.id)} style={{ padding: '5px', fontSize: '0.75rem', background: '#ffeeba', color: '#856404', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Excluir</button>
+                    {/* <button onClick={() => deletarCard(email.id)} style={{ padding: '5px', fontSize: '0.75rem', background: '#ffeeba', color: '#856404', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Excluir</button> */}
                   </div>
                   <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginTop: '5px' }}>
                     <button onClick={() => abrirModalEnvios(email)} style={{ flex: 1, padding: '5px', fontSize: '0.75rem', background: '#6f42c1', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}><i className="fa-solid fa-paper-plane"></i> Fila</button>
