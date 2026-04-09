@@ -1,3 +1,4 @@
+// src/pages/Disparos.jsx
 import { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import SunEditorModule from 'suneditor-react';
@@ -236,7 +237,7 @@ export function Disparos() {
     } catch (erro) { alert('Erro ao alterar status do motor.'); }
   }
 
-  // --- NOVA FUNÇÃO DE LIGAR/DESLIGAR EMAIL ---
+  // LIGAR / DESLIGAR EMAIL
   async function alternarStatusEmail(email) {
     const statusAtual = email.ativo === false ? false : true;
     const novoStatus = !statusAtual;
@@ -254,7 +255,7 @@ export function Disparos() {
         titulo_email: email.titulo_email,
         cabecalho_email: email.cabecalho_email,
         html_email: email.html_email,
-        ativo: novoStatus // Manda o novo status
+        ativo: novoStatus 
       };
       
       await axios.put(`${API_URL}/sequencia-emails/${email.id}`, payload, getHeaders());
@@ -276,6 +277,16 @@ export function Disparos() {
 
     setSalvandoConfig(true);
 
+    // ============================================================================
+    // A MÁGICA DE CORREÇÃO: SANITIZAÇÃO DE HTML (Resolve Bug de Cliques/Fila)
+    // ============================================================================
+    // Mesmo que o usuário tenha copiado o email de outra etapa, ou alterado a ordem na tela,
+    // este regex substitui forçadamente as variáveis de rastreio para apontarem para o funil correto antes de salvar.
+    let htmlCorrigido = emailCru;
+    htmlCorrigido = htmlCorrigido.replace(/([?&]|&amp;)etapa=[^&"']*/g, `$1etapa=${ordemEtapa}`);
+    htmlCorrigido = htmlCorrigido.replace(/([?&]|&amp;)tipo=[^&"']*/g, `$1tipo=${tipoFunil}`);
+    htmlCorrigido = htmlCorrigido.replace(/([?&]|&amp;)curso=[^&"']*/g, `$1curso=${cursoAlvo}`);
+
     const payload = {
       campanha_id: cursoAlvo, 
       tipo_funil: tipoFunil, 
@@ -286,7 +297,7 @@ export function Disparos() {
       cargo_alvo: 'Todos', 
       titulo_email: tituloemail, 
       cabecalho_email: cabecalhoEmail, 
-      html_email: emailCru,
+      html_email: htmlCorrigido, // Envia o HTML blindado contra erros!
       ativo: emailAtivo
     };
 
@@ -388,7 +399,6 @@ export function Disparos() {
             <Subtitle>Configure as regras e horários dos e-mails automatizados.</Subtitle>
           </div>
           
-          {/* BOTÃO DROPDOWN NOVO (IDÊNTICO À DASHBOARD) */}
           <FilterPillWrapper ref={dropdownRef}>
             <FilterButton 
               $hasValue={!!cursoAlvo} 
@@ -830,12 +840,12 @@ const FilterPillWrapper = styled.div`
   position: relative; display: inline-block;
 `;
 const FilterButton = styled.button`
-  display: flex; align-items: center; background: ${props => props.$hasValue ? '#eef4fa' : '#ffffff'};
-  border: 1px solid ${props => props.$hasValue ? '#b8cde1' : '#cbd5e1'}; color: #2c3e50; padding: 10px 18px; border-radius: 50px; font-size: 0.95rem; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+  display: flex; align-items: center; background: ${props => props.$hasValue ? '#ffffff' : '#f8fafc'};
+  border: 1px solid ${props => props.$hasValue ? '#007bff' : '#cbd5e1'}; color: #2c3e50; padding: 10px 18px; border-radius: 50px; font-size: 0.95rem; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 2px 5px rgba(0,0,0,0.02);
 
   &:hover { background: #e7f3ff; border-color: #007bff; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,123,255,0.1); }
   span { margin: 0 10px; strong { color: #007bff; } }
-  .icon { color: #6c757d; font-size: 1.05rem; }
+  .icon { color: #007bff; font-size: 1.05rem; }
   .arrow { color: #007bff; font-size: 0.8rem; }
 `;
 

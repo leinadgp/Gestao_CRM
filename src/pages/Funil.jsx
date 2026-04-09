@@ -123,6 +123,7 @@ export function Funil() {
   }
 
   async function carregarDadosBase() {
+    setCarregando(true);
     try {
       const [resEmp, resC, resCamp, resEquipe] = await Promise.all([
         axios.get(`${API_URL}/empresas`, getHeaders()),
@@ -130,8 +131,27 @@ export function Funil() {
         axios.get(`${API_URL}/campanhas`, getHeaders()),
         axios.get(`${API_URL}/usuarios/equipe`, getHeaders())
       ]);
-      setEmpresas(resEmp.data); setContatos(resC.data); setCampanhas(resCamp.data); setEquipe(resEquipe.data);
-    } catch (erro) { console.error(erro); }
+      setEmpresas(resEmp.data); 
+      setContatos(resC.data); 
+      
+      const todasCampanhas = resCamp.data;
+      setCampanhas(todasCampanhas); 
+      setEquipe(resEquipe.data);
+
+      // AUTO-SELECIONAR A PRIMEIRA CAMPANHA ATIVA (NÃO ARQUIVADA)
+      if (todasCampanhas.length > 0) {
+        const primeiraAtiva = todasCampanhas.find(c => c.arquivada !== true);
+        if (primeiraAtiva) {
+          setFiltroCampanha(String(primeiraAtiva.id));
+        } else {
+          setFiltroCampanha(String(todasCampanhas[0].id)); // Se todas arquivadas, pega a primeira
+        }
+      }
+    } catch (erro) { 
+      console.error(erro); 
+    } finally {
+      setCarregando(false);
+    }
   }
 
   async function carregarFunilDaCampanha(campanhaId) {
@@ -339,14 +359,11 @@ export function Funil() {
             <FilterPillWrapper ref={dropdownCampanhaRef}>
               <FilterButton 
                 $hasValue={!!filtroCampanha} 
-                $isPrimary
                 onClick={() => setDropdownCampanhaAberto(!dropdownCampanhaAberto)}
               >
-                <i className="fa-solid fa-layer-group icon" style={{color: '#fff'}}></i> 
-                <span style={{color: '#fff'}}>
-                  Funil: <strong>{campanhaSelecionadaObj ? campanhaSelecionadaObj.nome : '-- Selecione o Curso --'}</strong>
-                </span>
-                <i className={`fa-solid fa-chevron-${dropdownCampanhaAberto ? 'up' : 'down'} arrow`} style={{color: '#fff'}}></i>
+                <i className="fa-solid fa-layer-group icon"></i> 
+                <span>Funil (Curso): <strong>{campanhaSelecionadaObj ? campanhaSelecionadaObj.nome : '-- Selecione o Curso --'}</strong></span>
+                <i className={`fa-solid fa-chevron-${dropdownCampanhaAberto ? 'up' : 'down'} arrow`}></i>
               </FilterButton>
               
               {dropdownCampanhaAberto && (
@@ -357,7 +374,7 @@ export function Funil() {
                       $active={filtroCampanha === String(c.id)} 
                       onClick={() => { setFiltroCampanha(String(c.id)); setDropdownCampanhaAberto(false); }}
                     >
-                      {c.nome}
+                      {c.nome} {c.arquivada ? '(Arquivada)' : ''}
                     </CustomDropdownItem>
                   ))}
                 </CustomDropdownMenu>
@@ -402,7 +419,7 @@ export function Funil() {
                       if (op.status === 'tarefa') statusConfig = { border: '#6f42c1', bg: '#f3e8ff' };
                       if (op.status === 'ganho' || op.status === 'inscricao') statusConfig = { border: '#195326', bg: '#e7f3ff' };
                       if (op.status === 'interessada') statusConfig = { border: '#5bd477', bg: '#e7f3ff' };
-                      if (op.status === 'avaliar') statusConfig = { border: '#cefaab', bg: '#e7f3ff' };
+                      if (op.status === 'avaliar') statusConfig = { border: '#cefaab', bg: '#e9f7ef' };
                       if (op.status === 'perdido') statusConfig = { border: '#dc3545', bg: '#fdecea' };
                       
                       let idsModsCard = [];
@@ -475,7 +492,7 @@ export function Funil() {
                       <option value="avaliar">🔵 Avaliar</option>
                       <option value="interessada">🟢 Interessada</option>
                       <option value="inscricao">🏆 Inscrição (Ganho)</option>
-                      <option value="ganho">🏆 Vendido (Ganho)</option>
+                      <option value="ganho">🏆 Vendido </option>
                       <option value="tarefa">🟣 Tarefa</option>
                       <option value="naoatendeu">🟠 Não Atendeu</option>
                       <option value="naofunciona">🟡 Não Funciona</option>
@@ -787,23 +804,24 @@ const FilterPillWrapper = styled.div`
   position: relative; display: inline-block;
 `;
 const FilterButton = styled.button`
-  display: flex; align-items: center; background: ${props => props.$isPrimary ? '#007bff' : (props.$hasValue ? '#eef4fa' : '#ffffff')};
-  border: 1px solid ${props => props.$isPrimary ? '#0056b3' : (props.$hasValue ? '#b8cde1' : '#cbd5e1')}; 
-  color: ${props => props.$isPrimary ? '#ffffff' : '#2c3e50'}; 
-  padding: 10px 18px; border-radius: 50px; font-size: 0.95rem; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  display: flex; align-items: center; background: ${props => props.$hasValue ? '#ffffff' : '#f8fafc'};
+  border: 1px solid ${props => props.$hasValue ? '#007bff' : '#cbd5e1'}; 
+  color: #2c3e50; 
+  padding: 10px 18px; border-radius: 50px; font-size: 0.95rem; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 2px 5px rgba(0,0,0,0.02);
 
   &:hover { 
-    background: ${props => props.$isPrimary ? '#0056b3' : '#e7f3ff'};
-    transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,123,255,0.2); 
+    background: #e7f3ff;
+    border-color: #007bff;
+    transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,123,255,0.1); 
   }
 
-  span { margin: 0 10px; font-weight: 600; strong { font-weight: 800;} }
-  .icon { font-size: 1.05rem; }
-  .arrow { font-size: 0.8rem; }
+  span { margin: 0 10px; font-weight: 600; strong { color: #007bff; font-weight: 800;} }
+  .icon { color: #007bff; font-size: 1.05rem; }
+  .arrow { color: #007bff; font-size: 0.8rem; }
 `;
 
 const CustomDropdownMenu = styled.ul`
-  position: absolute; top: calc(100% + 8px); left: 0; background: #ffffff; border: 1px solid #edf2f9; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); min-width: 250px; max-height: 300px; overflow-y: auto; z-index: 1000; padding: 8px 0; list-style: none; margin: 0; animation: fadeInDown 0.2s ease-out;
+  position: absolute; top: calc(100% + 8px); right: 0; background: #ffffff; border: 1px solid #edf2f9; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); min-width: 250px; max-height: 300px; overflow-y: auto; z-index: 1000; padding: 8px 0; list-style: none; margin: 0; animation: fadeInDown 0.2s ease-out;
   @keyframes fadeInDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 `;
 const CustomDropdownItem = styled.li`
@@ -868,7 +886,7 @@ const SellerBadge = styled.div`
 
 // --- MODAIS GERAIS ---
 const ModalOverlay = styled.div`
-  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; z-index: 9998;
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; z-index: 9998; padding: 20px;
 `;
 
 const ModalContent = styled.div`
@@ -922,13 +940,13 @@ const Select = styled.select`
   background-color: ${props => {
     switch(props.$status) {
       case 'naofunciona': return '#fff9db';
-      case 'naoatendeu': return '#fff4e6';
-      case 'tarefa': return '#f3e8ff';
-      case 'inscricao': case 'ganho': return '#e6f4ea';
+      case 'naoatendeu' : return '#fff4e6';
+      case 'tarefa'     : return '#f3e8ff';
+      case 'ganho'      : return '#e6f4ea';
       case 'interessada': return '#e9f7ef';
-      case 'avaliar': return '#e7f3ff';
-      case 'perdido': return '#fdecea';
-      default: return '#fff';
+      case 'avaliar'    : return '#e9f7ef';
+      case 'perdido'    : return '#fdecea';
+      default           : return '#fff';
     }
   }};
 `;
