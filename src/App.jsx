@@ -11,6 +11,7 @@ import { Disparos } from './pages/Disparos.jsx';
 import { Campanhas } from './pages/Campanhas.jsx';
 import { Dashboard } from './pages/Dashboard.jsx';
 import { LandingPages } from './pages/LandingPages.jsx';
+import { Configuracoes } from './pages/Configuracoes.jsx';
 
 function RotaProtegida({ children }) {
   const token = localStorage.getItem('token');
@@ -77,6 +78,11 @@ export function App() {
         <Route path="/landing-pages" element={
           <RotaProtegida>
             <LandingPages />
+          </RotaProtegida>
+        } />
+        <Route path="/configuracoes" element={
+          <RotaProtegida>
+            <Configuracoes />
           </RotaProtegida>
         } />
       </Routes>

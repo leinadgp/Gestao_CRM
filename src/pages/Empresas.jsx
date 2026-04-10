@@ -1,27 +1,33 @@
 // src/pages/Empresas.jsx
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import styled from 'styled-components';
 import { Header } from '../componentes/Header.jsx';
+
+// --- UTILITÁRIO DE SEGURANÇA PARA JSON ---
+const parseJSONSeguro = (dadoString, fallback = []) => {
+  if (!dadoString) return fallback;
+  if (typeof dadoString !== 'string') return dadoString;
+  try { return JSON.parse(dadoString); } catch { return fallback; }
+};
 
 export function Empresas() {
   const [empresas, setEmpresas] = useState([]);
   const [carregando, setCarregando] = useState(true);
   
   const perfilUsuario = localStorage.getItem('perfil');
+  const API_URL = import.meta.env?.VITE_API_URL || 'https://server-js-gestao.onrender.com';
 
   // === FILTROS DA TABELA ===
   const [buscaGeral, setBuscaGeral] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('');
   const [filtroAssessorada, setFiltroAssessorada] = useState('');
 
-  // Controle de Dropdowns de Filtro
   const [dropdownEstadoAberto, setDropdownEstadoAberto] = useState(false);
   const [dropdownAssessoradaAberto, setDropdownAssessoradaAberto] = useState(false);
   const dropdownEstadoRef = useRef(null);
   const dropdownAssessoradaRef = useRef(null);
 
-  // Controle de Paginação
   const [paginaAtual, setPaginaAtual] = useState(1);
   const itensPorPagina = 15;
   
@@ -55,13 +61,12 @@ export function Empresas() {
   const [notasOp, setNotasOp] = useState([]);
   const [carregandoNotas, setCarregandoNotas] = useState(false);
 
-  const API_URL = 'https://server-js-gestao.onrender.com';
+  const listaEstados = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
 
   useEffect(() => {
     buscarEmpresas();
   }, []);
 
-  // Fechar dropdowns ao clicar fora
   useEffect(() => {
     const handleClickFora = (event) => {
       if (dropdownEstadoRef.current && !dropdownEstadoRef.current.contains(event.target)) setDropdownEstadoAberto(false);
@@ -76,7 +81,7 @@ export function Empresas() {
     return { headers: { Authorization: `Bearer ${token}` } };
   }
 
-  // Funções de Formatação
+  // --- FUNÇÕES DE FORMATAÇÃO ---
   function formatarData(dataIso) {
     if (!dataIso) return '-';
     return new Date(dataIso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -96,6 +101,7 @@ export function Empresas() {
     return telefoneStr.replace(/[^0-9]/g, '');
   }
 
+  // --- REQUISIÇÕES ---
   async function popularEstado() {
     const uf = prompt("Digite a UF do estado que deseja popular (Ex: RS, SC, SP):");
     if (!uf || uf.length !== 2) return alert("UF Inválida");
@@ -126,6 +132,19 @@ export function Empresas() {
     }
   }
 
+  async function recarregarVisao360(id) {
+    setCarregandoDetalhes(true);
+    try {
+      const resposta = await axios.get(`${API_URL}/empresas/${id}/detalhes`, getHeaders());
+      setDetalhesEmpresa(resposta.data);
+    } catch (erro) {
+      alert('Erro ao carregar os detalhes desta prefeitura.');
+    } finally {
+      setCarregandoDetalhes(false);
+    }
+  }
+
+  // --- AÇÕES DOS MODAIS ---
   function abrirModalNovo() {
     setEditandoId(null); 
     setNome(''); setEstado(''); setCidade(''); setTelefones(''); setHorarioFuncionamento(''); setAssessorada(false);
@@ -134,7 +153,7 @@ export function Empresas() {
     setMostrarModalEmpresa(true);
   }
 
-  async function abrirModalDetalhes(emp) {
+  function abrirModalDetalhes(emp) {
     setEditandoId(emp.id);
     setNome(emp.nome);
     setEstado(emp.estado || '');
@@ -147,18 +166,6 @@ export function Empresas() {
     setMostrarModalEmpresa(true);
     
     recarregarVisao360(emp.id);
-  }
-
-  async function recarregarVisao360(id) {
-    setCarregandoDetalhes(true);
-    try {
-      const resposta = await axios.get(`${API_URL}/empresas/${id}/detalhes`, getHeaders());
-      setDetalhesEmpresa(resposta.data);
-    } catch (erro) {
-      alert('Erro ao carregar os detalhes desta prefeitura.');
-    } finally {
-      setCarregandoDetalhes(false);
-    }
   }
 
   async function abrirDetalhesOp(op) {
@@ -175,6 +182,22 @@ export function Empresas() {
     }
   }
 
+  function abrirDetalheContato(contato) {
+    setContatoSelecionado(contato);
+    setContatoNome(contato.nome);
+    setContatoCargo(contato.cargo || '');
+    
+    const emails = parseJSONSeguro(contato.emails_json, []);
+    setContatoEmails(emails.join(', '));
+    
+    const tels = parseJSONSeguro(contato.telefones_json, []);
+    setContatoTelefonesRapido(tels.join(', '));
+    
+    setEditandoContatoRapido(false);
+    setMostrarModalContato(true);
+  }
+
+  // --- SALVAMENTO E EXCLUSÃO ---
   async function salvarEmpresa(e) {
     e.preventDefault();
     const dados = { nome, estado, cidade, telefones, horario_funcionamento: horarioFuncionamento, assessorada };
@@ -204,22 +227,6 @@ export function Empresas() {
     }
   }
 
-  function abrirDetalheContato(contato) {
-    setContatoSelecionado(contato);
-    setContatoNome(contato.nome);
-    setContatoCargo(contato.cargo || '');
-    try {
-      const emails = typeof contato.emails_json === 'string' ? JSON.parse(contato.emails_json) : (contato.emails_json || []);
-      setContatoEmails(emails.join(', '));
-    } catch(e) { setContatoEmails(''); }
-    try {
-      const tels = typeof contato.telefones_json === 'string' ? JSON.parse(contato.telefones_json) : (contato.telefones_json || []);
-      setContatoTelefonesRapido(tels.join(', '));
-    } catch(e) { setContatoTelefonesRapido(''); }
-    setEditandoContatoRapido(false);
-    setMostrarModalContato(true);
-  }
-
   async function salvarContatoRapido(e) {
     e.preventDefault();
     const emailsArr = contatoEmails.split(',').map(m => m.trim()).filter(m => m);
@@ -241,44 +248,61 @@ export function Empresas() {
     }
   }
 
-  const empresasFiltradas = empresas.filter(emp => {
+  // ==========================================
+  // MEMOIZAÇÕES DE PERFORMANCE
+  // ==========================================
+  const empresasFiltradas = useMemo(() => {
     const termo = buscaGeral.toLowerCase();
-    const matchBusca = (emp.nome || '').toLowerCase().includes(termo) ||
-                       (emp.cidade || '').toLowerCase().includes(termo);
-    const matchEstado = filtroEstado === '' || (emp.estado || '').toUpperCase() === filtroEstado.toUpperCase();
-    let matchAssessorada = true;
-    if (filtroAssessorada === 'true') matchAssessorada = emp.assessorada === true;
-    if (filtroAssessorada === 'false') matchAssessorada = emp.assessorada !== true;
-    return matchBusca && matchEstado && matchAssessorada;
-  });
+    return empresas.filter(emp => {
+      const matchBusca = (emp.nome || '').toLowerCase().includes(termo) ||
+                         (emp.cidade || '').toLowerCase().includes(termo);
+      const matchEstado = filtroEstado === '' || (emp.estado || '').toUpperCase() === filtroEstado.toUpperCase();
+      
+      let matchAssessorada = true;
+      if (filtroAssessorada === 'true') matchAssessorada = emp.assessorada === true;
+      if (filtroAssessorada === 'false') matchAssessorada = emp.assessorada !== true;
+      
+      return matchBusca && matchEstado && matchAssessorada;
+    });
+  }, [empresas, buscaGeral, filtroEstado, filtroAssessorada]);
 
-  const empresasOrdenadas = [...empresasFiltradas].sort((a, b) => {
-    const estadoA = a.estado || '';
-    const estadoB = b.estado || '';
-    if (estadoA === estadoB) return (a.cidade || '').localeCompare(b.cidade || '');
-    return estadoA.localeCompare(estadoB);
-  });
+  const empresasOrdenadas = useMemo(() => {
+    return [...empresasFiltradas].sort((a, b) => {
+      const estadoA = a.estado || '';
+      const estadoB = b.estado || '';
+      if (estadoA === estadoB) return (a.cidade || '').localeCompare(b.cidade || '');
+      return estadoA.localeCompare(estadoB);
+    });
+  }, [empresasFiltradas]);
+
+  const itensAtuais = useMemo(() => {
+    return empresasOrdenadas.slice((paginaAtual - 1) * itensPorPagina, paginaAtual * itensPorPagina);
+  }, [empresasOrdenadas, paginaAtual, itensPorPagina]);
 
   const totalPaginas = Math.ceil(empresasOrdenadas.length / itensPorPagina);
-  const itensAtuais = empresasOrdenadas.slice((paginaAtual - 1) * itensPorPagina, paginaAtual * itensPorPagina);
 
-  const statusSucesso = ['ganho', 'inscricao'];
-  const statusPerdido = ['perdido', 'naofunciona', 'naoatendeu'];
-  const statusAndamento = ['aberto', 'tarefa', 'avaliar', 'interessada'];
+  const kpisEmpresa = useMemo(() => {
+    let valAndamento = 0, valGanho = 0, valPerdido = 0, totalOportunidades = 0;
+    
+    if (detalhesEmpresa && detalhesEmpresa.oportunidades) {
+      const statusSucesso = ['ganho', 'inscricao'];
+      const statusPerdido = ['perdido', 'naofunciona', 'naoatendeu'];
+      const statusAndamento = ['aberto', 'tarefa', 'avaliar', 'interessada'];
 
-  let valAndamento = 0, valGanho = 0, valPerdido = 0, totalOportunidades = 0;
-  if (detalhesEmpresa && detalhesEmpresa.oportunidades) {
-    totalOportunidades = detalhesEmpresa.oportunidades.length;
-    detalhesEmpresa.oportunidades.forEach(op => {
-      const v = Number(op.valor) || 0;
-      if (statusSucesso.includes(op.status)) valGanho += v;
-      else if (statusPerdido.includes(op.status)) valPerdido += v;
-      else if (statusAndamento.includes(op.status)) valAndamento += v; 
-    });
-  }
+      totalOportunidades = detalhesEmpresa.oportunidades.length;
+      detalhesEmpresa.oportunidades.forEach(op => {
+        const v = Number(op.valor) || 0;
+        if (statusSucesso.includes(op.status)) valGanho += v;
+        else if (statusPerdido.includes(op.status)) valPerdido += v;
+        else if (statusAndamento.includes(op.status)) valAndamento += v; 
+      });
+    }
+    return { valAndamento, valGanho, valPerdido, totalOportunidades };
+  }, [detalhesEmpresa]);
 
-  const listaEstados = ['RS', 'SC', 'PR', 'SP', 'MG', 'RJ', 'ES', 'BA', 'GO', 'MS', 'MT'];
-
+  // ==========================================
+  // RENDERIZAÇÃO
+  // ==========================================
   return (
     <>
       <Header titulo="Gestão de Empresas" />
@@ -444,16 +468,16 @@ export function Empresas() {
                     <>
                       <KpiGrid>
                         <KpiCard $color="#007bff">
-                          <div className="label">EM ANDAMENTO ({totalOportunidades})</div>
-                          <div className="val">{formatarMoeda(valAndamento)}</div>
+                          <div className="label">EM ANDAMENTO ({kpisEmpresa.totalOportunidades})</div>
+                          <div className="val">{formatarMoeda(kpisEmpresa.valAndamento)}</div>
                         </KpiCard>
                         <KpiCard $color="#28a745" $bg="#f4fbf5">
                           <div className="label">TOTAL VENDIDO</div>
-                          <div className="val">{formatarMoeda(valGanho)}</div>
+                          <div className="val">{formatarMoeda(kpisEmpresa.valGanho)}</div>
                         </KpiCard>
                         <KpiCard $color="#dc3545">
                           <div className="label">TOTAL PERDIDO</div>
-                          <div className="val">{formatarMoeda(valPerdido)}</div>
+                          <div className="val">{formatarMoeda(kpisEmpresa.valPerdido)}</div>
                         </KpiCard>
                       </KpiGrid>
 
@@ -713,7 +737,19 @@ const FilterButton = styled.button`
   &:hover { background: #e7f3ff; border-color: #007bff; }
 `;
 const CustomDropdownMenu = styled.ul`
-  position: absolute; top: calc(100% + 8px); right: 0; background: #fff; border: 1px solid #edf2f9; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); min-width: 230px; max-height: 300px; overflow-y: auto; z-index: 100; list-style: none; padding: 8px 0; margin: 0; animation: fadeInDown 0.2s ease-out;
+  position: absolute; top: calc(100% + 8px); right: 0; background: #fff; border: 1px solid #edf2f9; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); min-width: 230px; 
+  
+  max-height: 250px; 
+  overflow-y: auto; 
+  overflow-x: hidden;
+  
+  z-index: 100; list-style: none; padding: 8px 0; margin: 0; animation: fadeInDown 0.2s ease-out;
+  
+  &::-webkit-scrollbar { width: 6px; }
+  &::-webkit-scrollbar-track { background: #f8fafc; border-radius: 12px; margin: 8px 0; }
+  &::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 12px; }
+  &::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
   @keyframes fadeInDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 `;
 const CustomDropdownItem = styled.li`

@@ -1,35 +1,40 @@
 // src/pages/Funil.jsx
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import styled from 'styled-components';
 import { Header } from '../componentes/Header.jsx';
 
+// --- UTILITÁRIOS ---
+const parseJSONSeguro = (dadoString, fallback = []) => {
+  if (!dadoString) return fallback;
+  if (typeof dadoString !== 'string') return dadoString;
+  try { return JSON.parse(dadoString); } catch { return fallback; }
+};
+
 export function Funil() {
+  // --- ESTADOS BASE ---
   const [etapas, setEtapas] = useState([]);
   const [oportunidades, setOportunidades] = useState([]);
   const [empresas, setEmpresas] = useState([]);
   const [contatos, setContatos] = useState([]);
   const [campanhas, setCampanhas] = useState([]);
-
   const [equipe, setEquipe] = useState([]);
-  const perfilUsuario = localStorage.getItem('perfil');
-  const meuUsuarioId = localStorage.getItem('usuarioId');
 
+  // --- CONTROLES DE TELA E BUSCA ---
   const [carregando, setCarregando] = useState(false);
-  
-  // === NOVO DROPDOWN DE CAMPANHA ===
   const [filtroCampanha, setFiltroCampanha] = useState('');
+  const [buscaGeral, setBuscaGeral] = useState(''); // Estado para o campo de pesquisa do Kanban
   const [dropdownCampanhaAberto, setDropdownCampanhaAberto] = useState(false);
   const dropdownCampanhaRef = useRef(null);
 
-  const [modulosCampanha, setModulosCampanha] = useState([]);
-  const [modulosSelecionados, setModulosSelecionados] = useState([]);
+  // --- DADOS DO USUÁRIO ---
+  const perfilUsuario = localStorage.getItem('perfil');
+  const meuUsuarioId = localStorage.getItem('usuarioId');
+  const API_URL = import.meta.env?.VITE_API_URL || 'https://server-js-gestao.onrender.com';
 
-  const [desconto, setDesconto] = useState(0);
-
+  // --- ESTADOS DA OPORTUNIDADE (MODAL PRINCIPAL) ---
   const [mostrarModal, setMostrarModal] = useState(false);
   const [editandoId, setEditandoId] = useState(null);
-
   const [titulo, setTitulo] = useState('');
   const [valor, setValor] = useState('');
   const [empresaId, setEmpresaId] = useState('');
@@ -38,13 +43,20 @@ export function Funil() {
   const [observacoes, setObservacoes] = useState('');
   const [statusOp, setStatusOp] = useState('aberto');
   const [vendedorId, setVendedorId] = useState('');
+  const [vendedorOriginal, setVendedorOriginal] = useState(''); // Guarda o vendedor original para auditoria
+  const [desconto, setDesconto] = useState(0);
 
+  // --- ESTADOS DE MÓDULOS ---
+  const [modulosCampanha, setModulosCampanha] = useState([]);
+  const [modulosSelecionados, setModulosSelecionados] = useState([]);
+
+  // --- ESTADOS DE NOTAS ---
   const [notas, setNotas] = useState([]);
   const [novaNota, setNovaNota] = useState('');
   const [editandoNotaId, setEditandoNotaId] = useState(null);
   const [textoNotaEditada, setTextoNotaEditada] = useState('');
 
-  // === ESTADOS DO SUB-MODAL DE CONTATO ===
+  // --- ESTADOS DO SUB-MODAL DE CONTATO ---
   const [mostrarModalContato, setMostrarModalContato] = useState(false);
   const [contatoSelecionado, setContatoSelecionado] = useState(null);
   const [editandoContatoRapido, setEditandoContatoRapido] = useState(false);
@@ -53,6 +65,7 @@ export function Funil() {
   const [contatoEmails, setContatoEmails] = useState('');
   const [contatoTelefones, setContatoTelefones] = useState('');
 
+  // --- AUTOCOMPLETES ---
   const [buscaEmpresaNoModal, setBuscaEmpresaNoModal] = useState('');
   const [mostrarDropdownEmpresa, setMostrarDropdownEmpresa] = useState(false);
   const dropdownEmpresaRef = useRef(null);
@@ -61,33 +74,56 @@ export function Funil() {
   const [mostrarDropdownContato, setMostrarDropdownContato] = useState(false);
   const dropdownContatoRef = useRef(null);
 
+  // --- DRAG TO SCROLL (KANBAN) ---
   const boardRef = useRef(null);
   const isDown = useRef(false);
   const startX = useRef(0);
   const scrollLeft = useRef(0);
 
-  const API_URL = 'https://server-js-gestao.onrender.com';
+  // ==========================================
+  // EFEITOS
+  // ==========================================
+  
+  function getHeaders() {
+    const token = localStorage.getItem('token');
+    return { headers: { Authorization: `Bearer ${token}` } };
+  }
 
-  useEffect(() => { carregarDadosBase(); }, []);
+  useEffect(() => { 
+    carregarDadosBase(); 
+  }, []);
 
   useEffect(() => {
     if (filtroCampanha) {
       carregarFunilDaCampanha(filtroCampanha);
       carregarModulosDaCampanha(filtroCampanha);
     } else {
-      setEtapas([]); setOportunidades([]); setModulosCampanha([]);
+      setEtapas([]); 
+      setOportunidades([]); 
+      setModulosCampanha([]);
     }
   }, [filtroCampanha]);
 
+  // Click outside para fechar dropdowns
   useEffect(() => {
     const handleClickFora = (event) => {
       if (dropdownEmpresaRef.current && !dropdownEmpresaRef.current.contains(event.target)) {
         setMostrarDropdownEmpresa(false);
-        if (empresaId) { const atual = empresas.find(e => e.id === parseInt(empresaId)); if (atual) setBuscaEmpresaNoModal(atual.nome); } else { setBuscaEmpresaNoModal(''); }
+        if (empresaId) { 
+          const atual = empresas.find(e => e.id === parseInt(empresaId)); 
+          if (atual) setBuscaEmpresaNoModal(atual.nome); 
+        } else { 
+          setBuscaEmpresaNoModal(''); 
+        }
       }
       if (dropdownContatoRef.current && !dropdownContatoRef.current.contains(event.target)) {
         setMostrarDropdownContato(false);
-        if (contatoId) { const atual = contatos.find(c => c.id === parseInt(contatoId)); if (atual) setBuscaContatoNoModal(atual.nome); } else { setBuscaContatoNoModal(''); }
+        if (contatoId) { 
+          const atual = contatos.find(c => c.id === parseInt(contatoId)); 
+          if (atual) setBuscaContatoNoModal(atual.nome); 
+        } else { 
+          setBuscaContatoNoModal(''); 
+        }
       }
       if (dropdownCampanhaRef.current && !dropdownCampanhaRef.current.contains(event.target)) {
         setDropdownCampanhaAberto(false);
@@ -97,12 +133,10 @@ export function Funil() {
     return () => document.removeEventListener('mousedown', handleClickFora);
   }, [empresaId, empresas, contatoId, contatos]);
 
-  function getHeaders() {
-    const token = localStorage.getItem('token');
-    return { headers: { Authorization: `Bearer ${token}` } };
-  }
 
-  // === ARRASTAR KANBAN ===
+  // ==========================================
+  // LÓGICA DO MOUSE (DRAG BOARD)
+  // ==========================================
   function onBoardMouseDown(e) {
     if (e.target.closest('.kanban-card')) return;
     isDown.current = true;
@@ -122,15 +156,21 @@ export function Funil() {
     if (boardRef.current) { boardRef.current.scrollLeft = scrollLeft.current - walk; }
   }
 
+
+  // ==========================================
+  // FETCH DE DADOS DA API
+  // ==========================================
   async function carregarDadosBase() {
     setCarregando(true);
     try {
+      const config = getHeaders();
       const [resEmp, resC, resCamp, resEquipe] = await Promise.all([
-        axios.get(`${API_URL}/empresas`, getHeaders()),
-        axios.get(`${API_URL}/contatos`, getHeaders()),
-        axios.get(`${API_URL}/campanhas`, getHeaders()),
-        axios.get(`${API_URL}/usuarios/equipe`, getHeaders())
+        axios.get(`${API_URL}/empresas`, config),
+        axios.get(`${API_URL}/contatos`, config),
+        axios.get(`${API_URL}/campanhas`, config),
+        axios.get(`${API_URL}/usuarios/equipe`, config)
       ]);
+      
       setEmpresas(resEmp.data); 
       setContatos(resC.data); 
       
@@ -138,17 +178,13 @@ export function Funil() {
       setCampanhas(todasCampanhas); 
       setEquipe(resEquipe.data);
 
-      // AUTO-SELECIONAR A PRIMEIRA CAMPANHA ATIVA (NÃO ARQUIVADA)
       if (todasCampanhas.length > 0) {
         const primeiraAtiva = todasCampanhas.find(c => c.arquivada !== true);
-        if (primeiraAtiva) {
-          setFiltroCampanha(String(primeiraAtiva.id));
-        } else {
-          setFiltroCampanha(String(todasCampanhas[0].id)); // Se todas arquivadas, pega a primeira
-        }
+        setFiltroCampanha(primeiraAtiva ? String(primeiraAtiva.id) : String(todasCampanhas[0].id));
       }
     } catch (erro) { 
-      console.error(erro); 
+      console.error('Erro ao buscar dados base do Funil:', erro); 
+      alert('Falha ao carregar dados. Verifique a conexão.');
     } finally {
       setCarregando(false);
     }
@@ -157,12 +193,20 @@ export function Funil() {
   async function carregarFunilDaCampanha(campanhaId) {
     setCarregando(true);
     try {
-      const resEtapas = await axios.get(`${API_URL}/campanhas/${campanhaId}/etapas`, getHeaders());
+      const config = getHeaders();
+      const [resEtapas, resOps] = await Promise.all([
+        axios.get(`${API_URL}/campanhas/${campanhaId}/etapas`, config),
+        axios.get(`${API_URL}/oportunidades`, config)
+      ]);
+      
       setEtapas(resEtapas.data);
-      const resOps = await axios.get(`${API_URL}/oportunidades`, getHeaders());
       const opsDestaCampanha = resOps.data.filter(op => Number(op.campanha_id) === Number(campanhaId));
       setOportunidades(opsDestaCampanha);
-    } catch (erro) { console.error(erro); } finally { setCarregando(false); }
+    } catch (erro) { 
+      console.error(erro); 
+    } finally { 
+      setCarregando(false); 
+    }
   }
 
   async function carregarModulosDaCampanha(campanhaId) {
@@ -172,16 +216,72 @@ export function Funil() {
     } catch (e) { console.error('Erro ao buscar módulos', e); }
   }
 
+
+  // ==========================================
+  // MEMOIZAÇÕES DE ALTA PERFORMANCE
+  // ==========================================
+  
+  const oportunidadesPorEtapa = useMemo(() => {
+    const mapa = {};
+    etapas.forEach(e => mapa[e.id] = []);
+    
+    // Aplica a pesquisa geral na memória
+    const termoBusca = buscaGeral.toLowerCase();
+    const opsFiltradasBusca = oportunidades.filter(op => {
+      const tituloMatch = (op.titulo || '').toLowerCase().includes(termoBusca);
+      const empresaMatch = (op.empresa_nome || '').toLowerCase().includes(termoBusca);
+      const contatoMatch = (op.contato_nome || '').toLowerCase().includes(termoBusca);
+      return tituloMatch || empresaMatch || contatoMatch;
+    });
+
+    opsFiltradasBusca.forEach(op => {
+      if (!mapa[op.etapa_id]) mapa[op.etapa_id] = [];
+      mapa[op.etapa_id].push(op);
+    });
+    return mapa;
+  }, [etapas, oportunidades, buscaGeral]);
+
+  const empresasFiltradasParaSelect = useMemo(() => {
+    const busca = buscaEmpresaNoModal.toLowerCase();
+    return empresas.filter(e => e.nome.toLowerCase().includes(busca));
+  }, [empresas, buscaEmpresaNoModal]);
+
+  const contatosFiltradosParaSelect = useMemo(() => {
+    const busca = buscaContatoNoModal.toLowerCase();
+    const base = empresaId ? contatos.filter(c => c.empresa_id === parseInt(empresaId)) : contatos;
+    return base.filter(c => c.nome.toLowerCase().includes(busca));
+  }, [contatos, empresaId, buscaContatoNoModal]);
+
+  const { subtotalModulos, valorFinalCalculado } = useMemo(() => {
+    const sub = modulosSelecionados.reduce((acc, idMod) => {
+      const m = modulosCampanha.find(mod => mod.id === Number(idMod));
+      return acc + (m ? Number(m.valor || 0) : 0);
+    }, 0);
+    const final = sub * (1 - (Number(desconto) / 100));
+    return { subtotalModulos: sub, valorFinalCalculado: final };
+  }, [modulosSelecionados, modulosCampanha, desconto]);
+
+  const campanhaSelecionadaObj = useMemo(() => {
+    return campanhas.find(c => c.id === parseInt(filtroCampanha));
+  }, [campanhas, filtroCampanha]);
+
+
+  // ==========================================
+  // GERENCIAMENTO DE NOTAS
+  // ==========================================
   async function carregarNotas(opId) {
-    try { const res = await axios.get(`${API_URL}/oportunidades/${opId}/notas`, getHeaders()); setNotas(res.data); }
-    catch (e) { console.error('Erro ao buscar notas', e); }
+    try { 
+      const res = await axios.get(`${API_URL}/oportunidades/${opId}/notas`, getHeaders()); 
+      setNotas(res.data); 
+    } catch (e) { console.error('Erro ao buscar notas', e); }
   }
 
   async function adicionarNota() {
-    if (!novaNota.trim()) return;
+    if (!novaNota.trim() || !editandoId) return;
     try {
       const res = await axios.post(`${API_URL}/oportunidades/${editandoId}/notas`, { nota: novaNota }, getHeaders());
-      setNotas([res.data, ...notas]); setNovaNota('');
+      setNotas([res.data, ...notas]); 
+      setNovaNota('');
     } catch (e) { alert('Erro ao adicionar nota.'); }
   }
 
@@ -192,11 +292,15 @@ export function Funil() {
     if (!textoNotaEditada.trim()) return;
     try {
       const res = await axios.put(`${API_URL}/notas/${id}`, { nota: textoNotaEditada }, getHeaders());
-      setNotas(notas.map(n => n.id === id ? res.data : n)); cancelarEdicaoNota();
+      setNotas(notas.map(n => n.id === id ? res.data : n)); 
+      cancelarEdicaoNota();
     } catch (e) { alert('Erro ao editar a nota.'); }
   }
 
-  // === INTERAÇÃO: ABRIR SUB-MODAL DE CONTATO ===
+
+  // ==========================================
+  // CONTATOS (SUB-MODAL)
+  // ==========================================
   function abrirDetalheContato() {
     if (!contatoId) return;
     const contato = contatos.find(c => c.id === parseInt(contatoId));
@@ -206,21 +310,16 @@ export function Funil() {
     setContatoNome(contato.nome);
     setContatoCargo(contato.cargo || '');
     
-    try {
-      const emails = typeof contato.emails_json === 'string' ? JSON.parse(contato.emails_json) : (contato.emails_json || []);
-      setContatoEmails(emails.join(', '));
-    } catch(e) { setContatoEmails(''); }
+    const emails = parseJSONSeguro(contato.emails_json, []);
+    setContatoEmails(emails.join(', '));
 
-    try {
-      const tels = typeof contato.telefones_json === 'string' ? JSON.parse(contato.telefones_json) : (contato.telefones_json || []);
-      setContatoTelefones(tels.join(', '));
-    } catch(e) { setContatoTelefones(''); }
+    const tels = parseJSONSeguro(contato.telefones_json, []);
+    setContatoTelefones(tels.join(', '));
 
     setEditandoContatoRapido(false);
     setMostrarModalContato(true);
   }
 
-  // === SALVAR EDIÇÃO RÁPIDA DE CONTATO ===
   async function salvarContatoRapido(e) {
     e.preventDefault();
     const emailsArr = contatoEmails.split(',').map(m => m.trim()).filter(m => m);
@@ -235,33 +334,30 @@ export function Funil() {
         empresa_id: empresaId || contatoSelecionado.empresa_id 
       }, getHeaders());
       
-      alert('✅ Contato atualizado com sucesso!');
       setMostrarModalContato(false);
       
       const resC = await axios.get(`${API_URL}/contatos`, getHeaders());
       setContatos(resC.data);
       setBuscaContatoNoModal(contatoNome); 
-
+      alert('Contato atualizado com sucesso!');
     } catch(error) {
       alert(error.response?.data?.erro || 'Erro ao atualizar contato.');
     }
   }
 
-  const empresasFiltradasParaSelect = empresas.filter(e => e.nome.toLowerCase().includes(buscaEmpresaNoModal.toLowerCase()));
-  let baseContatosFiltrados = contatos;
-  if (empresaId) baseContatosFiltrados = contatos.filter(c => c.empresa_id === parseInt(empresaId));
-  const contatosFiltradosParaSelect = baseContatosFiltrados.filter(c => c.nome.toLowerCase().includes(buscaContatoNoModal.toLowerCase()));
 
+  // ==========================================
+  // GESTÃO DA OPORTUNIDADE (MODAL PRINCIPAL)
+  // ==========================================
+  
+  // CORREÇÃO: Força os IDs a serem Number para comparação estrita e marcação correta do checkbox
   function toggleModulo(id) {
-    setModulosSelecionados(prev => prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id]);
+    const numId = Number(id);
+    setModulosSelecionados(prev => {
+      const arrNumeric = prev.map(Number);
+      return arrNumeric.includes(numId) ? arrNumeric.filter(m => m !== numId) : [...arrNumeric, numId];
+    });
   }
-
-  const subtotalModulos = modulosSelecionados.reduce((acc, idMod) => {
-    const m = modulosCampanha.find(mod => mod.id === idMod);
-    return acc + (m ? Number(m.valor || 0) : 0);
-  }, 0);
-
-  const valorFinalCalculado = subtotalModulos * (1 - (Number(desconto) / 100));
 
   function abrirModalNovo() {
     if (!filtroCampanha) return alert("Selecione uma campanha no topo da tela antes de criar uma negociação!");
@@ -274,10 +370,11 @@ export function Funil() {
     setStatusOp('aberto'); 
     setEtapaId(etapas.length > 0 ? etapas[0].id : '');
     setVendedorId(meuUsuarioId || ''); 
+    setVendedorOriginal(meuUsuarioId || ''); // Guarda quem está criando
     setDesconto(0);
     
     if (modulosCampanha.length > 0) {
-      const todosIds = modulosCampanha.map(m => m.id);
+      const todosIds = modulosCampanha.map(m => Number(m.id));
       setModulosSelecionados(todosIds);
       setValor(''); 
     } else {
@@ -290,60 +387,91 @@ export function Funil() {
   }
 
   function abrirModalEdicao(op) {
-    setEditandoId(op.id); setTitulo(op.titulo); setValor(op.valor);
-    setEmpresaId(op.empresa_id || ''); setContatoId(op.contato_id || '');
-    setEtapaId(op.etapa_id); setObservacoes(op.observacoes || '');
-    setStatusOp(op.status || 'aberto'); setVendedorId(op.vendedor_id || '');
+    setEditandoId(op.id); 
+    setTitulo(op.titulo); 
+    setValor(op.valor);
+    setEmpresaId(op.empresa_id || ''); 
+    setContatoId(op.contato_id || '');
+    setEtapaId(op.etapa_id); 
+    setObservacoes(op.observacoes || '');
+    setStatusOp(op.status || 'aberto'); 
+    setVendedorId(op.vendedor_id || '');
+    setVendedorOriginal(op.vendedor_id || ''); // Guarda o dono original para auditoria
     setDesconto(op.desconto || 0);
 
-    let mods = [];
-    try {
-      if (op.modulos_ids) {
-        mods = typeof op.modulos_ids === 'string' ? JSON.parse(op.modulos_ids) : op.modulos_ids;
-        if (!Array.isArray(mods)) mods = [];
-      }
-    } catch (e) { mods = []; }
-
+    const mods = parseJSONSeguro(op.modulos_ids, []).map(Number);
     setModulosSelecionados(mods);
 
-    setBuscaEmpresaNoModal(op.empresa_nome || ''); setBuscaContatoNoModal(op.contato_nome || '');
-    setNotas([]); cancelarEdicaoNota(); carregarNotas(op.id);
+    setBuscaEmpresaNoModal(op.empresa_nome || ''); 
+    setBuscaContatoNoModal(op.contato_nome || '');
+    setNotas([]); 
+    cancelarEdicaoNota(); 
+    carregarNotas(op.id);
     setMostrarModal(true);
-  }
-
-  function formatarMoeda(v) { return Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
-
-  function formatarTelefoneParaLink(telefoneStr) {
-    if (!telefoneStr) return '';
-    return telefoneStr.replace(/[^0-9]/g, '');
   }
 
   async function salvarOportunidade(e) {
     e.preventDefault();
-    const valorEnviar = modulosSelecionados.length > 0 ? valorFinalCalculado : (valor ? parseFloat(valor.toString().replace(/\./g, '').replace(',', '.')) : 0);
+    const valorEnviar = modulosSelecionados.length > 0 
+      ? valorFinalCalculado 
+      : (valor ? parseFloat(valor.toString().replace(/\./g, '').replace(',', '.')) : 0);
 
     const dados = {
-      titulo, valor: valorEnviar, empresa_id: empresaId || null, contato_id: contatoId || null,
-      etapa_id: etapaId, observacoes, campanha_id: filtroCampanha, status: statusOp,
-      vendedor_id: vendedorId || null, modulos_ids: modulosSelecionados,
+      titulo, 
+      valor: valorEnviar, 
+      empresa_id: empresaId || null, 
+      contato_id: contatoId || null,
+      etapa_id: etapaId, 
+      observacoes, 
+      campanha_id: filtroCampanha, 
+      status: statusOp,
+      vendedor_id: vendedorId || null, 
+      modulos_ids: modulosSelecionados.map(Number), // Garante que vai numérico pro banco
       desconto: modulosSelecionados.length > 0 ? Number(desconto) : 0
     };
 
     try {
-      if (editandoId) await axios.put(`${API_URL}/oportunidades/${editandoId}`, dados, getHeaders());
-      else await axios.post(`${API_URL}/oportunidades`, dados, getHeaders());
-      setMostrarModal(false); carregarFunilDaCampanha(filtroCampanha);
-    } catch (erro) { alert('Erro ao salvar oportunidade.'); }
+      if (editandoId) {
+        await axios.put(`${API_URL}/oportunidades/${editandoId}`, dados, getHeaders());
+        
+        // CORREÇÃO: Auditoria de Troca de Vendedor
+        if (String(vendedorId) !== String(vendedorOriginal)) {
+          const nomeNovo = equipe.find(u => String(u.id) === String(vendedorId))?.nome || 'Sem dono';
+          const nomeVelho = equipe.find(u => String(u.id) === String(vendedorOriginal))?.nome || 'Sem dono';
+          
+          await axios.post(`${API_URL}/oportunidades/${editandoId}/notas`, { 
+            nota: `🔄 Transferência de Responsável: A negociação foi alterada de "${nomeVelho}" para "${nomeNovo}".` 
+          }, getHeaders());
+        }
+
+      } else {
+        await axios.post(`${API_URL}/oportunidades`, dados, getHeaders());
+      }
+      setMostrarModal(false); 
+      carregarFunilDaCampanha(filtroCampanha);
+    } catch (erro) { 
+      alert('Erro ao salvar oportunidade.'); 
+    }
   }
 
   async function deletarOportunidade() {
     if (!window.confirm('Excluir este negócio? O histórico de notas também será apagado.')) return;
-    try { await axios.delete(`${API_URL}/oportunidades/${editandoId}`, getHeaders()); setMostrarModal(false); carregarFunilDaCampanha(filtroCampanha); }
-    catch (error) { console.error(error); }
+    try { 
+      await axios.delete(`${API_URL}/oportunidades/${editandoId}`, getHeaders()); 
+      setMostrarModal(false); 
+      carregarFunilDaCampanha(filtroCampanha); 
+    } catch (error) { 
+      console.error(error); 
+      alert("Falha ao excluir o negócio.");
+    }
   }
 
-  const campanhaSelecionadaObj = campanhas.find(c => c.id === parseInt(filtroCampanha));
+  const formatarMoeda = (v) => Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const formatarTelefoneParaLink = (t) => t ? t.replace(/[^0-9]/g, '') : '';
 
+  // ==========================================
+  // RENDERIZAÇÃO
+  // ==========================================
   return (
     <>
       <Header titulo="Funil de Vendas" />
@@ -356,13 +484,24 @@ export function Funil() {
           </div>
 
           <ActionsContainer>
+            {/* CORREÇÃO: Adicionado campo de busca geral do Kanban */}
+            <SearchInputWrapper>
+              <i className="fa-solid fa-search"></i>
+              <input 
+                type="text" 
+                placeholder="Buscar cliente, prefeitura..." 
+                value={buscaGeral} 
+                onChange={e => setBuscaGeral(e.target.value)} 
+              />
+            </SearchInputWrapper>
+
             <FilterPillWrapper ref={dropdownCampanhaRef}>
               <FilterButton 
                 $hasValue={!!filtroCampanha} 
                 onClick={() => setDropdownCampanhaAberto(!dropdownCampanhaAberto)}
               >
                 <i className="fa-solid fa-layer-group icon"></i> 
-                <span>Funil (Curso): <strong>{campanhaSelecionadaObj ? campanhaSelecionadaObj.nome : '-- Selecione o Curso --'}</strong></span>
+                <span>Funil: <strong>{campanhaSelecionadaObj ? campanhaSelecionadaObj.nome : '-- Selecione --'}</strong></span>
                 <i className={`fa-solid fa-chevron-${dropdownCampanhaAberto ? 'up' : 'down'} arrow`}></i>
               </FilterButton>
               
@@ -402,7 +541,7 @@ export function Funil() {
         ) : (
           <KanbanBoard ref={boardRef} onMouseDown={onBoardMouseDown} onMouseLeave={onBoardMouseLeave} onMouseUp={onBoardMouseUp} onMouseMove={onBoardMouseMove}>
             {etapas.map((etapa) => {
-              const cardsDestaColuna = oportunidades.filter(op => Number(op.etapa_id) === Number(etapa.id));
+              const cardsDestaColuna = oportunidadesPorEtapa[etapa.id] || [];
               
               return (
                 <KanbanColumn key={etapa.id}>
@@ -412,6 +551,9 @@ export function Funil() {
                   </ColumnHeader>
                   
                   <CardsContainer>
+                    {cardsDestaColuna.length === 0 && buscaGeral && (
+                       <div style={{textAlign: 'center', color: '#a0aec0', fontSize: '0.85rem', marginTop: '20px'}}>Nenhum resultado</div>
+                    )}
                     {cardsDestaColuna.map(op => {
                       let statusConfig = { border: '#cbd5e1', bg: '#ffffff' };
                       if (op.status === 'naofunciona') statusConfig = { border: '#f1c40f', bg: '#fff9db' };
@@ -422,9 +564,11 @@ export function Funil() {
                       if (op.status === 'avaliar') statusConfig = { border: '#cefaab', bg: '#e9f7ef' };
                       if (op.status === 'perdido') statusConfig = { border: '#dc3545', bg: '#fdecea' };
                       
-                      let idsModsCard = [];
-                      try { if (op.modulos_ids) { idsModsCard = typeof op.modulos_ids === 'string' ? JSON.parse(op.modulos_ids) : op.modulos_ids; if (!Array.isArray(idsModsCard)) idsModsCard = []; } } catch (e) {}
-                      const nomesModsCard = idsModsCard.map(id => { const m = modulosCampanha.find(mod => mod.id === id); return m ? m.nome : null; }).filter(Boolean);
+                      const idsModsCard = parseJSONSeguro(op.modulos_ids, []).map(Number);
+                      const nomesModsCard = idsModsCard.map(id => { 
+                        const m = modulosCampanha.find(mod => Number(mod.id) === id); 
+                        return m ? m.nome : null; 
+                      }).filter(Boolean);
 
                       return (
                         <KanbanCard key={op.id} className="kanban-card" $status={statusConfig} onClick={() => abrirModalEdicao(op)}>
@@ -441,11 +585,9 @@ export function Funil() {
 
                           {op.empresa_nome && <div className="card-company"><i className="fa-solid fa-building"></i> {op.empresa_nome}</div>}
                           
-                          {op.vendedor_nome && (
-                            <SellerBadge>
-                              <i className="fa-solid fa-user-tie"></i> {op.vendedor_nome}
-                            </SellerBadge>
-                          )}
+                          <SellerBadge>
+                            <i className="fa-solid fa-user-tie"></i> {op.vendedor_nome || 'Sem dono'}
+                          </SellerBadge>
                         </KanbanCard>
                       );
                     })}
@@ -456,7 +598,9 @@ export function Funil() {
           </KanbanBoard>
         )}
 
-        {/* MODAL DE EDIÇÃO DE OPORTUNIDADE */}
+        {/* ==========================================
+            MODAL DE EDIÇÃO DE OPORTUNIDADE
+        ========================================== */}
         {mostrarModal && (
           <ModalOverlay onClick={() => setMostrarModal(false)}>
             <ModalContent onClick={e => e.stopPropagation()}>
@@ -504,11 +648,11 @@ export function Funil() {
                 <SectionCard>
                   <FormGrid $columns="1fr 1fr">
                     <FormGroup>
-                      <label><i className="fa-solid fa-building text-blue"></i> Prefeitura Alvo</label>
+                      <label><i className="fa-solid fa-building text-blue"></i> Empresa/Prefeitura Alvo</label>
                       <AutocompleteContainer ref={dropdownEmpresaRef}>
                         <Input 
                           type="text" 
-                          placeholder="🔍 Buscar prefeitura..." 
+                          placeholder="🔍 Buscar..." 
                           value={buscaEmpresaNoModal} 
                           onFocus={() => { setBuscaEmpresaNoModal(''); setMostrarDropdownEmpresa(true); }} 
                           onChange={(e) => {
@@ -537,7 +681,7 @@ export function Funil() {
                         <AutocompleteContainer ref={dropdownContatoRef} style={{ flex: 1 }}>
                           <Input 
                             type="text" 
-                            placeholder={empresaId ? "🔍 Buscar contato desta prefeitura..." : "🔍 Buscar contato..."} 
+                            placeholder={empresaId ? "🔍 Buscar contato desta empresa..." : "🔍 Buscar contato..."} 
                             value={buscaContatoNoModal} 
                             onFocus={() => { setBuscaContatoNoModal(''); setMostrarDropdownContato(true); }} 
                             onChange={(e) => { setBuscaContatoNoModal(e.target.value); setMostrarDropdownContato(true); }} 
@@ -579,15 +723,21 @@ export function Funil() {
                     <div style={{ fontSize: '0.85rem', color: '#666', fontStyle: 'italic' }}>Este curso não possui módulos. O valor deverá ser inserido manualmente abaixo.</div>
                   ) : (
                     <ModulesGrid>
-                      {modulosCampanha.map(mod => (
-                        <ModuleCard key={mod.id} $active={modulosSelecionados.includes(mod.id)} onClick={() => toggleModulo(mod.id)}>
-                          <input type="checkbox" checked={modulosSelecionados.includes(mod.id)} readOnly style={{ pointerEvents: 'none' }} />
-                          <div className="mod-info">
-                            <span className="mod-name">{mod.nome}</span>
-                            <span className="mod-price">{formatarMoeda(mod.valor)}</span>
-                          </div>
-                        </ModuleCard>
-                      ))}
+                      {modulosCampanha.map(mod => {
+                        const isSelected = modulosSelecionados.includes(Number(mod.id));
+                        return (
+                          <ModuleCard key={mod.id} $active={isSelected} onClick={() => toggleModulo(mod.id)}>
+                            {/* Checkbox puramente visual, o estado cuida de tudo */}
+                            <div className={`custom-checkbox ${isSelected ? 'active' : ''}`}>
+                               {isSelected && <i className="fa-solid fa-check"></i>}
+                            </div>
+                            <div className="mod-info">
+                              <span className="mod-name">{mod.nome}</span>
+                              <span className="mod-price">{formatarMoeda(mod.valor)}</span>
+                            </div>
+                          </ModuleCard>
+                        )
+                      })}
                     </ModulesGrid>
                   )}
 
@@ -624,7 +774,8 @@ export function Funil() {
                 <FormGrid $columns="1fr">
                   <FormGroup>
                     <label><i className="fa-solid fa-user-tie text-purple"></i> Vendedor Responsável</label>
-                    <Select value={vendedorId} onChange={(e) => setVendedorId(e.target.value)} disabled={perfilUsuario === 'vendedor'} className={perfilUsuario === 'vendedor' ? 'disabled' : ''}>
+                    {/* CORREÇÃO: Removido o disabled={perfilUsuario === 'vendedor'} */}
+                    <Select value={vendedorId} onChange={(e) => setVendedorId(e.target.value)}>
                       <option value="">-- Sem dono definido --</option>
                       {equipe.map(user => <option key={user.id} value={user.id}>{user.nome} ({user.perfil})</option>)}
                     </Select>
@@ -693,7 +844,7 @@ export function Funil() {
           </ModalOverlay>
         )}
 
-        {/* SUB-MODAL DE CONTATO */}
+        {/* SUB-MODAL DE CONTATO (Oculto para brevidade, mas está intacto na lógica) */}
         {mostrarModalContato && contatoSelecionado && (
           <ModalOverlay onClick={() => setMostrarModalContato(false)} style={{zIndex: 9999}}>
             <ModalContent $small onClick={e => e.stopPropagation()}>
@@ -706,7 +857,6 @@ export function Funil() {
 
               <div style={{ padding: '20px' }}>
                 {!editandoContatoRapido ? (
-                  // MODO VISUALIZAÇÃO
                   <>
                     <FormGrid $columns="1fr 1fr" style={{marginBottom: '20px'}}>
                       <InfoBox>
@@ -740,7 +890,6 @@ export function Funil() {
                     </ModalFooter>
                   </>
                 ) : (
-                  // MODO EDIÇÃO
                   <form onSubmit={salvarContatoRapido}>
                     <FormGrid $columns="1fr" style={{marginBottom: '20px'}}>
                       <FormGroup>
@@ -797,6 +946,15 @@ const Subtitle = styled.p`
 
 const ActionsContainer = styled.div`
   display: flex; align-items: center; gap: 15px; flex-wrap: wrap;
+`;
+
+const SearchInputWrapper = styled.div`
+  position: relative;
+  i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #a0aec0; }
+  input {
+    padding: 10px 15px 10px 38px; border-radius: 20px; border: 1px solid #cbd5e1; font-size: 0.95rem; outline: none; width: 280px; transition: 0.2s;
+    &:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.1); }
+  }
 `;
 
 /* === ÁREA DE FILTROS MODERNOS === */
@@ -859,8 +1017,10 @@ const ColumnHeader = styled.div`
   .badge { background: #e2e4e9; color: #555; padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; }
 `;
 
+// CORREÇÃO: Altura fixa e rolagem invisível
 const CardsContainer = styled.div`
   display: flex; flex-direction: column; gap: 12px; flex: 1; overflow-y: auto; padding-bottom: 40px;
+  max-height: 60vh;
   &::-webkit-scrollbar { display: none; }
 `;
 
@@ -983,14 +1143,17 @@ const IconButton = styled.button`
 const ModulesGrid = styled.div`
   display: flex; gap: 10px; flex-wrap: wrap;
 `;
-const ModuleCard = styled.label`
-  display: flex; align-items: center; gap: 10px; padding: 10px 15px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease;
+const ModuleCard = styled.div`
+  display: flex; align-items: center; gap: 12px; padding: 10px 15px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease;
   background: ${props => props.$active ? '#e6f4ea' : '#ffffff'};
   border: 1px solid ${props => props.$active ? '#28a745' : '#cbd5e1'};
   
   &:hover { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-  
-  input[type="checkbox"] { transform: scale(1.2); accent-color: #28a745; cursor: pointer;}
+
+  .custom-checkbox {
+    width: 20px; height: 20px; border-radius: 4px; border: 2px solid #cbd5e1; display: flex; align-items: center; justify-content: center;
+    &.active { background: #28a745; border-color: #28a745; color: #fff; }
+  }
   
   .mod-info { display: flex; flex-direction: column; }
   .mod-name { font-size: 0.85rem; color: #333; font-weight: ${props => props.$active ? '700' : '600'}; }
@@ -1054,7 +1217,6 @@ const WarningButton = styled(ButtonBase)`
   background: #ffc107; color: #333; &:hover { background: #e0a800; box-shadow: 0 4px 10px rgba(255,193,7,0.2); }
 `;
 
-// --- INFO BOX (MODAL CONTATO) ---
 const InfoBox = styled.div`
   background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;
   &.span-2 { grid-column: span 2; }

@@ -1,6 +1,7 @@
 // src/pages/Disparos.jsx
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 import SunEditorModule from 'suneditor-react';
 import 'suneditor/dist/css/suneditor.min.css';
 import styled from 'styled-components';
@@ -8,14 +9,23 @@ import { Header } from '../componentes/Header.jsx';
 
 const SunEditor = SunEditorModule.default || SunEditorModule;
 
+// --- UTILITÁRIO DE SEGURANÇA PARA JSON ---
+const parseJSONSeguro = (dadoString, fallback = []) => {
+  if (!dadoString) return fallback;
+  if (typeof dadoString !== 'string') return dadoString;
+  try { return JSON.parse(dadoString); } catch { return fallback; }
+};
+
 export function Disparos() {
-  const API_URL = 'https://server-js-gestao.onrender.com';
-  const WEBHOOK_TESTE = 'https://deccel-ia-n8n-nova-versao.cdqhrl.easypanel.host/webhook/v2-teste-disparo';
+  const navigate = useNavigate();
+  
+  const API_URL = import.meta.env?.VITE_API_URL || 'https://server-js-gestao.onrender.com';
+  const WEBHOOK_TESTE = import.meta.env?.VITE_WEBHOOK_TESTE || 'https://deccel-ia-n8n-nova-versao.cdqhrl.easypanel.host/webhook/v2-teste-disparo';
 
   const [campanhas, setCampanhas] = useState([]);
   const [sequenciaAtual, setSequenciaAtual] = useState([]);
 
-  // NOVO ESTADO DO FILTRO DROPDOWN
+  // FILTRO DROPDOWN
   const [cursoAlvo, setCursoAlvo] = useState('');
   const [dropdownCampanhaAberto, setDropdownCampanhaAberto] = useState(false);
   const dropdownRef = useRef(null);
@@ -25,7 +35,7 @@ export function Disparos() {
   const [dataDisparo, setDataDisparo] = useState('');
   const [horasEspera, setHorasEspera] = useState('');
   const [diasExpiracao, setDiasExpiracao] = useState('');
-  const [emailAtivo, setEmailAtivo] = useState(true); // Controle de Desabilitar/Ativar
+  const [emailAtivo, setEmailAtivo] = useState(true);
   
   const [tituloemail, setTituloemail] = useState('');
   const [cabecalhoEmail, setCabecalhoEmail] = useState('');
@@ -36,6 +46,7 @@ export function Disparos() {
   const [modoVisual, setModoVisual] = useState(true);
   const [mostrarPreview, setMostrarPreview] = useState(false);
 
+  // MODAIS
   const [mostrarModalCliques, setMostrarModalCliques] = useState(false);
   const [dadosCliques, setDadosCliques] = useState([]);
   const [carregandoCliques, setCarregandoCliques] = useState(false);
@@ -63,12 +74,11 @@ export function Disparos() {
     attributesWhitelist: { all: 'style', a: 'href|target|style|class|rel' }
   };
 
-  function getHeaders() {
+  const getHeaders = useCallback(() => {
     const token = localStorage.getItem('token');
     return { headers: { Authorization: `Bearer ${token}` } };
-  }
+  }, []);
 
-  // Fecha o dropdown se clicar fora
   useEffect(() => {
     function handleClickFora(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -79,6 +89,46 @@ export function Disparos() {
     return () => document.removeEventListener('mousedown', handleClickFora);
   }, []);
 
+  const carregarCampanhas = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API_URL}/campanhas`, getHeaders());
+      setCampanhas(res.data);
+    } catch (erro) { console.error('Erro campanhas', erro); }
+  }, [API_URL, getHeaders]);
+
+  useEffect(() => {
+    const perfil = localStorage.getItem('perfil');
+    if (perfil !== 'admin') { 
+      navigate('/empresas'); 
+      return; 
+    }
+    carregarCampanhas();
+  }, [navigate, carregarCampanhas]);
+
+  const carregarSequencia = useCallback(async (campanhaId) => {
+    try {
+      const res = await axios.get(`${API_URL}/sequencia-emails/${campanhaId}`, getHeaders());
+      setSequenciaAtual(res.data);
+    } catch (erro) { console.error('Erro ao buscar sequência', erro); }
+  }, [API_URL, getHeaders]);
+
+  useEffect(() => {
+    if (cursoAlvo) { carregarSequencia(cursoAlvo); } else { setSequenciaAtual([]); }
+  }, [cursoAlvo, carregarSequencia]);
+
+  useEffect(() => {
+    if (!editandoEmailId) {
+      const emailsDoFunil = sequenciaAtual.filter(e => e.tipo_funil === tipoFunil);
+      if (emailsDoFunil.length > 0) {
+        const ultimaOrdem = Math.max(...emailsDoFunil.map(e => Number(e.ordem_etapa)));
+        setOrdemEtapa(String(ultimaOrdem + 1));
+      } else {
+        setOrdemEtapa('1');
+      }
+    }
+  }, [tipoFunil, sequenciaAtual, editandoEmailId]);
+
+  // --- FUNÇÕES UTILITÁRIAS E CONSTRUTORES DE HTML ---
   function escapeHtml(valor = '') {
     return String(valor).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
   }
@@ -106,6 +156,7 @@ export function Disparos() {
   function inserirListaOrdenada() {
     inserirSnippet(`\n<ol style="margin: 0 0 15px 20px; padding: 0; color: #1F4E79; font-size: 14px; line-height: 1.6;">\n  <li style="margin-bottom: 8px;">Passo 1 aqui</li>\n  <li style="margin-bottom: 8px;">Passo 2 aqui</li>\n  <li style="margin-bottom: 8px;">Passo 3 aqui</li>\n</ol>\n`);
   }
+  
   function inserirBotaoRastreado() {
     const textoBotao = window.prompt('Texto do botão:', 'Selecionar os temas prioritários');
     if (!textoBotao) return;
@@ -114,18 +165,33 @@ export function Disparos() {
     const descricao = window.prompt('Descrição do clique:', 'Botão Principal') || 'Botão Principal';
     const linkRastreado = montarUrlRastreada({ redirect: urlDestino, descricao, etapaAtual: ordemEtapa, cursoId: cursoAlvo, tipoF: tipoFunil });
     
+    // HTML "Bulletproof" para e-mails (Tabela dupla forçando o centro)
     const htmlBotao = `
-<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 15px 0;">
+<table width="100%" border="0" cellspacing="0" cellpadding="0" style="width: 100%; margin: 15px 0;">
   <tr>
-    <td align="center" style="padding: 15px 20px 10px 20px;">
-      <a href="${linkRastreado}" target="_blank" style="display:inline-block;padding:14px 26px;background-color:#218553;color:#ffffff;font-weight:bold;text-decoration:none;font-size:14px;border-radius:6px;border:1px solid #1a6b42; text-align: center;">
-        ${textoBotao}
-      </a>
+    <td align="center" style="text-align: center;">
+      <table border="0" cellspacing="0" cellpadding="0" align="center" style="margin: 0 auto;">
+        <tr>
+          <td align="center"  border-radius: 6px;">
+            <a href="${linkRastreado}" target="_blank" style="display: inline-block; padding: 14px 26px; background-color: #218553; color: #ffffff; font-weight: bold; text-decoration: none; font-size: 14px; border-radius: 6px; border: 1px solid #1a6b42; font-family: Arial, sans-serif;">
+              ${textoBotao}
+            </a>
+            \n<table width="100%" border="0" cellspacing="0" cellpadding="0"><tr><td align="center" style="text-align: center;"><p style="margin: 15px 0 15px 0; color: #1F4E79; font-size: 13px;">Obs: O link acima é oficial e 100% seguro.</p></td></tr></table>\n
+          </td>
+        </tr>
+      </table>
     </td>
   </tr>
 </table>`;
+    
     inserirSnippet(htmlBotao);
   }
+
+  function inserirAvisoSeguranca() {
+    // Usando a mesma trava de tabela para garantir que o texto fique centralizado no Gmail
+    inserirSnippet(`\n<table width="100%" border="0" cellspacing="0" cellpadding="0"><tr><td align="center" style="text-align: center;"><p style="margin: 0 0 15px 0; color: #1F4E79; font-size: 13px;">Obs: O link acima é oficial e 100% seguro.</p></td></tr></table>\n`);
+  }
+
   function inserirLinkTextoRastreado() {
     const textoLink = window.prompt('Texto do link:', 'Programa Avançado');
     if (!textoLink) return;
@@ -146,44 +212,7 @@ export function Disparos() {
     return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${tituloSeguro}</title></head><body style="margin:0;padding:0;background-color:#f4f6f8;"><table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f6f8;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff;font-family:Arial,sans-serif;font-size:14px;color:#1F4E79;">${cabecalhoSeguro ? `<tr><td style="background-color:#1F4E79;color:#ffffff;padding:16px 20px;text-align:center;font-weight:bold;font-size:15px;">${cabecalhoSeguro}</td></tr>` : ''}<tr><td style="padding:30px 30px 10px 30px;line-height:1.6;text-align:justify;">${conteudoHtml}</td></tr><tr><td style="padding:10px 24px 25px 24px;color:#1F4E79;"><p style="margin:0 0 15px 0; font-family:Arial,sans-serif; font-size:14px; line-height:1.6; color:#1F4E79;">Fico à disposição!</p><p style="margin:0 0 10px 0; font-family:Arial,sans-serif; font-size:14px; line-height:1.6; color:#1F4E79;">Atenciosamente,</p><p style="margin:0; font-family:Arial,sans-serif; font-size:14px; line-height:1.6; color:#1F4E79;"><strong>Camila Silveira Guimarães</strong></p><p style="margin:0; font-family:Arial,sans-serif; font-size:14px; line-height:1.6; color:#1F4E79;">Setor Comercial</p><p style="margin:0; font-family:Arial,sans-serif; font-size:14px; line-height:1.6; color:#1F4E79;">(51) 3541 3355</p><p style="margin:0 0 10px 0; font-family:Arial,sans-serif; font-size:14px; line-height:1.6; color:#1F4E79;">(51) 98443-2097</p><p style="margin:0 0 15px 0; font-family:Arial,sans-serif; font-size:14px; line-height:1.6; color:#1F4E79;"><a href="${linkSite}" target="_blank" style="color:#1F4E79;text-decoration:none;font-weight:bold;">www.gestao.srv.br</a></p><a href="${linkBot}" target="_blank" style="color:#ffffff;text-decoration:none;font-weight:bold;">.</a></td></tr></table></td></tr></table></body></html>`;
   }
 
-  const campanhaSelecionada = useMemo(() => campanhas.find(c => c.id === Number(cursoAlvo)), [campanhas, cursoAlvo]);
-
-  useEffect(() => {
-    const perfil = localStorage.getItem('perfil');
-    if (perfil !== 'admin') { window.location.href = '/empresas'; return; }
-    carregarCampanhas();
-  }, []);
-
-  useEffect(() => {
-    if (cursoAlvo) { carregarSequencia(cursoAlvo); } else { setSequenciaAtual([]); }
-  }, [cursoAlvo]);
-
-  useEffect(() => {
-    if (!editandoEmailId) {
-      const emailsDoFunil = sequenciaAtual.filter(e => e.tipo_funil === tipoFunil);
-      if (emailsDoFunil.length > 0) {
-        const ultimaOrdem = Math.max(...emailsDoFunil.map(e => Number(e.ordem_etapa)));
-        setOrdemEtapa(String(ultimaOrdem + 1));
-      } else {
-        setOrdemEtapa('1');
-      }
-    }
-  }, [tipoFunil, sequenciaAtual, editandoEmailId]);
-
-  async function carregarCampanhas() {
-    try {
-      const res = await axios.get(`${API_URL}/campanhas`, getHeaders());
-      setCampanhas(res.data);
-    } catch (erro) { console.error('Erro campanhas', erro); }
-  }
-
-  async function carregarSequencia(campanhaId) {
-    try {
-      const res = await axios.get(`${API_URL}/sequencia-emails/${campanhaId}`, getHeaders());
-      setSequenciaAtual(res.data);
-    } catch (erro) { console.error('Erro ao buscar sequência', erro); }
-  }
-
+  // --- AÇÕES DOS MODAIS DE RELATÓRIO ---
   async function abrirModalCliques(email) {
     setEmailSelecionadoModal(email); 
     setLeadsExpandidos([]); 
@@ -218,6 +247,7 @@ export function Disparos() {
     setLeadsExpandidos(prev => prev.includes(leadId) ? prev.filter(id => id !== leadId) : [...prev, leadId]);
   }
 
+  // --- AÇÕES DO MOTOR E EDIÇÃO DE EMAILS ---
   async function iniciarCampanha() {
     if (!window.confirm(`🚀 Deseja iniciar a automação para "${campanhaSelecionada.nome}"?\nIsso vai injetar os leads selecionados no Kanban e na fila de e-mails.`)) return;
     try {
@@ -237,7 +267,6 @@ export function Disparos() {
     } catch (erro) { alert('Erro ao alterar status do motor.'); }
   }
 
-  // LIGAR / DESLIGAR EMAIL
   async function alternarStatusEmail(email) {
     const statusAtual = email.ativo === false ? false : true;
     const novoStatus = !statusAtual;
@@ -277,11 +306,6 @@ export function Disparos() {
 
     setSalvandoConfig(true);
 
-    // ============================================================================
-    // A MÁGICA DE CORREÇÃO: SANITIZAÇÃO DE HTML (Resolve Bug de Cliques/Fila)
-    // ============================================================================
-    // Mesmo que o usuário tenha copiado o email de outra etapa, ou alterado a ordem na tela,
-    // este regex substitui forçadamente as variáveis de rastreio para apontarem para o funil correto antes de salvar.
     let htmlCorrigido = emailCru;
     htmlCorrigido = htmlCorrigido.replace(/([?&]|&amp;)etapa=[^&"']*/g, `$1etapa=${ordemEtapa}`);
     htmlCorrigido = htmlCorrigido.replace(/([?&]|&amp;)tipo=[^&"']*/g, `$1tipo=${tipoFunil}`);
@@ -297,7 +321,7 @@ export function Disparos() {
       cargo_alvo: 'Todos', 
       titulo_email: tituloemail, 
       cabecalho_email: cabecalhoEmail, 
-      html_email: htmlCorrigido, // Envia o HTML blindado contra erros!
+      html_email: htmlCorrigido,
       ativo: emailAtivo
     };
 
@@ -355,6 +379,12 @@ export function Disparos() {
     finally { setEnviandoTeste(false); }
   }
 
+  function exibirDataISO(dataIso) {
+    if (!dataIso) return 'Sem data';
+    const partes = dataIso.split('T')[0].split('-');
+    return `${partes[2]}/${partes[1]}/${partes[0]}`;
+  }
+
   function formatarDataHora(dataIso) {
     if (!dataIso) return '-';
     const data = new Date(dataIso);
@@ -362,32 +392,42 @@ export function Disparos() {
     return data.toLocaleString('pt-BR');
   }
 
-  function exibirDataISO(dataIso) {
-    if (!dataIso) return 'Sem data';
-    const partes = dataIso.split('T')[0].split('-');
-    return `${partes[2]}/${partes[1]}/${partes[0]}`;
-  }
-
-  const broadcastsFrios = sequenciaAtual.filter(e => e.tipo_funil === 'BROADCAST_FRIO');
-  const broadcastsQuentes = sequenciaAtual.filter(e => e.tipo_funil === 'BROADCAST_QUENTE');
-  const posCliques = sequenciaAtual.filter(e => e.tipo_funil === 'POS_CLIQUE');
+  // ==========================================
+  // MEMOIZAÇÕES DE PERFORMANCE
+  // ==========================================
   
-  const htmlPreviewFinal = montarHtmlFinal({ titulo: tituloemail, cabecalho: cabecalhoEmail, conteudo: emailCru, etapaEmail: ordemEtapa, cursoId: cursoAlvo, tipoF: tipoFunil });
+  const campanhaSelecionada = useMemo(() => campanhas.find(c => c.id === Number(cursoAlvo)), [campanhas, cursoAlvo]);
 
-  const leadsAgrupados = Object.values((dadosCliques || []).reduce((acc, clique) => {
-    const chave = clique.contato_id || clique.contato_nome || Math.random();
-    if (!acc[chave]) {
-      let emailExibicao = 'Sem e-mail';
-      try {
-        const emailsArray = typeof clique.emails_json === 'string' ? JSON.parse(clique.emails_json) : clique.emails_json;
-        if (emailsArray && emailsArray.length > 0) emailExibicao = emailsArray[0];
-      } catch(e) {}
-      acc[chave] = { id: chave, nome: clique.contato_nome || 'Desconhecido', email: emailExibicao, interacoes: [] };
-    }
-    acc[chave].interacoes.push({ link: clique.link_descricao || 'Link', data: clique.criado_em });
-    return acc;
-  }, {}));
+  const { broadcastsFrios, broadcastsQuentes, posCliques } = useMemo(() => {
+    return {
+      broadcastsFrios: sequenciaAtual.filter(e => e.tipo_funil === 'BROADCAST_FRIO'),
+      broadcastsQuentes: sequenciaAtual.filter(e => e.tipo_funil === 'BROADCAST_QUENTE'),
+      posCliques: sequenciaAtual.filter(e => e.tipo_funil === 'POS_CLIQUE')
+    };
+  }, [sequenciaAtual]);
 
+  const htmlPreviewFinal = useMemo(() => {
+    return montarHtmlFinal({ titulo: tituloemail, cabecalho: cabecalhoEmail, conteudo: emailCru, etapaEmail: ordemEtapa, cursoId: cursoAlvo, tipoF: tipoFunil });
+  }, [tituloemail, cabecalhoEmail, emailCru, ordemEtapa, cursoAlvo, tipoFunil]); // Dependências controladas!
+
+  const leadsAgrupados = useMemo(() => {
+    return Object.values((dadosCliques || []).reduce((acc, clique) => {
+      const chave = clique.contato_id || clique.contato_nome || Math.random();
+      if (!acc[chave]) {
+        let emailExibicao = 'Sem e-mail';
+        const emailsArray = parseJSONSeguro(clique.emails_json, []);
+        if (emailsArray.length > 0) emailExibicao = emailsArray[0];
+
+        acc[chave] = { id: chave, nome: clique.contato_nome || 'Desconhecido', email: emailExibicao, interacoes: [] };
+      }
+      acc[chave].interacoes.push({ link: clique.link_descricao || 'Link', data: clique.criado_em });
+      return acc;
+    }, {}));
+  }, [dadosCliques]);
+
+  // ==========================================
+  // RENDERIZAÇÃO
+  // ==========================================
   return (
     <>
       <Header titulo="Construtor de Funis e Automação" />
@@ -777,10 +817,9 @@ export function Disparos() {
                         {dadosEnvios.fila?.length === 0 && <EmptyMsg>Fila vazia para esta etapa.</EmptyMsg>}
                         {dadosEnvios.fila?.map((lead, idx) => {
                           let emailExibicao = 'Sem e-mail';
-                          try {
-                            const emailsArray = typeof lead.emails_json === 'string' ? JSON.parse(lead.emails_json) : lead.emails_json;
-                            if (emailsArray && emailsArray.length > 0) emailExibicao = emailsArray[0];
-                          } catch(e) {}
+                          const emailsArray = parseJSONSeguro(lead.emails_json, []);
+                          if (emailsArray.length > 0) emailExibicao = emailsArray[0];
+
                           return (
                             <div key={idx} className="list-item">
                               <strong>{lead.nome}</strong>

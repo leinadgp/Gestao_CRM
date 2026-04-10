@@ -7,11 +7,13 @@ import styled from 'styled-components';
 export function Login() {
   const [login, setLogin] = useState('');
   const [senha, setSenha] = useState('');
+  const [mostrarSenha, setMostrarSenha] = useState(false);
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(false);
 
   const navigate = useNavigate();
-  const API_URL = 'https://server-js-gestao.onrender.com';
+  // Busca a URL da variável de ambiente, com fallback para segurança local
+  const API_URL = import.meta.env?.VITE_API_URL || 'https://server-js-gestao.onrender.com';
 
   async function fazerLogin(e) {
     e.preventDefault();
@@ -21,8 +23,12 @@ export function Login() {
     try {
       const resposta = await axios.post(`${API_URL}/login`, { login, senha });
 
+      // Limpa resíduos de sessões anteriores antes de setar a nova
+      localStorage.clear();
+      
       localStorage.setItem('token', resposta.data.token);
       localStorage.setItem('perfil', resposta.data.perfil || 'usuario');
+      if (resposta.data.foto_perfil) localStorage.setItem('foto_perfil', resposta.data.foto_perfil);
       
       if (resposta.data.usuarioId) localStorage.setItem('usuarioId', resposta.data.usuarioId);
       if (resposta.data.nome) localStorage.setItem('nome', resposta.data.nome);
@@ -41,6 +47,12 @@ export function Login() {
     }
   }
 
+  // Limpa a mensagem de erro quando o usuário volta a digitar
+  const handleInputChange = (setter) => (e) => {
+    setter(e.target.value);
+    if (erro) setErro('');
+  };
+
   return (
     <PageContainer>
       <LoginCard>
@@ -49,7 +61,7 @@ export function Login() {
           <h2>
             <i className="fa-solid fa-right-to-bracket"></i> Acesso ao Sistema
           </h2>
-          <p>Insira suas credenciais para continuar.</p>
+          <p>Insira suas credenciais para continuar</p>
         </Header>
 
         {erro && (
@@ -62,13 +74,14 @@ export function Login() {
           <InputGroup>
             <label>Usuário</label>
             <div className="input-wrapper">
-              <i className="fa-solid fa-user"></i>
+              <i className="fa-solid fa-user icon-left"></i>
               <Input 
                 type="text" 
                 placeholder="Digite seu usuário..." 
                 value={login} 
-                onChange={e => setLogin(e.target.value)} 
+                onChange={handleInputChange(setLogin)} 
                 required 
+                disabled={carregando}
               />
             </div>
           </InputGroup>
@@ -76,19 +89,30 @@ export function Login() {
           <InputGroup>
             <label>Senha</label>
             <div className="input-wrapper">
-              <i className="fa-solid fa-lock"></i>
+              <i className="fa-solid fa-lock icon-left"></i>
               <Input 
-                type="password" 
+                type={mostrarSenha ? "text" : "password"} 
                 placeholder="Sua senha secreta..." 
                 value={senha} 
-                onChange={e => setSenha(e.target.value)} 
+                onChange={handleInputChange(setSenha)} 
                 required 
+                disabled={carregando}
               />
+              <ToggleButton 
+                type="button" 
+                onClick={() => setMostrarSenha(!mostrarSenha)}
+                title={mostrarSenha ? "Ocultar senha" : "Mostrar senha"}
+                disabled={carregando}
+              >
+                <i className={`fa-solid ${mostrarSenha ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+              </ToggleButton>
             </div>
           </InputGroup>
 
           <SubmitButton type="submit" disabled={carregando}>
-            {carregando ? 'Entrando...' : 'Entrar'}
+            {carregando ? (
+              <><i className="fa-solid fa-spinner fa-spin"></i> Entrando...</>
+            ) : 'Entrar'}
           </SubmitButton>
         </Form>
 
@@ -106,7 +130,6 @@ const PageContainer = styled.div`
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  /* Gradiente moderno baseado na paleta da sua aplicação */
   background: linear-gradient(135deg, #1F4E79 0%, #0056b3 100%);
   padding: 20px;
 `;
@@ -140,9 +163,7 @@ const Header = styled.div`
     justify-content: center;
     gap: 10px;
 
-    i {
-      color: #007bff;
-    }
+    i { color: #007bff; }
   }
 
   p {
@@ -190,24 +211,24 @@ const InputGroup = styled.div`
     display: flex;
     align-items: center;
 
-    i {
+    .icon-left {
       position: absolute;
       left: 14px;
       color: #aaa;
       font-size: 1rem;
       transition: color 0.3s;
+      pointer-events: none;
     }
   }
 
-  /* Muda a cor do ícone quando o input ganha foco */
-  &:focus-within i {
+  &:focus-within .icon-left {
     color: #007bff;
   }
 `;
 
 const Input = styled.input`
   width: 100%;
-  padding: 14px 14px 14px 40px;
+  padding: 14px 45px 14px 40px; /* Padding extra na direita para o botão do olho */
   border-radius: 8px;
   border: 1px solid #dcdcdc;
   font-size: 1rem;
@@ -226,6 +247,32 @@ const Input = styled.input`
     background-color: #ffffff;
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
   }
+
+  &:disabled {
+    background-color: #e9ecef;
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+`;
+
+const ToggleButton = styled.button`
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  color: #aaa;
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 5px;
+  transition: color 0.2s;
+
+  &:hover:not(:disabled) {
+    color: #555;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+  }
 `;
 
 const SubmitButton = styled.button`
@@ -239,6 +286,10 @@ const SubmitButton = styled.button`
   cursor: ${props => props.disabled ? 'not-allowed' : 'pointer'};
   margin-top: 10px;
   transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   box-shadow: ${props => props.disabled ? 'none' : '0 4px 12px rgba(0, 123, 255, 0.3)'};
 
   &:hover {

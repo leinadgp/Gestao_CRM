@@ -1,5 +1,5 @@
 // src/pages/Home.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom'; 
 import styled from 'styled-components';
@@ -10,107 +10,141 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 export function Home() {
   const navigate = useNavigate(); 
 
+  // --- ESTADOS ---
   const [contatos, setContatos] = useState([]);
   const [oportunidades, setOportunidades] = useState([]);
   const [campanhas, setCampanhas] = useState([]);
   const [carregando, setCarregando] = useState(true);
-  const [primeiroNome, setPrimeiroNome] = useState('Usuário'); // <-- Estado do nome
+  const [erro, setErro] = useState(null);
+  const [primeiroNome, setPrimeiroNome] = useState('Usuário');
 
-  // Saudação dinâmica baseada na hora do dia
-  const horaAtual = new Date().getHours();
-  let saudacao = 'Boa noite';
-  if (horaAtual >= 5 && horaAtual < 12) saudacao = 'Bom dia';
-  else if (horaAtual >= 12 && horaAtual < 18) saudacao = 'Boa tarde';
-
-  const perfilUsuario = localStorage.getItem('perfil'); // admin, gestor ou vendedor
+  // --- CONFIGURAÇÕES E VARIÁVEIS BASE ---
+  // Idealmente use import.meta.env.VITE_API_URL no Vite ou process.env.REACT_APP_API_URL no CRA
+  const API_URL = import.meta.env?.VITE_API_URL || 'https://server-js-gestao.onrender.com';
+  
+  const perfilUsuario = localStorage.getItem('perfil');
   const meuUsuarioId = parseInt(localStorage.getItem('usuarioId') || '0');
 
-  const API_URL = 'https://server-js-gestao.onrender.com';
-
-  function getHeaders() {
-    const token = localStorage.getItem('token');
-    return { headers: { Authorization: `Bearer ${token}` } };
-  }
-
-  // EFEITO 1: Descobrir o nome do usuário lendo o Token JWT
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      try {
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
-          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-        
-        const payload = JSON.parse(jsonPayload); 
-        // Pega apenas a primeira palavra do nome
-        setPrimeiroNome(payload.nome.split(' ')[0]);
-      } catch (error) {
-        console.error('Erro ao ler nome do usuário na Home', error);
-      }
-    }
+  const saudacao = useMemo(() => {
+    const hora = new Date().getHours();
+    if (hora >= 5 && hora < 12) return 'Bom dia';
+    if (hora >= 12 && hora < 18) return 'Boa tarde';
+    return 'Boa noite';
   }, []);
 
-  // EFEITO 2: Carregar os dados da Dashboard
+  // --- EFEITOS (LIFECYCLE) ---
   useEffect(() => {
-    async function carregarHome() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+
+    // Decodifica o Token para pegar o nome
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(c => 
+        '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+      ).join(''));
+      
+      const payload = JSON.parse(jsonPayload); 
+      setPrimeiroNome(payload.nome?.split(' ')[0] || 'Usuário');
+    } catch (error) {
+      console.error('Erro ao ler JWT:', error);
+      // Opcional: navigate('/login') se o token for inválido
+    }
+
+    // Carrega os dados
+    async function carregarDados() {
       setCarregando(true);
+      setErro(null);
       try {
+        const config = { headers: { Authorization: `Bearer ${token}` } };
+        
         const [resContatos, resOportunidades, resCampanhas] = await Promise.all([
-          axios.get(`${API_URL}/contatos`, getHeaders()),
-          axios.get(`${API_URL}/oportunidades`, getHeaders()),
-          axios.get(`${API_URL}/campanhas`, getHeaders())
+          axios.get(`${API_URL}/contatos`, config),
+          axios.get(`${API_URL}/oportunidades`, config),
+          axios.get(`${API_URL}/campanhas`, config)
         ]);
         
         setContatos(resContatos.data);
         setOportunidades(resOportunidades.data);
         setCampanhas(resCampanhas.data);
-      } catch (erro) {
-        console.error('Erro ao buscar dados da home:', erro);
+      } catch (error) {
+        console.error('Erro ao buscar dados:', error);
+        setErro('Não foi possível carregar o painel. Verifique sua conexão.');
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          localStorage.clear();
+          navigate('/login');
+        }
       } finally {
         setCarregando(false);
       }
     }
 
-    carregarHome();
-  }, []);
+    carregarDados();
+  }, [navigate, API_URL]);
 
-  function formatarMoeda(valor) {
+  // --- MEMOIZAÇÃO DE CÁLCULOS (PERFORMANCE) ---
+  // O useMemo impede que o React refaça esses arrays e matemáticas em cada re-render (ex: quando digita algo num input hipotético ou modal)
+
+  const opsFiltradas = useMemo(() => {
+    return perfilUsuario === 'vendedor' 
+      ? oportunidades.filter(op => op.vendedor_id === meuUsuarioId) 
+      : oportunidades;
+  }, [oportunidades, perfilUsuario, meuUsuarioId]);
+
+  const { negociosAbertos, negociosGanhos, negociosPerdidos } = useMemo(() => {
+    const statusAndamento = ['aberto', 'tarefa', 'avaliar', 'interessada'];
+    const statusSucesso = ['ganho', 'inscricao'];
+    const statusPerdido = ['perdido', 'naofunciona', 'naoatendeu'];
+
+    return {
+      negociosAbertos: opsFiltradas.filter(op => statusAndamento.includes(op.status)),
+      negociosGanhos: opsFiltradas.filter(op => statusSucesso.includes(op.status)),
+      negociosPerdidos: opsFiltradas.filter(op => statusPerdido.includes(op.status)),
+    };
+  }, [opsFiltradas]);
+
+  const valorGanho = useMemo(() => {
+    return negociosGanhos.reduce((acc, op) => acc + Number(op.valor || 0), 0);
+  }, [negociosGanhos]);
+
+  const ultimosNegocios = useMemo(() => {
+    return [...negociosAbertos]
+      .sort((a, b) => new Date(b.criado_em) - new Date(a.criado_em))
+      .slice(0, 5);
+  }, [negociosAbertos]);
+
+  const dadosGrafico = useMemo(() => {
+    return [
+      { name: 'Fechados', value: negociosGanhos.length, color: '#28a745' },
+      { name: 'Perdidos', value: negociosPerdidos.length, color: '#dc3545' },
+      { name: 'Em Andamento', value: negociosAbertos.length, color: '#007bff' }
+    ].filter(d => d.value > 0);
+  }, [negociosGanhos.length, negociosPerdidos.length, negociosAbertos.length]);
+
+  // --- FUNÇÕES AUXILIARES ---
+  const formatarMoeda = (valor) => {
     return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  };
+
+  // --- RENDERIZAÇÃO ---
+  if (erro) {
+    return (
+      <>
+        <Header titulo="Centro de Comando" />
+        <PageContainer>
+          <ErrorMessage>
+            <i className="fa-solid fa-triangle-exclamation"></i>
+            <p>{erro}</p>
+            <button onClick={() => window.location.reload()}>Tentar Novamente</button>
+          </ErrorMessage>
+        </PageContainer>
+      </>
+    );
   }
-
-  // === LENTE DE VISÃO: ADMIN/GESTOR VS VENDEDOR ===
-  const opsFiltradas = perfilUsuario === 'vendedor' 
-    ? oportunidades.filter(op => op.vendedor_id === meuUsuarioId) 
-    : oportunidades;
-
-  // === AGRUPADORES INTELIGENTES DE STATUS ===
-  const statusSucesso = ['ganho', 'inscricao'];
-  const statusPerdido = ['perdido', 'naofunciona', 'naoatendeu'];
-  const statusAndamento = ['aberto', 'tarefa', 'avaliar', 'interessada'];
-
-  // === CÁLCULOS DOS CARDS ===
-  const totalContatos = contatos.length;
-  const campanhasAtivas = campanhas.length;
-  
-  const negociosAbertos = opsFiltradas.filter(op => statusAndamento.includes(op.status));
-  const negociosGanhos = opsFiltradas.filter(op => statusSucesso.includes(op.status));
-  const negociosPerdidos = opsFiltradas.filter(op => statusPerdido.includes(op.status));
-
-  const valorGanho = negociosGanhos.reduce((acc, op) => acc + Number(op.valor || 0), 0);
-
-  // Pega os 5 negócios abertos mais recentes (filtrado pela lente)
-  const ultimosNegocios = [...negociosAbertos]
-    .sort((a, b) => new Date(b.criado_em) - new Date(a.criado_em))
-    .slice(0, 5);
-
-  // Dados para o Mini Gráfico de Eficiência
-  const dadosGrafico = [
-    { name: 'Fechados', value: negociosGanhos.length, color: '#28a745' },
-    { name: 'Perdidos', value: negociosPerdidos.length, color: '#dc3545' },
-    { name: 'Em Andamento', value: negociosAbertos.length, color: '#007bff' }
-  ].filter(d => d.value > 0);
 
   return (
     <>
@@ -136,10 +170,30 @@ export function Home() {
 
         {/* === CARDS SUPERIORES === */}
         <CardsGrid>
-          <CardInfo icone="fa-folder-open" label="Negócios em Andamento" valor={carregando ? "..." : negociosAbertos.length} cor="blue" />
-          <CardInfo icone="fa-check-circle" label={perfilUsuario === 'vendedor' ? "Minhas Vendas" : "Faturamento Total"} valor={carregando ? "..." : formatarMoeda(valorGanho)} cor="green" />
-          <CardInfo icone="fa-bullhorn" label="Cursos / Campanhas" valor={carregando ? "..." : campanhasAtivas} cor="yellow" />
-          <CardInfo icone="fa-address-book" label="Base de Contatos" valor={carregando ? "..." : totalContatos} cor="purple" />
+          <CardInfo 
+            icone="fa-folder-open" 
+            label="Negócios em Andamento" 
+            valor={carregando ? "..." : negociosAbertos.length} 
+            cor="blue" 
+          />
+          <CardInfo 
+            icone="fa-check-circle" 
+            label={perfilUsuario === 'vendedor' ? "Minhas Vendas" : "Faturamento Total"} 
+            valor={carregando ? "..." : formatarMoeda(valorGanho)} 
+            cor="green" 
+          />
+          <CardInfo 
+            icone="fa-bullhorn" 
+            label="Cursos / Campanhas" 
+            valor={carregando ? "..." : campanhas.length} 
+            cor="yellow" 
+          />
+          <CardInfo 
+            icone="fa-address-book" 
+            label="Base de Contatos" 
+            valor={carregando ? "..." : contatos.length} 
+            cor="purple" 
+          />
         </CardsGrid>
 
         {/* === ÁREA CENTRAL DIVIDIDA (GRID) === */}
@@ -158,7 +212,7 @@ export function Home() {
               <Table>
                 <thead>
                   <tr>
-                    <th>Título / Prefeitura</th>
+                    <th>Título / Empresa</th>
                     <th>Campanha</th>
                     {perfilUsuario !== 'vendedor' && <th>Vendedor</th>}
                     <th className="align-right">Valor Estimado</th>
@@ -253,10 +307,9 @@ export function Home() {
                 <i className="fa-solid fa-layer-group text-yellow"></i> Acessar o Pipeline
               </ShortcutButton>
               <ShortcutButton onClick={() => navigate('/empresas')}>
-                <i className="fa-solid fa-building-columns text-purple"></i> Base de Prefeituras
+                <i className="fa-solid fa-building-columns text-purple"></i> Base de Empresas
               </ShortcutButton>
               
-              {/* O vendedor não vê o Dashboard de Inteligência */}
               {perfilUsuario !== 'vendedor' && (
                 <DashboardButton onClick={() => navigate('/dashboard')}>
                   <i className="fa-solid fa-chart-line text-green"></i> Ver Dashboard Completo
@@ -279,6 +332,37 @@ const PageContainer = styled.div`
   padding: 30px;
   background-color: #f4f7f6;
   min-height: calc(100vh - 70px);
+`;
+
+const ErrorMessage = styled.div`
+  background-color: #fff3f3;
+  color: #dc3545;
+  border: 1px solid #ffcaca;
+  padding: 30px;
+  border-radius: 8px;
+  text-align: center;
+  max-width: 500px;
+  margin: 40px auto;
+  
+  i {
+    font-size: 2rem;
+    margin-bottom: 10px;
+  }
+  
+  button {
+    margin-top: 15px;
+    padding: 8px 16px;
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    
+    &:hover {
+      background-color: #c82333;
+    }
+  }
 `;
 
 const WelcomeSection = styled.div`

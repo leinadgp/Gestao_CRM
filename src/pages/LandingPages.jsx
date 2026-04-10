@@ -1,5 +1,5 @@
 // src/pages/LandingPages.jsx
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import styled from 'styled-components';
 import { Header } from '../componentes/Header.jsx';
@@ -24,24 +24,49 @@ export function LandingPages() {
   const [statusLP, setStatusLP] = useState('rascunho');
   const [campanhaId, setCampanhaId] = useState('');
   
-  const API_URL = 'https://server-js-gestao.onrender.com';
+  const API_URL = import.meta.env?.VITE_API_URL || 'https://server-js-gestao.onrender.com';
   
   const editorRef = useRef(null);
   const [htmlInicial, setHtmlInicial] = useState('');
   const [cssInicial, setCssInicial] = useState('');
 
-  useEffect(() => {
-    carregarDados();
+  const getHeaders = useCallback(() => {
+    const token = localStorage.getItem('token');
+    return { headers: { Authorization: `Bearer ${token}` } };
   }, []);
 
+  const carregarDados = useCallback(async () => {
+    setCarregando(true);
+    try {
+      const config = getHeaders();
+      const [resPages, resCamps] = await Promise.all([
+        axios.get(`${API_URL}/landing-pages`, config),
+        axios.get(`${API_URL}/campanhas`, config)
+      ]);
+      setPaginas(resPages.data);
+      setCampanhas(resCamps.data);
+    } catch (e) {
+      console.error("Erro ao carregar dados", e);
+      alert("Falha ao carregar as Landing Pages.");
+    } finally {
+      setCarregando(false);
+    }
+  }, [API_URL, getHeaders]);
+
   useEffect(() => {
+    carregarDados();
+  }, [carregarDados]);
+
+  // === INICIALIZAÇÃO DO GRAPESJS ===
+  useEffect(() => {
+    // Só inicia se o modal estiver aberto e o editor ainda não existir
     if (mostrarModal && !editorRef.current) {
       const editor = grapesjs.init({
         container: '#gjs',
         fromElement: true,
         height: '100%',
         width: 'auto',
-        storageManager: false, 
+        storageManager: false, // O salvamento é manual via React state
         plugins: ['gjs-preset-webpage'],
         pluginsOpts: {
           'gjs-preset-webpage': {}
@@ -136,6 +161,7 @@ export function LandingPages() {
         `,
       });
 
+      // Injeta o HTML/CSS se for uma edição, ou um placeholder se for novo
       if (htmlInicial) {
         editor.setComponents(htmlInicial);
         if (cssInicial) editor.setStyle(cssInicial);
@@ -144,34 +170,14 @@ export function LandingPages() {
       }
     }
 
+    // Cleanup: Destrói a instância do GrapesJS quando o modal fecha para evitar memory leaks
     return () => {
       if (!mostrarModal && editorRef.current) {
         editorRef.current.destroy();
         editorRef.current = null;
       }
     };
-  }, [mostrarModal, htmlInicial, cssInicial]);
-
-  function getHeaders() {
-    const token = localStorage.getItem('token');
-    return { headers: { Authorization: `Bearer ${token}` } };
-  }
-
-  async function carregarDados() {
-    setCarregando(true);
-    try {
-      const [resPages, resCamps] = await Promise.all([
-        axios.get(`${API_URL}/landing-pages`, getHeaders()),
-        axios.get(`${API_URL}/campanhas`, getHeaders())
-      ]);
-      setPaginas(resPages.data);
-      setCampanhas(resCamps.data);
-    } catch (e) {
-      console.error("Erro ao carregar dados", e);
-    } finally {
-      setCarregando(false);
-    }
-  }
+  }, [mostrarModal, htmlInicial, cssInicial]); // Recria o editor se o HTML base mudar na abertura
 
   function abrirModalNovo() {
     setEditandoId(null);
@@ -201,6 +207,7 @@ export function LandingPages() {
 
     const slugFormatado = slug.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
+    // Extrai o HTML e CSS limpos gerados pelo GrapesJS
     const htmlGerado = editorRef.current ? editorRef.current.getHtml() : htmlInicial;
     const cssGerado = editorRef.current ? editorRef.current.getCss() : cssInicial;
 
@@ -216,8 +223,10 @@ export function LandingPages() {
     try {
       if (editandoId) {
         await axios.put(`${API_URL}/landing-pages/${editandoId}`, payload, getHeaders());
+        alert("Página atualizada com sucesso!");
       } else {
         await axios.post(`${API_URL}/landing-pages`, payload, getHeaders());
+        alert("Página criada com sucesso!");
       }
       setMostrarModal(false);
       carregarDados();
@@ -237,7 +246,14 @@ export function LandingPages() {
     }
   }
 
-  const paginasFiltradas = paginas.filter(p => p.nome.toLowerCase().includes(buscaGeral.toLowerCase()) || p.slug.toLowerCase().includes(buscaGeral.toLowerCase()));
+  // === MEMOIZAÇÃO DE PERFORMANCE ===
+  const paginasFiltradas = useMemo(() => {
+    const termo = buscaGeral.toLowerCase();
+    return paginas.filter(p => 
+      p.nome.toLowerCase().includes(termo) || 
+      p.slug.toLowerCase().includes(termo)
+    );
+  }, [paginas, buscaGeral]);
 
   return (
     <>
@@ -282,7 +298,7 @@ export function LandingPages() {
                 {carregando ? (
                   <tr><td colSpan="4" className="text-center text-muted"><i className="fa-solid fa-spinner fa-spin"></i> Carregando páginas...</td></tr>
                 ) : paginasFiltradas.length === 0 ? (
-                  <tr><td colSpan="4" className="text-center text-muted">Nenhuma Landing Page criada ainda.</td></tr>
+                  <tr><td colSpan="4" className="text-center text-muted">Nenhuma Landing Page encontrada.</td></tr>
                 ) : (
                   paginasFiltradas.map(p => (
                     <ClickableRow key={p.id}>
@@ -375,6 +391,7 @@ export function LandingPages() {
             </BuilderHeader>
 
             {/* O CONTAINER DO GRAPESJS VAI AQUI (OCUPA O RESTO DA TELA) */}
+            {/* O GrapesJS gerencia seus próprios z-indexes, certifique-se de que nenhum elemento pai oculte seus modais nativos */}
             <div id="gjs" style={{ flex: 1, overflow: 'hidden' }}></div>
 
           </FullScreenContent>

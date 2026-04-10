@@ -1,9 +1,41 @@
-// src/components/Sidebar.jsx
+// src/componentes/Sidebar.jsx
+import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import styled from 'styled-components';
+import { getUserProfile } from '../utils/auth';
+
+// 1. OTIMIZAÇÃO: Constante movida para fora do componente.
+// Evita alocação de memória desnecessária a cada re-render do React.
+const MENU_CONFIG = [
+  {
+    section: 'MENU PRINCIPAL',
+    items: [
+      { label: 'Home', path: '/', icon: 'fa-house' },
+      { label: 'Dashboard', path: '/dashboard', icon: 'fa-chart-pie', role: 'admin' },
+      { label: 'Funil de Vendas', path: '/funil', icon: 'fa-layer-group' }
+    ]
+  },
+  {
+    section: 'OPERAÇÃO',
+    items: [
+      { label: 'Contatos', path: '/contatos', icon: 'fa-users' },
+      { label: 'Prefeituras / Empresas', path: '/empresas', icon: 'fa-building' }
+    ]
+  },
+  {
+    section: 'MARKETING & VENDAS',
+    role: 'admin',
+    items: [
+      { label: 'Cursos e Campanhas', path: '/campanhas', icon: 'fa-bullhorn' },
+      { label: 'Máquina de Disparos', path: '/disparos', icon: 'fa-paper-plane' },
+      { label: 'Landing Pages', path: '/landing-pages', icon: 'fa-window-maximize' }
+    ]
+  }
+];
 
 export function Sidebar() {
-  const perfilUsuario = localStorage.getItem('perfil');
+  // 2. OTIMIZAÇÃO: Lazy Initialization para ler o perfil apenas na montagem
+  const [perfilUsuario] = useState(() => getUserProfile());
 
   return (
     <SidebarContainer>
@@ -13,51 +45,32 @@ export function Sidebar() {
         </div>
         <span>Meu CRM</span>
       </Logo>
-      
+
       <NavList>
-        <span className="nav-label">MENU PRINCIPAL</span>
-        
-        <NavItem to="/" end>
-          <i className="fa-solid fa-house"></i> Home
-        </NavItem>
-        
-        {perfilUsuario === 'admin' && (
-          <NavItem to="/dashboard">
-            <i className="fa-solid fa-chart-pie"></i> Dashboard
-          </NavItem>
-        )}
-        
-        <NavItem to="/funil">
-          <i className="fa-solid fa-layer-group"></i> Funil de Vendas
-        </NavItem>
-        
-        <span className="nav-label">OPERAÇÃO</span>
-        
-        <NavItem to="/contatos">
-          <i className="fa-solid fa-users"></i> Contatos
-        </NavItem>
-        
-        <NavItem to="/empresas">
-          <i className="fa-solid fa-building"></i> Prefeituras / Empresas
-        </NavItem>
-        
-        {perfilUsuario === 'admin' && (
-          <>
-            <span className="nav-label">MARKETING & VENDAS</span>
-            
-            <NavItem to="/campanhas">
-              <i className="fa-solid fa-bullhorn"></i> Cursos e Campanhas
-            </NavItem>
-            
-            <NavItem to="/disparos">
-              <i className="fa-solid fa-paper-plane"></i> Máquina de Disparos
-            </NavItem>
-            
-            <NavItem to="/landing-pages">
-              <i className="fa-solid fa-window-maximize"></i> Landing Pages
-            </NavItem>
-          </>
-        )}
+        {MENU_CONFIG.map((section, index) => {
+          // Verifica permissão da seção inteira
+          if (section.role && section.role !== perfilUsuario) return null;
+
+          // Filtra itens por permissão
+          const visibleItems = section.items.filter(
+            item => !item.role || item.role === perfilUsuario
+          );
+
+          if (visibleItems.length === 0) return null;
+
+          return (
+            <div key={index}>
+              <span className="nav-label">{section.section}</span>
+
+              {visibleItems.map((item, idx) => (
+                <NavItem key={idx} to={item.path} end={item.path === '/'}>
+                  <i className={`fa-solid ${item.icon}`}></i>
+                  {item.label}
+                </NavItem>
+              ))}
+            </div>
+          );
+        })}
       </NavList>
     </SidebarContainer>
   );
@@ -69,14 +82,14 @@ export function Sidebar() {
 
 const SidebarContainer = styled.aside`
   width: 260px;
-  background-color: #0f172a; /* Tom escuro super moderno (Slate 900) */
+  background-color: #0f172a;
   color: #f8fafc;
   display: flex;
   flex-direction: column;
   padding: 25px 0;
   box-shadow: 4px 0 15px rgba(0, 0, 0, 0.05);
   z-index: 100;
-  flex-shrink: 0; /* Impede que o menu seja esmagado em telas menores */
+  flex-shrink: 0;
 `;
 
 const Logo = styled.div`
@@ -113,16 +126,15 @@ const NavList = styled.nav`
   .nav-label {
     font-size: 0.75rem;
     font-weight: 700;
-    color: #64748b; /* Slate 500 */
+    color: #64748b;
     margin: 15px 0 5px 15px;
     letter-spacing: 1px;
   }
 `;
 
-// Estilizando o NavLink do React Router Dom
 const NavItem = styled(NavLink)`
   padding: 12px 18px;
-  color: #94a3b8; /* Slate 400 */
+  color: #94a3b8;
   text-decoration: none;
   display: flex;
   align-items: center;
@@ -143,7 +155,7 @@ const NavItem = styled(NavLink)`
 
   &:hover {
     color: #f8fafc;
-    background-color: #1e293b; /* Slate 800 */
+    background-color: #1e293b;
     
     i {
       color: #007bff;
@@ -152,13 +164,12 @@ const NavItem = styled(NavLink)`
 
   &.active {
     color: #ffffff;
-    background-color: rgba(0, 123, 255, 0.15); /* Fundo azul translúcido */
+    background-color: rgba(0, 123, 255, 0.15);
     
     i {
       color: #007bff;
     }
 
-    /* Linha azul indicadora na esquerda */
     &::before {
       content: '';
       position: absolute;

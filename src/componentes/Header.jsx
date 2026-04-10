@@ -1,39 +1,23 @@
-// src/components/Header.jsx
+// src/componentes/Header.jsx
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import styled from 'styled-components';
+import { getUserFirstName, clearAuth } from '../utils/auth';
 
 export function Header({ titulo }) {
   const navigate = useNavigate();
-  const [nomeUsuario, setNomeUsuario] = useState('Usuário');
   
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      try {
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        
-        const jsonPayload = decodeURIComponent(
-          window.atob(base64).split('').map(function(c) {
-            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-          }).join('')
-        );
-        
-        const payload = JSON.parse(jsonPayload); 
-        setNomeUsuario(payload.nome.split(' ')[0]);
-        
-      } catch (error) {
-        console.error('Erro ao ler nome do usuário', error);
-      }
-    }
-  }, []);
+  // Inicialização Lazy (Preguiçosa): O React executa essa função apenas na montagem.
+  // Isso evita o uso de useEffect e previne uma segunda renderização desnecessária da tela.
+  const [nomeUsuario] = useState(() => getUserFirstName() || 'Usuário');
 
   function fazerLogout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('perfil'); 
-    localStorage.removeItem('usuarioId'); 
-    navigate('/login'); 
+    clearAuth();
+    navigate('/login');
+  }
+
+  function irParaConfiguracoes() {
+    navigate('/configuracoes');
   }
 
   return (
@@ -46,7 +30,11 @@ export function Header({ titulo }) {
           Olá, {nomeUsuario}
         </UserInfo>
         
-        <LogoutButton onClick={fazerLogout}>
+        <ConfigButton onClick={irParaConfiguracoes} title="Configurações da Conta">
+          <i className="fa-solid fa-gear"></i>
+        </ConfigButton>
+        
+        <LogoutButton onClick={fazerLogout} title="Sair do Sistema">
           <i className="fa-solid fa-sign-out-alt"></i> Sair
         </LogoutButton>
       </HeaderActions>
@@ -81,7 +69,7 @@ const HeaderTitle = styled.div`
 const HeaderActions = styled.div`
   display: flex;
   align-items: center;
-  gap: 25px;
+  gap: 20px; /* Reduzi um pouco o gap para os 3 elementos ficarem mais unidos */
 `;
 
 const UserInfo = styled.span`
@@ -90,11 +78,38 @@ const UserInfo = styled.span`
   display: flex;
   align-items: center;
   font-size: 0.95rem;
+  margin-right: 5px;
 
   i {
     margin-right: 8px;
     font-size: 1.5rem;
     color: #007bff;
+  }
+`;
+
+const ConfigButton = styled.button`
+  background: #f8fafc;
+  color: #64748b;
+  border: 1px solid #cbd5e1;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: #e2e8f0;
+    color: #007bff;
+    border-color: #94a3b8;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+  }
+
+  &:active {
+    transform: translateY(0);
   }
 `;
 
