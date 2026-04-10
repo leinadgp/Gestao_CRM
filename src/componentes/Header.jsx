@@ -1,15 +1,26 @@
 // src/componentes/Header.jsx
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { getUserFirstName, clearAuth } from '../utils/auth';
 
 export function Header({ titulo }) {
   const navigate = useNavigate();
   
-  // Inicialização Lazy (Preguiçosa): O React executa essa função apenas na montagem.
-  // Isso evita o uso de useEffect e previne uma segunda renderização desnecessária da tela.
-  const [nomeUsuario] = useState(() => getUserFirstName() || 'Usuário');
+  // Lê o nome e a foto na montagem do componente
+  const [nomeUsuario, setNomeUsuario] = useState(() => getUserFirstName() || 'Usuário');
+  const [fotoPerfil, setFotoPerfil] = useState(() => localStorage.getItem('foto_perfil') || null);
+
+  // Escuta o evento de atualização do perfil para trocar a foto na hora, sem precisar dar F5
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setNomeUsuario(getUserFirstName() || 'Usuário');
+      setFotoPerfil(localStorage.getItem('foto_perfil') || null);
+    };
+    
+    window.addEventListener('perfilAtualizado', handleStorageChange);
+    return () => window.removeEventListener('perfilAtualizado', handleStorageChange);
+  }, []);
 
   function fazerLogout() {
     clearAuth();
@@ -26,8 +37,12 @@ export function Header({ titulo }) {
       
       <HeaderActions>
         <UserInfo>
-          <i className="fa-solid fa-user-circle"></i>
-          Olá, {nomeUsuario}
+          {fotoPerfil ? (
+            <AvatarImage src={fotoPerfil} alt="Foto de Perfil" />
+          ) : (
+            <i className="fa-solid fa-user-circle"></i>
+          )}
+          <span>Olá, {nomeUsuario}</span>
         </UserInfo>
         
         <ConfigButton onClick={irParaConfiguracoes} title="Configurações da Conta">
@@ -69,10 +84,10 @@ const HeaderTitle = styled.div`
 const HeaderActions = styled.div`
   display: flex;
   align-items: center;
-  gap: 20px; /* Reduzi um pouco o gap para os 3 elementos ficarem mais unidos */
+  gap: 20px;
 `;
 
-const UserInfo = styled.span`
+const UserInfo = styled.div`
   color: #495057;
   font-weight: 600;
   display: flex;
@@ -82,9 +97,19 @@ const UserInfo = styled.span`
 
   i {
     margin-right: 8px;
-    font-size: 1.5rem;
+    font-size: 1.8rem; /* Aumentei um pouco para igualar com o tamanho da foto */
     color: #007bff;
   }
+`;
+
+const AvatarImage = styled.img`
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-right: 8px;
+  border: 2px solid #edf2f9;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 `;
 
 const ConfigButton = styled.button`
