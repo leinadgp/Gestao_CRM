@@ -557,9 +557,9 @@ export function Funil() {
                       if (op.status === 'naofunciona') statusConfig = { border: '#f1c40f', bg: '#fff9db' };
                       if (op.status === 'naoatendeu') statusConfig = { border: '#e67e22', bg: '#fff4e6' };
                       if (op.status === 'tarefa') statusConfig = { border: '#6f42c1', bg: '#f3e8ff' };
-                      if (op.status === 'ganho' || op.status === 'inscricao') statusConfig = { border: '#195326', bg: '#e7f3ff' };
-                      if (op.status === 'interessada') statusConfig = { border: '#5bd477', bg: '#e7f3ff' };
-                      if (op.status === 'avaliar') statusConfig = { border: '#cefaab', bg: '#e9f7ef' };
+                      if (op.status === 'ganho' ) statusConfig = { border: '#0e3115', bg: '#e7f3ff' };
+                      if (op.status === 'interessada') statusConfig = { border: '#36ad52', bg: '#e7f3ff' };
+                      if (op.status === 'avaliar') statusConfig = { border: '#9fe069', bg: '#e9f7ef' };
                       if (op.status === 'perdido') statusConfig = { border: '#dc3545', bg: '#fdecea' };
                       
                       const idsModsCard = parseJSONSeguro(op.modulos_ids, []).map(Number);
@@ -631,9 +631,8 @@ export function Funil() {
                     <label>Status da Negociação</label>
                     <Select value={statusOp} onChange={(e) => setStatusOp(e.target.value)} $status={statusOp}>
                       <option value="aberto">⚪ Em Aberto</option>
-                      <option value="avaliar">🔵 Avaliar</option>
+                      <option value="avaliar">🟢 Avaliar</option>
                       <option value="interessada">🟢 Interessada</option>
-                      <option value="inscricao">🏆 Inscrição (Ganho)</option>
                       <option value="ganho">🏆 Vendido </option>
                       <option value="tarefa">🟣 Tarefa</option>
                       <option value="naoatendeu">🟠 Não Atendeu</option>
@@ -935,7 +934,7 @@ export function Funil() {
 // ==========================================
 
 const PageContainer = styled.div`
-  padding: 30px; background-color: #f4f7f6; min-height: calc(100vh - 70px);
+  padding: 9px 30px 0px; background-color: #f4f7f6; min-height: calc(100vh - 70px); 
 `;
 
 const TopSection = styled.div`
