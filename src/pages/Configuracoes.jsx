@@ -9,17 +9,17 @@ export function Configuracoes() {
   const fileInputRef = useRef(null);
   
   const [perfilUsuario] = useState(() => localStorage.getItem('perfil'));
-  const [abaAtiva, setAbaAtiva] = useState('perfil'); // Abas: 'perfil', 'senha', 'equipe'
+  const [abaAtiva, setAbaAtiva] = useState('perfil'); 
   
   // --- ESTADOS DO MEU PERFIL ---
   const [meuNome, setMeuNome] = useState('');
   const [meuEmail, setMeuEmail] = useState('');
   const [meuTelefone, setMeuTelefone] = useState('');
-  const [minhaFoto, setMinhaFoto] = useState(''); // Base64 da imagem
+  const [minhaFoto, setMinhaFoto] = useState(''); 
   const [carregandoPerfil, setCarregandoPerfil] = useState(true);
   const [salvandoPerfil, setSalvandoPerfil] = useState(false);
 
-  // --- ESTADOS DA EQUIPE (Apenas Admin) ---
+  // --- ESTADOS DA EQUIPE ---
   const [equipe, setEquipe] = useState([]);
   const [carregandoEquipe, setCarregandoEquipe] = useState(false);
   const [mostrarModalNovoUser, setMostrarModalNovoUser] = useState(false);
@@ -41,7 +41,6 @@ export function Configuracoes() {
     return { headers: { Authorization: `Bearer ${token}` } };
   }, []);
 
-  // --- CARREGAR DADOS ---
   const carregarMeuPerfil = useCallback(async () => {
     setCarregandoPerfil(true);
     try {
@@ -75,17 +74,15 @@ export function Configuracoes() {
     if (abaAtiva === 'equipe') carregarEquipe();
   }, [abaAtiva, carregarMeuPerfil, carregarEquipe]);
 
-  // --- AÇÕES DO MEU PERFIL ---
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Limite de tamanho (ex: 2MB) para não explodir o banco com Base64
       if (file.size > 2 * 1024 * 1024) {
         return alert("A imagem é muito grande. Escolha uma foto menor que 2MB.");
       }
       const reader = new FileReader();
       reader.onloadend = () => {
-        setMinhaFoto(reader.result); // Transforma em Base64
+        setMinhaFoto(reader.result); 
       };
       reader.readAsDataURL(file);
     }
@@ -99,7 +96,6 @@ export function Configuracoes() {
         nome: meuNome, email: meuEmail, telefone: meuTelefone, foto_perfil: minhaFoto
       }, getHeaders());
       
-      // Atualiza o LocalStorage e avisa o Header para atualizar a foto
       localStorage.setItem('nome', res.data.nome);
       if (res.data.foto_perfil) localStorage.setItem('foto_perfil', res.data.foto_perfil);
       window.dispatchEvent(new Event('perfilAtualizado'));
@@ -112,7 +108,6 @@ export function Configuracoes() {
     }
   }
 
-  // --- AÇÕES DE SENHA ---
   async function handleAlterarSenha(e) {
     e.preventDefault();
     if (novaSenha !== confirmarSenha) return alert('As senhas não conferem.');
@@ -130,7 +125,6 @@ export function Configuracoes() {
     }
   }
 
-  // --- AÇÕES DE EQUIPE ---
   async function handleCriarUsuario(e) {
     e.preventDefault();
     setSalvandoUser(true);
@@ -147,6 +141,21 @@ export function Configuracoes() {
       alert(error.response?.data?.erro || 'Erro ao criar usuário.');
     } finally {
       setSalvandoUser(false);
+    }
+  }
+
+  // --- LÓGICA DE ATIVAR/DESATIVAR USUÁRIO ---
+  async function alternarStatusUsuario(id, statusAtual) {
+    const acao = statusAtual ? 'desativar' : 'ativar';
+    const confirmacao = window.confirm(`Tem certeza que deseja ${acao} este usuário? Ele ${statusAtual ? 'não poderá mais logar' : 'voltará a ter acesso'} no sistema.`);
+    
+    if (!confirmacao) return;
+
+    try {
+      await axios.put(`${API_URL}/usuarios/${id}/status`, { ativo: !statusAtual }, getHeaders());
+      carregarEquipe();
+    } catch (error) {
+      alert(error.response?.data?.erro || 'Erro ao alterar status do usuário.');
     }
   }
 
@@ -182,7 +191,6 @@ export function Configuracoes() {
               <h3><i className="fa-solid fa-user text-blue"></i> Informações Pessoais</h3>
               <p>Atualize seus dados de contato e foto de exibição.</p>
             </div>
-            
             {carregandoPerfil ? (
               <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>Carregando dados...</div>
             ) : (
@@ -216,7 +224,6 @@ export function Configuracoes() {
                     </FormGrid>
                   </div>
                 </ProfileLayout>
-
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px', borderTop: '1px solid #edf2f9', paddingTop: '20px' }}>
                   <PrimaryButton type="submit" disabled={salvandoPerfil}>
                     {salvandoPerfil ? <><i className="fa-solid fa-spinner fa-spin"></i> Salvando...</> : <><i className="fa-solid fa-save"></i> Salvar Perfil</>}
@@ -227,7 +234,7 @@ export function Configuracoes() {
           </FormPanel>
         )}
 
-        {/* === ABA 2: SEGURANÇA (SENHA) === */}
+        {/* === ABA 2: SEGURANÇA === */}
         {abaAtiva === 'senha' && (
           <FormPanel>
             <div className="form-header">
@@ -259,7 +266,7 @@ export function Configuracoes() {
           </FormPanel>
         )}
 
-        {/* === ABA 3: GERENCIAR EQUIPE === */}
+        {/* === ABA 3: EQUIPE === */}
         {abaAtiva === 'equipe' && perfilUsuario === 'admin' && (
           <Panel>
             <PanelHeader>
@@ -272,9 +279,9 @@ export function Configuracoes() {
               <Table>
                 <thead>
                   <tr>
-                    <th>Nome do Colaborador</th>
-                    <th>Login (Usuário)</th>
-                    <th>Nível de Acesso (Perfil)</th>
+                    <th>Colaborador</th>
+                    <th>Acesso</th>
+                    <th style={{ width: '100px', textAlign: 'center' }}>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -283,17 +290,34 @@ export function Configuracoes() {
                   ) : equipe.length === 0 ? (
                     <tr><td colSpan="3" className="text-center text-muted">Nenhum colaborador encontrado.</td></tr>
                   ) : (
-                    equipe.map(user => (
-                      <tr key={user.id}>
-                        <td><strong>{user.nome}</strong></td>
-                        <td className="text-muted">{user.login || '-'}</td>
-                        <td>
-                          <Badge className={user.perfil === 'admin' ? 'badge-admin' : 'badge-vendedor'}>
-                            {user.perfil === 'admin' ? '⭐ Administrador' : 'Vendedor / Operador'}
-                          </Badge>
-                        </td>
-                      </tr>
-                    ))
+                    equipe.map(user => {
+                      const isAtivo = user.ativo !== false; // Se for nulo/true, é ativo
+                      return (
+                        <tr key={user.id} style={{ opacity: isAtivo ? 1 : 0.5, background: isAtivo ? 'transparent' : '#f8fafc' }}>
+                          <td>
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <strong style={{ textDecoration: isAtivo ? 'none' : 'line-through' }}>{user.nome}</strong>
+                              <span className="text-muted" style={{ fontSize: '0.85rem' }}>{user.login}</span>
+                            </div>
+                          </td>
+                          <td>
+                            <Badge className={user.perfil === 'admin' ? 'badge-admin' : 'badge-vendedor'}>
+                              {user.perfil === 'admin' ? '⭐ Administrador' : 'Vendedor'}
+                            </Badge>
+                            {!isAtivo && <Badge className="badge-danger" style={{ marginLeft: '10px' }}>Inativo</Badge>}
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <ActionButton 
+                              $isAtivo={isAtivo} 
+                              onClick={() => alternarStatusUsuario(user.id, isAtivo)}
+                              title={isAtivo ? "Desativar Acesso" : "Reativar Acesso"}
+                            >
+                              <i className={`fa-solid ${isAtivo ? 'fa-ban' : 'fa-check-circle'}`}></i>
+                            </ActionButton>
+                          </td>
+                        </tr>
+                      )
+                    })
                   )}
                 </tbody>
               </Table>
@@ -354,11 +378,9 @@ export function Configuracoes() {
 // ==========================================
 // STYLED COMPONENTS
 // ==========================================
-
 const PageContainer = styled.div`
   padding: 30px; background-color: #f4f7f6; min-height: calc(100vh - 70px);
 `;
-
 const TopSection = styled.div`
   display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px;
 `;
@@ -368,36 +390,25 @@ const Title = styled.h2`
 const Subtitle = styled.p`
   color: #6c757d; font-size: 0.95rem; margin: 5px 0 0 0;
 `;
-
 const TabsContainer = styled.div`
   display: flex; gap: 10px; margin-top: 15px;
 `;
 const TabButton = styled.button`
   padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.2s ease; display: flex; align-items: center; gap: 8px;
-  background: ${props => props.$active ? '#1F4E79' : '#e9ecef'};
-  color: ${props => props.$active ? '#ffffff' : '#6c757d'};
+  background: ${props => props.$active ? '#1F4E79' : '#e9ecef'}; color: ${props => props.$active ? '#ffffff' : '#6c757d'};
   &:hover { background: ${props => props.$active ? '#1F4E79' : '#dde2e6'}; }
 `;
 
-// --- LAYOUT DO PERFIL ---
 const ProfileLayout = styled.div`
   display: flex; gap: 40px; align-items: flex-start;
   @media (max-width: 768px) { flex-direction: column; align-items: center; gap: 20px;}
-
-  .avatar-section {
-    display: flex; flex-direction: column; align-items: center; gap: 15px; width: 200px;
-    .avatar-preview {
-      width: 150px; height: 150px; border-radius: 50%; background: #e2e8f0; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 4px solid #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-      img { width: 100%; height: 100%; object-fit: cover; }
-      i { font-size: 4rem; color: #94a3b8; }
-    }
-    .help-text { font-size: 0.75rem; color: #94a3b8; text-align: center; margin: 0;}
-  }
-
+  .avatar-section { display: flex; flex-direction: column; align-items: center; gap: 15px; width: 200px;
+    .avatar-preview { width: 150px; height: 150px; border-radius: 50%; background: #e2e8f0; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 4px solid #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      img { width: 100%; height: 100%; object-fit: cover; } i { font-size: 4rem; color: #94a3b8; } }
+    .help-text { font-size: 0.75rem; color: #94a3b8; text-align: center; margin: 0;} }
   .fields-section { flex: 1; width: 100%; }
 `;
 
-// --- TABELAS ---
 const Panel = styled.div`
   background: #fff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border: 1px solid #edf2f9; overflow: hidden; margin-bottom: 20px;
 `;
@@ -409,7 +420,7 @@ const TableContainer = styled.div`overflow-x: auto;`;
 const Table = styled.table`
   width: 100%; border-collapse: collapse; min-width: 600px;
   th { text-align: left; padding: 15px 25px; background: #ffffff; color: #6c757d; font-size: 0.85rem; text-transform: uppercase; border-bottom: 2px solid #edf2f9; }
-  td { padding: 15px 25px; border-bottom: 1px solid #edf2f9; color: #2c3e50; }
+  td { padding: 15px 25px; border-bottom: 1px solid #edf2f9; color: #2c3e50; vertical-align: middle;}
   tr:last-child td { border-bottom: none; }
   tr:hover td { background-color: #fbfbfc; }
   .text-center { text-align: center; } .text-muted { color: #a0aec0; }
@@ -419,38 +430,38 @@ const Badge = styled.span`
   padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;
   &.badge-admin { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
   &.badge-vendedor { background: #e2e8f0; color: #475569; border: 1px solid #cbd5e1; }
+  &.badge-danger { background: #fdf2f2; color: #dc3545; border: 1px solid #f8d7da; }
 `;
 
-// --- FORMS ---
+const ActionButton = styled.button`
+  background: none; border: none; font-size: 1.2rem; cursor: pointer; transition: 0.2s; padding: 5px; border-radius: 5px;
+  color: ${props => props.$isAtivo ? '#dc3545' : '#28a745'};
+  &:hover { background: ${props => props.$isAtivo ? '#fdf2f2' : '#e6f4ea'}; transform: scale(1.1); }
+`;
+
 const FormPanel = styled.div`
   background: #fff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border: 1px solid #edf2f9; overflow: hidden; max-width: 900px;
   .form-header { padding: 25px; border-bottom: 1px solid #edf2f9; background: #fbfbfc; h3 { margin: 0 0 5px 0; color: #2c3e50; font-size: 1.2rem; display: flex; align-items: center; gap: 8px;} p { margin: 0; color: #6c757d; font-size: 0.9rem; } .text-green { color: #28a745; } .text-blue { color: #007bff; } }
 `;
-
 const FormGrid = styled.div`
   display: grid; grid-template-columns: ${props => props.$columns || '1fr'}; gap: 20px; margin-bottom: 15px;
   @media (max-width: 600px) { grid-template-columns: 1fr; }
 `;
-
 const FormGroup = styled.div`
   display: flex; flex-direction: column; gap: 6px; margin-bottom: 15px;
   label { font-weight: 700; font-size: 0.9rem; color: #475569; }
   .error-text { color: #dc3545; font-size: 0.8rem; font-weight: 600; margin-top: 2px;}
 `;
-
 const Input = styled.input`
   width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #333; outline: none; transition: 0.2s;
   &:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); }
-  &.highlight-blue { background: #f8fafc; }
-  &.error { border-color: #dc3545; background: #fdf2f2; }
+  &.highlight-blue { background: #f8fafc; } &.error { border-color: #dc3545; background: #fdf2f2; }
 `;
-
 const Select = styled.select`
   width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #333; outline: none; cursor: pointer; background: #f8fafc;
   &:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); }
 `;
 
-// --- MODAIS ---
 const ModalOverlay = styled.div`
   position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(2px); padding: 20px;
 `;
@@ -466,11 +477,9 @@ const ModalFooter = styled.div`
   display: flex; justify-content: flex-end; gap: 10px; padding: 20px 25px; border-top: 1px solid #edf2f9; background: #fbfbfc;
 `;
 const CloseButton = styled.button`
-  background: none; border: none; font-size: 1.8rem; color: #a0aec0; cursor: pointer; line-height: 1;
-  &:hover { color: #dc3545; }
+  background: none; border: none; font-size: 1.8rem; color: #a0aec0; cursor: pointer; line-height: 1; &:hover { color: #dc3545; }
 `;
 
-// --- BOTÕES ---
 const ButtonBase = styled.button`
   padding: 10px 20px; border-radius: 8px; font-weight: 700; font-size: 0.95rem; cursor: pointer; border: none; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
   &:disabled { opacity: 0.6; cursor: not-allowed; }

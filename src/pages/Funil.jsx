@@ -350,7 +350,6 @@ export function Funil() {
   // GESTÃO DA OPORTUNIDADE (MODAL PRINCIPAL)
   // ==========================================
   
-  // CORREÇÃO: Força os IDs a serem Number para comparação estrita e marcação correta do checkbox
   function toggleModulo(id) {
     const numId = Number(id);
     setModulosSelecionados(prev => {
@@ -434,7 +433,7 @@ export function Funil() {
       if (editandoId) {
         await axios.put(`${API_URL}/oportunidades/${editandoId}`, dados, getHeaders());
         
-        // CORREÇÃO: Auditoria de Troca de Vendedor
+        // Auditoria de Troca de Vendedor
         if (String(vendedorId) !== String(vendedorOriginal)) {
           const nomeNovo = equipe.find(u => String(u.id) === String(vendedorId))?.nome || 'Sem dono';
           const nomeVelho = equipe.find(u => String(u.id) === String(vendedorOriginal))?.nome || 'Sem dono';
@@ -484,7 +483,6 @@ export function Funil() {
           </div>
 
           <ActionsContainer>
-            {/* CORREÇÃO: Adicionado campo de busca geral do Kanban */}
             <SearchInputWrapper>
               <i className="fa-solid fa-search"></i>
               <input 
@@ -774,10 +772,16 @@ export function Funil() {
                 <FormGrid $columns="1fr">
                   <FormGroup>
                     <label><i className="fa-solid fa-user-tie text-purple"></i> Vendedor Responsável</label>
-                    {/* CORREÇÃO: Removido o disabled={perfilUsuario === 'vendedor'} */}
                     <Select value={vendedorId} onChange={(e) => setVendedorId(e.target.value)}>
                       <option value="">-- Sem dono definido --</option>
-                      {equipe.map(user => <option key={user.id} value={user.id}>{user.nome} ({user.perfil})</option>)}
+                      {equipe
+                        .filter(user => user.ativo !== false || String(user.id) === String(vendedorOriginal))
+                        .map(user => (
+                          <option key={user.id} value={user.id}>
+                            {user.nome} {user.ativo === false ? '(Inativo)' : `(${user.perfil})`}
+                          </option>
+                        ))
+                      }
                     </Select>
                   </FormGroup>
 

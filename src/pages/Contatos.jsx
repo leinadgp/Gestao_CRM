@@ -93,16 +93,13 @@ export function Contatos() {
 
   useEffect(() => { carregarDados(); }, [carregarDados]);
 
-  // Handler de clique fora para fechar dropdowns
   useEffect(() => {
     const handleClickFora = (event) => {
-      // Fecha Prefeitura
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setMostrarDropdown(false);
         const atual = empresas.find(e => e.id === parseInt(empresaId));
         setBuscaEmpresaNoForm(atual ? atual.nome : '');
       }
-      
       if (dropdownEstadoRef.current && !dropdownEstadoRef.current.contains(event.target)) setDropdownEstadoAberto(false);
       if (dropdownCargoRef.current && !dropdownCargoRef.current.contains(event.target)) setDropdownCargoAberto(false);
     };
@@ -110,7 +107,6 @@ export function Contatos() {
     return () => document.removeEventListener('mousedown', handleClickFora);
   }, [empresaId, empresas]);
 
-  // === LOGICA DINÂMICA DE INPUTS ===
   const gerenciarCampo = (tipo, acao, index, valor) => {
     const set = tipo === 'email' ? setEmails : setTelefones;
     const lista = tipo === 'email' ? emails : telefones;
@@ -124,7 +120,6 @@ export function Contatos() {
     }
   };
 
-  // === PERFORMANCE: MEMOIZAÇÃO DE FILTROS E PAGINAÇÃO ===
   const contatosFiltrados = useMemo(() => {
     const termo = buscaGeral.toLowerCase();
     return contatos.filter(c => {
@@ -147,28 +142,19 @@ export function Contatos() {
     return empresas.filter(e => e.nome.toLowerCase().includes(buscaEmpresaNoForm.toLowerCase()));
   }, [empresas, buscaEmpresaNoForm]);
 
-  // === AÇÕES ===
   const abrirModalNovo = () => {
-    setEditandoId(null); 
-    setNome(''); 
-    setCargo(''); 
-    setEmpresaId(''); setBuscaEmpresaNoForm('');
+    setEditandoId(null); setNome(''); setCargo(''); setEmpresaId(''); setBuscaEmpresaNoForm('');
     setEmails(['']); setTelefones(['']); setEmailsComErroForm([]);
     setModoEdicao(true); setMostrarModalContato(true);
   };
 
   const abrirModalContatoDetalhes = async (c) => {
-    setEditandoId(c.id); 
-    setNome(c.nome || ''); 
-    setCargo(c.cargo || '');
+    setEditandoId(c.id); setNome(c.nome || ''); setCargo(c.cargo || '');
     setEmpresaId(c.empresa_id || ''); setBuscaEmpresaNoForm(c.empresa_nome || '');
     setEmails(parseJSONSeguro(c.emails_json, ['']));
     setTelefones(parseJSONSeguro(c.telefones_json, ['']));
     setEmailsComErroForm(c.emails_com_erro || []);
-
-    setModoEdicao(false);
-    setMostrarModalContato(true);
-    setCarregandoHistorico(true);
+    setModoEdicao(false); setMostrarModalContato(true); setCarregandoHistorico(true);
 
     try {
       const res = await axios.get(`${API_URL}/contatos/${c.id}/detalhes`, getHeaders());
@@ -180,11 +166,10 @@ export function Contatos() {
     }
   };
 
-  // === LÓGICA DO SELECT DE CARGOS ===
   const handleCargoChange = (e) => {
     const valor = e.target.value;
     if (valor === 'NOVO_CARGO_ACTION') {
-      setCargoAnterior(cargo); // Guarda o cargo atual caso o usuário cancele
+      setCargoAnterior(cargo);
       setNovoCargoNome('');
       setMostrarModalNovoCargo(true);
     } else {
@@ -196,16 +181,11 @@ export function Contatos() {
     e.preventDefault();
     const nomeFormatado = novoCargoNome.trim();
     if (!nomeFormatado) return;
-
     try {
-      // Salva no banco
       await axios.post(`${API_URL}/cargos`, { nome: nomeFormatado }, getHeaders());
-      
-      // Atualiza a lista visualmente
       if (!listaCargos.includes(nomeFormatado)) {
         setListaCargos(prev => [...prev, nomeFormatado].sort((a, b) => a.localeCompare(b)));
       }
-      
       setCargo(nomeFormatado);
       setMostrarModalNovoCargo(false);
     } catch (err) {
@@ -215,7 +195,7 @@ export function Contatos() {
   };
 
   const cancelarNovoCargo = () => {
-    setCargo(cargoAnterior); // Restaura o select para o que estava antes
+    setCargo(cargoAnterior);
     setMostrarModalNovoCargo(false);
   };
 
@@ -226,7 +206,6 @@ export function Contatos() {
       emails_json: emails.filter(em => em.trim() !== ''),
       telefones_json: telefones.filter(t => t.trim() !== '')
     };
-
     try {
       if (editandoId) {
         await axios.put(`${API_URL}/contatos/${editandoId}`, dados, getHeaders());
@@ -254,7 +233,6 @@ export function Contatos() {
     }
   };
 
-  // Formatação
   const formatarMoeda = (v) => Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const formatarData = (d) => d ? new Date(d).toLocaleDateString('pt-BR') : '-';
 
@@ -262,7 +240,6 @@ export function Contatos() {
     <>
       <Header titulo="Gestão de Contatos" />
       <PageContainer>
-
         <TopSection>
           <div>
             <Title>Base de Contatos</Title>
@@ -291,24 +268,11 @@ export function Contatos() {
             </FilterButton>
             {dropdownEstadoAberto && (
               <CustomDropdownMenu>
-                <CustomDropdownItem
-                  $active={filtroEstado === ''}
-                  onClick={() => { setFiltroEstado(''); setDropdownEstadoAberto(false); setPaginaAtual(1); }}
-                >
+                <CustomDropdownItem $active={filtroEstado === ''} onClick={() => { setFiltroEstado(''); setDropdownEstadoAberto(false); setPaginaAtual(1); }}>
                   Todos os Estados
                 </CustomDropdownItem>
-
-                {[
-                  'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES',
-                  'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR',
-                  'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC',
-                  'SP', 'SE', 'TO'
-                ].map(uf => (
-                  <CustomDropdownItem
-                    key={uf}
-                    $active={filtroEstado === uf}
-                    onClick={() => { setFiltroEstado(uf); setDropdownEstadoAberto(false); setPaginaAtual(1); }}
-                  >
+                {['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'].map(uf => (
+                  <CustomDropdownItem key={uf} $active={filtroEstado === uf} onClick={() => { setFiltroEstado(uf); setDropdownEstadoAberto(false); setPaginaAtual(1); }}>
                     {uf}
                   </CustomDropdownItem>
                 ))}
@@ -323,19 +287,11 @@ export function Contatos() {
             </FilterButton>
             {dropdownCargoAberto && (
               <CustomDropdownMenu>
-                <CustomDropdownItem
-                  $active={filtroCargo === ''}
-                  onClick={() => { setFiltroCargo(''); setDropdownCargoAberto(false); setPaginaAtual(1); }}
-                >
+                <CustomDropdownItem $active={filtroCargo === ''} onClick={() => { setFiltroCargo(''); setDropdownCargoAberto(false); setPaginaAtual(1); }}>
                   Todos os Cargos
                 </CustomDropdownItem>
-
                 {listaCargos.map(cargoLista => (
-                  <CustomDropdownItem
-                    key={cargoLista}
-                    $active={filtroCargo === cargoLista}
-                    onClick={() => { setFiltroCargo(cargoLista); setDropdownCargoAberto(false); setPaginaAtual(1); }}
-                  >
+                  <CustomDropdownItem key={cargoLista} $active={filtroCargo === cargoLista} onClick={() => { setFiltroCargo(cargoLista); setDropdownCargoAberto(false); setPaginaAtual(1); }}>
                     {cargoLista}
                   </CustomDropdownItem>
                 ))}
@@ -371,12 +327,12 @@ export function Contatos() {
                           <div className="contact-name">{c.nome}</div>
                           <div className="contact-meta">
                             <span className={hasEmailError ? 'text-red font-bold' : ''}>
-                              <i className={hasEmailError ? "fa-solid fa-triangle-exclamation" : "fa-regular fa-envelope"}></i>
-                              {ems[0] || 'Sem e-mail'}
+                              <i className={hasEmailError ? "fa-solid fa-triangle-exclamation" : "fa-regular fa-envelope"}> </i> 
+                              {ems[0] || ' Sem e-mail'}
                               {ems.length > 1 && <span className="more-badge">+{ems.length - 1}</span>}
                             </span>
                             <span>
-                              <i className="fa-brands fa-whatsapp"></i> {tels[0] || 'S/ Tel'}
+                              <i className="fa-brands fa-whatsapp"> </i> {tels[0] || ' Sem Telefone'}
                               {tels.length > 1 && <span className="more-badge">+{tels.length - 1}</span>}
                             </span>
                           </div>
@@ -429,7 +385,6 @@ export function Contatos() {
                         <Input type="text" value={nome} onChange={e => setNome(e.target.value)} required />
                       </FormGroup>
                       
-                      {/* O NOVO CAMPO DE CARGO COM SELECT */}
                       <FormGroup>
                         <label>Cargo / Função</label>
                         <Select value={cargo} onChange={handleCargoChange}>
@@ -494,12 +449,24 @@ export function Contatos() {
                   <>
                     <ProfileGrid>
                       <InfoCard $borderTop="#007bff">
-                        <h4>E-mails</h4>
-                        <ul>{emails.map((em, i) => <li key={i} className={emailsComErroForm.includes(em) ? 'error' : ''}>{em}</li>)}</ul>
+                        <h4><i className="fa-regular fa-envelope"></i> E-mails</h4>
+                        <ul>
+                          {emails.map((em, i) => {
+                            const hasError = emailsComErroForm.includes(em);
+                            return (
+                              <li key={i} className={hasError ? 'email-item error' : 'email-item'}>
+                                {em}
+                                {hasError && <i className="fa-solid fa-triangle-exclamation icon-err"></i>}
+                              </li>
+                            );
+                          })}
+                        </ul>
                       </InfoCard>
                       <InfoCard $borderTop="#28a745">
-                        <h4>Telefones</h4>
-                        <div className="phones">{telefones.map((tel, i) => <span key={i} className="phone-pill">{tel}</span>)}</div>
+                        <h4><i className="fa-brands fa-whatsapp"></i> Telefones</h4>
+                        <div className="phones-container">
+                          {telefones.map((tel, i) => <span key={i} className="phone-pill">{tel}</span>)}
+                        </div>
                       </InfoCard>
                     </ProfileGrid>
 
@@ -534,14 +501,7 @@ export function Contatos() {
                 <ModalBody>
                   <FormGroup>
                     <label>Nome do Novo Cargo *</label>
-                    <Input 
-                      type="text" 
-                      required 
-                      autoFocus
-                      value={novoCargoNome} 
-                      onChange={e => setNovoCargoNome(e.target.value)} 
-                      placeholder="Ex: Engenheiro, Procurador..."
-                    />
+                    <Input type="text" required autoFocus value={novoCargoNome} onChange={e => setNovoCargoNome(e.target.value)} placeholder="Ex: Engenheiro, Procurador..." />
                   </FormGroup>
                 </ModalBody>
                 <ModalFooter $justify="flex-end">
@@ -572,13 +532,12 @@ export function Contatos() {
             </ModalContent>
           </ModalOverlay>
         )}
-
       </PageContainer>
     </>
   );
 }
 
-// --- ESTILOS COMPRIMIDOS PARA O EXEMPLO ---
+// --- ESTILOS ---
 const PageContainer = styled.div` padding: 30px; background: #f4f7f6; min-height: 100vh; `;
 const TopSection = styled.div` display: flex; justify-content: space-between; margin-bottom: 20px; `;
 const Title = styled.h2` margin: 0; color: #2c3e50; `;
@@ -589,44 +548,127 @@ const FilterPillWrapper = styled.div` position: relative; `;
 const FilterButton = styled.button` padding: 10px 20px; border-radius: 20px; border: 1px solid #ddd; cursor: pointer; background: ${props => props.$hasValue ? '#eef4fa' : '#fff'}; `;
 const CustomDropdownMenu = styled.ul`
   position: absolute; top: calc(100% + 8px); right: 0; background: #ffffff; border: 1px solid #edf2f9; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); min-width: 200px; 
-  max-height: 250px; overflow-y: auto; overflow-x: hidden; z-index: 1000; padding: 8px 0; list-style: none; margin: 0; animation: fadeInDown 0.2s ease-out;
-  &::-webkit-scrollbar { width: 6px; } &::-webkit-scrollbar-track { background: #f8fafc; border-radius: 12px; margin: 8px 0; } &::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 12px; } &::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-  @keyframes fadeInDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+  max-height: 250px; overflow-y: auto; overflow-x: hidden; z-index: 1000; padding: 8px 0; list-style: none; margin: 0;
 `;
 const CustomDropdownItem = styled.li` padding: 10px 20px; font-size: 0.9rem; cursor: pointer; &:hover { background: #f8fafc; color: #007bff; } `;
 const Panel = styled.div` background: #fff; border-radius: 12px; overflow: hidden; border: 1px solid #eee; `;
 const TableContainer = styled.div` overflow-x: auto; `;
 const Table = styled.table` width: 100%; border-collapse: collapse; th { text-align: left; padding: 15px; background: #fbfbfc; border-bottom: 1px solid #eee; } td { padding: 15px; border-bottom: 1px solid #eee; } `;
-const ClickableRow = styled.tr` cursor: pointer; &:hover { background: #f8fafc; } .contact-name { font-weight: bold; color: #007bff; } .contact-meta { font-size: 0.8rem; color: #777; } .state-tag { color: #007bff; font-weight: bold; font-size: 0.7rem; } `;
+const ClickableRow = styled.tr` cursor: pointer; &:hover { background: #f8fafc; } .contact-name { font-weight: bold; color: #007bff; } .contact-meta { font-size: 0.8rem; color: #777; display: flex; gap: 10px; margin-top: 4px; } .state-tag { color: #007bff; font-weight: bold; font-size: 0.7rem; } .text-red { color: #e53e3e; } span { display: flex; align-items: center; gap: 5px;}`;
 const Badge = styled.span` padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; &.badge-gray { background: #eee; } `;
 const PaginationContainer = styled.div` padding: 15px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #eee; `;
 const PageButton = styled.button` padding: 5px 15px; cursor: pointer; `;
 const ModalOverlay = styled.div` position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; `;
 const ModalContent = styled.div` background: #fff; border-radius: 8px; width: 90%; max-width: ${props => props.$large ? '900px' : '400px'}; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; `;
-const ModalHeader = styled.div` padding: 20px; display: flex; justify-content: space-between; background: ${props => props.$bg}; color: ${props => props.$color}; `;
+const ModalHeader = styled.div` padding: 20px; display: flex; justify-content: space-between; background: ${props => props.$bg}; color: ${props => props.$color}; h3 { margin: 0; } .subtitle { font-size: 0.85rem; opacity: 0.8; margin-top: 4px; } `;
 const ModalBody = styled.div` padding: 20px; overflow-y: auto; `;
 const ModalFooter = styled.div` padding: 20px; border-top: 1px solid #eee; display: flex; justify-content: ${props => props.$justify || 'space-between'}; gap: 10px; `;
 const CloseButton = styled.button` background: none; border: none; font-size: 1.5rem; color: ${props => props.$color}; cursor: pointer; `;
-const PrimaryButton = styled.button` background: #007bff; color: #fff; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; `;
-const WarningButton = styled.button` background: #ffc107; border: none; padding: 5px 15px; border-radius: 4px; cursor: pointer; `;
+const PrimaryButton = styled.button` background: #007bff; color: #fff; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; &:hover { background: #0056b3; } `;
+const WarningButton = styled.button` background: #ffc107; border: none; padding: 5px 15px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; `;
 const SecondaryButton = styled.button` background: #eee; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; `;
 const Input = styled.input` width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; `;
+const Select = styled.select` width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ddd; background: #fff; `;
+const FormGrid = styled.div` display: grid; grid-template-columns: ${props => props.$columns}; gap: 15px; .span-2 { grid-column: span 2; } `;
+const FormGroup = styled.div` display: flex; flex-direction: column; label { font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; } `;
+const AutocompleteContainer = styled.div` position: relative; `;
+const AutocompleteList = styled.div` position: absolute; width: 100%; background: #fff; border: 1px solid #ddd; z-index: 20; max-height: 150px; overflow-y: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); `;
+const AutocompleteOption = styled.div` padding: 10px; cursor: pointer; font-size: 0.9rem; &:hover { background: #f0f7ff; } &.danger { color: #dc3545; border-bottom: 1px solid #eee; } `;
+const DynamicInputBox = styled.div` border: 1px solid #eee; padding: 15px; border-radius: 8px; .box-header { display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: bold; font-size: 0.9rem; } `;
+const DynamicInputRow = styled.div` display: flex; gap: 5px; margin-bottom: 10px; `;
+const AddLinkBtn = styled.button` background: none; border: none; color: #007bff; cursor: pointer; font-weight: bold; font-size: 0.8rem; `;
+const IconButton = styled.button` padding: 5px 10px; cursor: pointer; background: none; border: 1px solid transparent; &.danger { color: #dc3545; } `;
 
-const Select = styled.select`
-  width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ddd; font-size: 0.95rem; color: #333; outline: none; cursor: pointer; transition: 0.2s; background: #fff;
-  &:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); }
+// --- REVISÃO DE ESTILO DOS CARDS DE VISUALIZAÇÃO ---
+const ProfileGrid = styled.div` 
+  display: grid; 
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
+  gap: 20px; 
+  margin-bottom: 20px;
 `;
 
-const FormGrid = styled.div` display: grid; grid-template-columns: ${props => props.$columns}; gap: 15px; .span-2 { grid-column: span 2; } `;
-const FormGroup = styled.div` display: flex; flex-direction: column; label { font-weight: bold; margin-bottom: 5px; } `;
-const AutocompleteContainer = styled.div` position: relative; `;
-const AutocompleteList = styled.div` position: absolute; width: 100%; background: #fff; border: 1px solid #ddd; z-index: 20; max-height: 150px; overflow-y: auto; `;
-const AutocompleteOption = styled.div` padding: 10px; cursor: pointer; &:hover { background: #eee; } &.text-green { color: #28a745; } `;
-const DynamicInputBox = styled.div` border: 1px solid #eee; padding: 15px; border-radius: 8px; `;
-const DynamicInputRow = styled.div` display: flex; gap: 5px; margin-bottom: 10px; `;
-const AddLinkBtn = styled.button` background: none; border: none; color: #007bff; cursor: pointer; font-weight: bold; `;
-const IconButton = styled.button` padding: 5px 10px; cursor: pointer; &.danger { color: red; } `;
-const ProfileGrid = styled.div` display: grid; grid-template-columns: 1fr 1fr; gap: 20px; `;
-const InfoCard = styled.div` border: 1px solid #eee; border-top: 4px solid ${props => props.$borderTop}; padding: 15px; border-radius: 8px; `;
-const FunnelHistoryCard = styled.div` margin-top: 20px; border: 1px solid #eee; padding: 15px; border-radius: 8px; `;
-const HistoryRow = styled.div` display: flex; justify-content: space-between; align-items: center; padding: 10px; border-left: 4px solid ${props => props.$borderColor}; background: #f9f9f9; margin-bottom: 10px; cursor: pointer; `;
+const InfoCard = styled.div` 
+  border: 1px solid #edf2f7; 
+  border-top: 4px solid ${props => props.$borderTop}; 
+  padding: 20px; 
+  border-radius: 12px;
+  background: #fff;
+
+  h4 { 
+    margin: 0 0 15px 0; 
+    color: #4a5568; 
+    font-size: 0.95rem; 
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  ul { 
+    list-style: none; 
+    padding: 0; 
+    margin: 0; 
+  }
+
+  .email-item {
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    background: #f8fafc;
+    border: 1px solid #edf2f7;
+    font-size: 0.9rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    &.error {
+      background: #fff5f5; /* Vermelho clarinho */
+      border-color: #fed7d7;
+      color: #c53030;
+      font-weight: 500;
+    }
+  }
+
+  .icon-err { color: #e53e3e; font-size: 0.8rem; }
+
+  .phones-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .phone-pill {
+    background: #f0fff4;
+    border: 1px solid #c6f6d5;
+    color: #2f855a;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+`;
+
+const FunnelHistoryCard = styled.div` 
+  margin-top: 25px; 
+  border: 1px solid #edf2f7; 
+  padding: 20px; 
+  border-radius: 12px; 
+  background: #fff;
+  h4 { margin: 0 0 15px 0; font-size: 1rem; color: #2d3748; }
+`;
+
+const HistoryRow = styled.div` 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  padding: 15px; 
+  border-left: 4px solid ${props => props.$borderColor}; 
+  background: #f8fafc; 
+  margin-bottom: 12px; 
+  border-radius: 0 8px 8px 0;
+  cursor: pointer; 
+  transition: 0.2s;
+  &:hover { transform: translateX(5px); background: #f1f5f9; }
+  .op-title { font-weight: bold; color: #2d3748; margin-bottom: 4px; }
+  .status-tag { font-size: 0.7rem; background: #e2e8f0; padding: 2px 8px; border-radius: 10px; margin-left: 8px; }
+  .op-meta { font-size: 0.8rem; color: #718096; }
+`;
