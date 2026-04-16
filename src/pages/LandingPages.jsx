@@ -59,14 +59,13 @@ export function LandingPages() {
 
   // === INICIALIZAÇÃO DO GRAPESJS ===
   useEffect(() => {
-    // Só inicia se o modal estiver aberto e o editor ainda não existir
     if (mostrarModal && !editorRef.current) {
       const editor = grapesjs.init({
         container: '#gjs',
         fromElement: true,
         height: '100%',
         width: 'auto',
-        storageManager: false, // O salvamento é manual via React state
+        storageManager: false, 
         plugins: ['gjs-preset-webpage'],
         pluginsOpts: {
           'gjs-preset-webpage': {}
@@ -87,57 +86,133 @@ export function LandingPages() {
       editorRef.current = editor;
 
       // ========================================================
-      // 1. BLOCO CUSTOMIZADO: FORMULÁRIO DO CRM
+      // 1. BLOCO: CAPA HERO (ESTILO RD STATION)
       // ========================================================
-      editor.BlockManager.add('crm-form-block', {
-        label: '<i class="fa-solid fa-address-card fa-2x"></i><br/>Formulário CRM',
-        category: 'Componentes do CRM',
+      editor.BlockManager.add('rd-hero', {
+        label: '<i class="fa-solid fa-heading fa-2x"></i><br/>Capa (Hero)',
+        category: 'Estilo RD Station',
         content: `
-          <div class="crm-form-placeholder" style="padding: 40px; border: 2px dashed #28a745; text-align: center; background: #e9f7ef; border-radius: 8px; margin: 20px auto; max-width: 600px;">
-             <h3 style="color: #155724; margin-top: 0; font-family: sans-serif;"><i class="fa-solid fa-bolt"></i> Formulário de Inscrição Automático</h3>
-             <p style="color: #155724; margin-bottom: 0; font-family: sans-serif;">Ao publicar a página, este bloco será substituído pelo formulário real de inscrição.</p>
-             <div id="CRM_FORM_INJECT_ZONE"></div>
-          </div>
-        `,
-      });
-
-      // ========================================================
-      // 2. SUPER BLOCO: TOPO DA PÁGINA (HERO SECTION)
-      // ========================================================
-      editor.BlockManager.add('hero-section-block', {
-        label: '<i class="fa-solid fa-image fa-2x"></i><br/>Capa (Hero)',
-        category: 'Seções Prontas',
-        content: `
-          <section style="background-color: #1F4E79; padding: 100px 20px; text-align: center; color: #fff; font-family: sans-serif;">
-            <h1 style="font-size: 48px; margin-bottom: 20px; font-weight: bold;">Título Chamativo da sua Landing Page</h1>
-            <p style="font-size: 20px; max-width: 800px; margin: 0 auto 30px auto; color: #eef2f5;">Um subtítulo que explica o grande benefício do seu curso ou serviço. Clique aqui para editar o texto.</p>
-            <a href="#CRM_FORM_INJECT_ZONE" style="display: inline-block; padding: 15px 30px; background-color: #edb401; color: #333; text-decoration: none; font-size: 18px; font-weight: bold; border-radius: 6px;">Garanta sua Vaga</a>
+          <section style="background-color: #0b192c; padding: 80px 20px; color: #ffffff; font-family: Arial, sans-serif;">
+            <div style="max-width: 1100px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 40px; align-items: center;">
+              <div style="flex: 1; min-width: 300px;">
+                <h1 style="font-size: 2.8rem; margin-bottom: 20px; line-height: 1.2; color: #ffffff;">Contabilidade Pública Para Não Contadores</h1>
+                <p style="font-size: 1.2rem; color: #94a3b8; margin-bottom: 30px;">Curso desenvolvido para Auditores de Controle Interno que atuam no setor público.</p>
+                <ul style="list-style: none; padding: 0; margin-bottom: 30px;">
+                  <li style="margin-bottom: 10px;"><i class="fa-solid fa-check" style="color: #28a745; margin-right: 10px;"></i> 100% online e ao vivo</li>
+                  <li style="margin-bottom: 10px;"><i class="fa-solid fa-check" style="color: #28a745; margin-right: 10px;"></i> Estrutura progressiva</li>
+                  <li style="margin-bottom: 10px;"><i class="fa-solid fa-check" style="color: #28a745; margin-right: 10px;"></i> Foco na realidade municipal</li>
+                </ul>
+                <a href="#form-inscricao" style="display: inline-block; padding: 15px 30px; background-color: #28a745; color: #fff; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 1.1rem;">Garantir minha vaga</a>
+              </div>
+              <div style="flex: 1; min-width: 300px; text-align: center;">
+                <img src="https://via.placeholder.com/500x400?text=Imagem+do+Curso" style="max-width: 100%; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);" />
+              </div>
+            </div>
           </section>
         `,
       });
 
       // ========================================================
-      // 3. SUPER BLOCO: 3 CARDS DE BENEFÍCIOS
+      // 2. BLOCO: FORMULÁRIO COMPLETO E DINÂMICO
       // ========================================================
-      editor.BlockManager.add('features-section-block', {
-        label: '<i class="fa-solid fa-table-columns fa-2x"></i><br/>Benefícios',
-        category: 'Seções Prontas',
+      editor.BlockManager.add('rd-form', {
+        label: '<i class="fa-solid fa-address-card fa-2x"></i><br/>Form. Inscrição',
+        category: 'Estilo RD Station',
         content: `
-          <section style="padding: 60px 20px; background-color: #f4f7f6; font-family: sans-serif;">
+          <section id="form-inscricao" style="padding: 60px 20px; background-color: #f8fafc; font-family: Arial, sans-serif;">
+            <div style="max-width: 700px; margin: 0 auto; background: #ffffff; padding: 40px; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
+              <h2 style="text-align: center; color: #0b192c; margin-bottom: 10px; font-size: 28px;">Garanta sua Vaga</h2>
+              <p style="text-align: center; color: #64748b; margin-bottom: 30px;">Preencha os dados abaixo para confirmar sua inscrição.</p>
+              
+              <form id="formInscricaoCRM" style="display: flex; flex-direction: column; gap: 15px;">
+                
+                <div>
+                  <label style="font-size: 0.9rem; font-weight: bold; color: #475569; display: block; margin-bottom: 5px;">Nome completo*</label>
+                  <input type="text" id="nome" required style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; font-size: 14px;" />
+                </div>
+
+                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                  <div style="flex: 1; min-width: 200px;">
+                    <label style="font-size: 0.9rem; font-weight: bold; color: #475569; display: block; margin-bottom: 5px;">Setor/Secretaria*</label>
+                    <input type="text" id="setor" required style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; font-size: 14px;" />
+                  </div>
+                  <div style="flex: 1; min-width: 200px;">
+                    <label style="font-size: 0.9rem; font-weight: bold; color: #475569; display: block; margin-bottom: 5px;">Cargo*</label>
+                    <input type="text" id="cargo" required style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; font-size: 14px;" />
+                  </div>
+                </div>
+
+                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                  <div style="flex: 1; min-width: 200px;">
+                    <label style="font-size: 0.9rem; font-weight: bold; color: #475569; display: block; margin-bottom: 5px;">Qual sua formação?*</label>
+                    <input type="text" id="formacao" required style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; font-size: 14px;" />
+                  </div>
+                  <div style="flex: 1; min-width: 200px;">
+                    <label style="font-size: 0.9rem; font-weight: bold; color: #475569; display: block; margin-bottom: 5px;">Município*</label>
+                    <input type="text" id="cidade" required style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; font-size: 14px;" />
+                  </div>
+                </div>
+
+                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                  <div style="flex: 1; min-width: 200px;">
+                    <label style="font-size: 0.9rem; font-weight: bold; color: #475569; display: block; margin-bottom: 5px;">Email*</label>
+                    <input type="email" id="email" required style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; font-size: 14px;" />
+                  </div>
+                  <div style="flex: 1; min-width: 200px;">
+                    <label style="font-size: 0.9rem; font-weight: bold; color: #475569; display: block; margin-bottom: 5px;">Telefone (WhatsApp)*</label>
+                    <input type="text" id="whatsapp" required style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; font-size: 14px;" />
+                  </div>
+                </div>
+
+                <div style="margin-top: 10px; padding: 20px; background: #f0f7ff; border-radius: 8px; border: 1px solid #b8daff;">
+                  <label style="font-size: 1rem; font-weight: bold; color: #1F4E79; display: block; margin-bottom: 10px;">Qual o Módulo deseja se inscrever?*</label>
+                  <div id="containerModulos">
+                     <div style="color: #64748b; font-size: 0.9rem; font-style: italic;">
+                       (Os módulos/trilhas desta campanha aparecerão automaticamente aqui quando a página estiver no ar)
+                     </div>
+                  </div>
+                </div>
+
+                <div style="margin-top: 10px;">
+                  <label style="font-size: 0.9rem; font-weight: bold; color: #475569; display: block; margin-bottom: 5px;">Quanto é 3 + 4? (Confirmação de segurança)*</label>
+                  <input type="number" id="captchaCalc" required placeholder="Digite a resposta" style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; font-size: 14px;" />
+                </div>
+
+                <button type="submit" id="btnSubmit" style="margin-top: 20px; width: 100%; padding: 18px; background-color: #1F4E79; color: #fff; border: none; border-radius: 5px; font-size: 1.2rem; font-weight: bold; cursor: pointer; transition: background 0.3s;">
+                  ENVIAR INSCRIÇÃO
+                </button>
+
+                <div id="feedback" style="display:none; padding: 15px; border-radius: 5px; text-align: center; margin-top: 15px; font-weight: bold;"></div>
+                
+                <p style="text-align: center; font-size: 0.8rem; color: #94a3b8; margin-top: 15px;">Seus dados estão protegidos conosco. Respeitamos a LGPD.</p>
+              </form>
+            </div>
+          </section>
+        `,
+      });
+
+      // ========================================================
+      // 3. BLOCO: CARD DE BENEFÍCIOS
+      // ========================================================
+      editor.BlockManager.add('rd-benefits', {
+        label: '<i class="fa-solid fa-list-check fa-2x"></i><br/>Benefícios',
+        category: 'Estilo RD Station',
+        content: `
+          <section style="padding: 80px 20px; background-color: #ffffff; font-family: Arial, sans-serif;">
             <div style="max-width: 1000px; margin: 0 auto;">
-              <h2 style="text-align: center; color: #1F4E79; margin-bottom: 40px; font-size: 32px;">O que você vai aprender</h2>
-              <div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
-                <div style="flex: 1; min-width: 250px; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); text-align: center;">
-                  <h3 style="color: #28a745; margin-top: 0;">Benefício 1</h3>
-                  <p style="color: #666; font-size: 15px;">Explique o primeiro grande pilar do seu curso aqui.</p>
+              <h2 style="text-align: center; color: #0b192c; margin-bottom: 50px; font-size: 32px;">O que você vai desenvolver</h2>
+              <div style="display: flex; gap: 30px; justify-content: center; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 280px; background: #f8fafc; padding: 40px 30px; border-radius: 8px; border-top: 4px solid #1F4E79; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+                  <h3 style="color: #1F4E79; margin-top: 0; font-size: 20px;">Competência 1</h3>
+                  <p style="color: #475569; font-size: 16px; line-height: 1.5;">Apresente conceitos teóricos aplicados à leitura crítica dos dados.</p>
                 </div>
-                <div style="flex: 1; min-width: 250px; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); text-align: center;">
-                  <h3 style="color: #28a745; margin-top: 0;">Benefício 2</h3>
-                  <p style="color: #666; font-size: 15px;">Explique o segundo grande pilar do seu curso aqui.</p>
+                <div style="flex: 1; min-width: 280px; background: #f8fafc; padding: 40px 30px; border-radius: 8px; border-top: 4px solid #1F4E79; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+                  <h3 style="color: #1F4E79; margin-top: 0; font-size: 20px;">Competência 2</h3>
+                  <p style="color: #475569; font-size: 16px; line-height: 1.5;">Direcione o participante à análise contábil e fortalecimento da auditoria.</p>
                 </div>
-                <div style="flex: 1; min-width: 250px; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); text-align: center;">
-                  <h3 style="color: #28a745; margin-top: 0;">Benefício 3</h3>
-                  <p style="color: #666; font-size: 15px;">Explique o terceiro grande pilar do seu curso aqui.</p>
+                <div style="flex: 1; min-width: 280px; background: #f8fafc; padding: 40px 30px; border-radius: 8px; border-top: 4px solid #1F4E79; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+                  <h3 style="color: #1F4E79; margin-top: 0; font-size: 20px;">Competência 3</h3>
+                  <p style="color: #475569; font-size: 16px; line-height: 1.5;">Traduza as informações para resultados visíveis e eficientes.</p>
                 </div>
               </div>
             </div>
@@ -146,59 +221,68 @@ export function LandingPages() {
       });
 
       // ========================================================
-      // 4. SUPER BLOCO: RODAPÉ
+      // 4. BLOCO: SEÇÃO DO INSTRUTOR
       // ========================================================
-      editor.BlockManager.add('footer-section-block', {
-        label: '<i class="fa-solid fa-shoe-prints fa-2x"></i><br/>Rodapé',
-        category: 'Seções Prontas',
+      editor.BlockManager.add('rd-instructor', {
+        label: '<i class="fa-solid fa-chalkboard-user fa-2x"></i><br/>Instrutor',
+        category: 'Estilo RD Station',
         content: `
-          <footer style="background-color: #223a8a; padding: 40px 20px; text-align: center; color: #fff; font-family: sans-serif; border-top: 4px solid #edb401;">
-            <h3 style="margin-top: 0; margin-bottom: 15px;">Ficou com alguma dúvida?</h3>
-            <p style="margin-bottom: 5px;">Entre em contato com nossa equipe de especialistas:</p>
-            <p style="font-weight: bold; color: #edb401; margin-bottom: 20px;">(51) 99999-9999 | contato@suaempresa.com.br</p>
-            <p style="font-size: 12px; color: #aaa;">Seus dados estão protegidos conosco. Respeitamos a LGPD.</p>
+          <section style="padding: 80px 20px; background-color: #f1f5f9; font-family: Arial, sans-serif;">
+            <div style="max-width: 900px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 40px; align-items: center; background: #ffffff; padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.05);">
+              <div style="flex: 1; min-width: 250px; text-align: center;">
+                <img src="https://via.placeholder.com/300x300" style="width: 250px; height: 250px; border-radius: 50%; object-fit: cover; border: 5px solid #1F4E79;" />
+              </div>
+              <div style="flex: 2; min-width: 300px;">
+                <h2 style="color: #0b192c; margin-top: 0; font-size: 28px; margin-bottom: 5px;">Quem vai te guiar</h2>
+                <h4 style="color: #28a745; margin-top: 0; margin-bottom: 20px; font-size: 18px;">Nome do Instrutor</h4>
+                <p style="color: #475569; font-size: 16px; line-height: 1.6;">Especialista em Gestão Pública, com mais de 15 anos de atuação no setor público. Mestre em Controladoria e Contabilidade.</p>
+                <p style="color: #475569; font-size: 16px; line-height: 1.6;">Seu trabalho é dedicado a traduzir a linguagem técnica para uma abordagem acessível, prática e aplicável à realidade dos profissionais.</p>
+              </div>
+            </div>
+          </section>
+        `,
+      });
+
+      // ========================================================
+      // 5. BLOCO: RODAPÉ
+      // ========================================================
+      editor.BlockManager.add('rd-footer', {
+        label: '<i class="fa-solid fa-shoe-prints fa-2x"></i><br/>Rodapé',
+        category: 'Estilo RD Station',
+        content: `
+          <footer style="background-color: #0b192c; padding: 50px 20px; text-align: center; color: #cbd5e1; font-family: Arial, sans-serif; border-top: 4px solid #28a745;">
+            <h3 style="margin-top: 0; margin-bottom: 15px; color: #ffffff; font-size: 24px;">Ficou com alguma dúvida?</h3>
+            <p style="margin-bottom: 10px; font-size: 16px;">Nossa equipe está preparada para esclarecer todas as suas dúvidas sobre o curso.</p>
+            <p style="font-weight: bold; color: #28a745; font-size: 18px; margin-bottom: 20px;">(51) 99999-9999 | gestao@gestao.srv.br</p>
+            <div style="max-width: 400px; margin: 30px auto 0 auto; border-top: 1px solid #1e293b; padding-top: 20px;">
+              <p style="font-size: 13px;">Gestão A+ Desenvolvimento<br/>Taquara/RS</p>
+            </div>
           </footer>
         `,
       });
 
-      // Injeta o HTML/CSS se for uma edição, ou um placeholder se for novo
       if (htmlInicial) {
         editor.setComponents(htmlInicial);
         if (cssInicial) editor.setStyle(cssInicial);
       } else {
-        editor.setComponents('<div style="padding: 50px; text-align: center; font-family: sans-serif; color: #999;"><h1>Arraste os blocos da direita para cá</h1><p>Comece puxando a "Capa (Hero)" e o "Formulário CRM".</p></div>');
+        editor.setComponents('<div style="padding: 50px; text-align: center; font-family: sans-serif; color: #999;"><h1>Arraste os blocos da direita para cá</h1><p>Comece puxando a "Capa (Hero)" e o "Form. Inscrição" da categoria <strong>Estilo RD Station</strong>.</p></div>');
       }
     }
 
-    // Cleanup: Destrói a instância do GrapesJS quando o modal fecha para evitar memory leaks
     return () => {
       if (!mostrarModal && editorRef.current) {
         editorRef.current.destroy();
         editorRef.current = null;
       }
     };
-  }, [mostrarModal, htmlInicial, cssInicial]); // Recria o editor se o HTML base mudar na abertura
+  }, [mostrarModal, htmlInicial, cssInicial]); 
 
   function abrirModalNovo() {
-    setEditandoId(null);
-    setNome('');
-    setSlug('');
-    setStatusLP('rascunho');
-    setCampanhaId('');
-    setHtmlInicial('');
-    setCssInicial('');
-    setMostrarModal(true);
+    setEditandoId(null); setNome(''); setSlug(''); setStatusLP('rascunho'); setCampanhaId(''); setHtmlInicial(''); setCssInicial(''); setMostrarModal(true);
   }
 
   function abrirModalEdicao(lp) {
-    setEditandoId(lp.id);
-    setNome(lp.nome);
-    setSlug(lp.slug);
-    setStatusLP(lp.status || 'rascunho');
-    setCampanhaId(lp.campanha_id || '');
-    setHtmlInicial(lp.html_content || '');
-    setCssInicial(lp.css_content || '');
-    setMostrarModal(true);
+    setEditandoId(lp.id); setNome(lp.nome); setSlug(lp.slug); setStatusLP(lp.status || 'rascunho'); setCampanhaId(lp.campanha_id || ''); setHtmlInicial(lp.html_content || ''); setCssInicial(lp.css_content || ''); setMostrarModal(true);
   }
 
   async function salvarPagina(e) {
@@ -206,19 +290,10 @@ export function LandingPages() {
     if(!slug.trim()) return alert("O Slug é obrigatório!");
 
     const slugFormatado = slug.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-
-    // Extrai o HTML e CSS limpos gerados pelo GrapesJS
     const htmlGerado = editorRef.current ? editorRef.current.getHtml() : htmlInicial;
     const cssGerado = editorRef.current ? editorRef.current.getCss() : cssInicial;
 
-    const payload = {
-      nome,
-      slug: slugFormatado,
-      status: statusLP,
-      campanha_id: campanhaId || null,
-      html_content: htmlGerado,
-      css_content: cssGerado
-    };
+    const payload = { nome, slug: slugFormatado, status: statusLP, campanha_id: campanhaId || null, html_content: htmlGerado, css_content: cssGerado };
 
     try {
       if (editandoId) {
@@ -228,31 +303,18 @@ export function LandingPages() {
         await axios.post(`${API_URL}/landing-pages`, payload, getHeaders());
         alert("Página criada com sucesso!");
       }
-      setMostrarModal(false);
-      carregarDados();
-    } catch (err) {
-      alert(err.response?.data?.erro || 'Erro ao salvar a página.');
-    }
+      setMostrarModal(false); carregarDados();
+    } catch (err) { alert(err.response?.data?.erro || 'Erro ao salvar a página.'); }
   }
 
   async function deletarPagina(id) {
     if (!window.confirm("Deseja realmente apagar esta Landing Page? Isso removerá a página do ar.")) return;
-    try {
-      await axios.delete(`${API_URL}/landing-pages/${id}`, getHeaders());
-      setMostrarModal(false);
-      carregarDados();
-    } catch (err) {
-      alert("Erro ao excluir página.");
-    }
+    try { await axios.delete(`${API_URL}/landing-pages/${id}`, getHeaders()); setMostrarModal(false); carregarDados(); } catch (err) { alert("Erro ao excluir página."); }
   }
 
-  // === MEMOIZAÇÃO DE PERFORMANCE ===
   const paginasFiltradas = useMemo(() => {
     const termo = buscaGeral.toLowerCase();
-    return paginas.filter(p => 
-      p.nome.toLowerCase().includes(termo) || 
-      p.slug.toLowerCase().includes(termo)
-    );
+    return paginas.filter(p => p.nome.toLowerCase().includes(termo) || p.slug.toLowerCase().includes(termo));
   }, [paginas, buscaGeral]);
 
   return (
@@ -273,16 +335,10 @@ export function LandingPages() {
         <FilterBar>
           <SearchWrapper>
             <i className="fa-solid fa-search icon"></i>
-            <input 
-              type="text" 
-              placeholder="Pesquisar por nome ou slug da página..." 
-              value={buscaGeral} 
-              onChange={e => setBuscaGeral(e.target.value)} 
-            />
+            <input type="text" placeholder="Pesquisar por nome ou slug da página..." value={buscaGeral} onChange={e => setBuscaGeral(e.target.value)} />
           </SearchWrapper>
         </FilterBar>
 
-        {/* TABELA DE PÁGINAS */}
         <Panel>
           <TableContainer>
             <Table>
@@ -333,12 +389,10 @@ export function LandingPages() {
 
       </PageContainer>
 
-      {/* SUPER MODAL DO CONSTRUTOR LOW-CODE (FULL SCREEN) */}
       {mostrarModal && (
         <FullScreenModalOverlay>
           <FullScreenContent>
             
-            {/* HEADER DE CONFIGURAÇÃO (FICA NO TOPO ENQUANTO EDITA) */}
             <BuilderHeader>
               <div className="logo-area">
                 <i className="fa-solid fa-palette text-blue"></i>
@@ -390,8 +444,6 @@ export function LandingPages() {
               </div>
             </BuilderHeader>
 
-            {/* O CONTAINER DO GRAPESJS VAI AQUI (OCUPA O RESTO DA TELA) */}
-            {/* O GrapesJS gerencia seus próprios z-indexes, certifique-se de que nenhum elemento pai oculte seus modais nativos */}
             <div id="gjs" style={{ flex: 1, overflow: 'hidden' }}></div>
 
           </FullScreenContent>
