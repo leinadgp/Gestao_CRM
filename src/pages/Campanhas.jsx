@@ -13,13 +13,13 @@ const parseJSONSeguro = (dadoString, fallback = []) => {
 
 export function Campanhas() {
   const [campanhas, setCampanhas] = useState([]);
-  const [listaCargos, setListaCargos] = useState([]); // Agora busca do Banco de Dados
+  const [listaCargos, setListaCargos] = useState([]); 
   const [carregando, setCarregando] = useState(true);
   const [mostrarModal, setMostrarModal] = useState(false);
   const [editandoId, setEditandoId] = useState(null);
   
   // Controle das abas de visualização
-  const [abaAtiva, setAbaAtiva] = useState('ativas'); // 'ativas' ou 'arquivadas'
+  const [abaAtiva, setAbaAtiva] = useState('ativas'); 
 
   // Estados do formulário
   const [nome, setNome] = useState('');
@@ -28,6 +28,10 @@ export function Campanhas() {
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
   const [cargosAlvo, setCargosAlvo] = useState([]);
+  
+  // Novos campos: Restrição e Múltiplos Senders
+  const [apenasAdmin, setApenasAdmin] = useState(false);
+  const [emailRemetente, setEmailRemetente] = useState('');
 
   const etapasPadrao = ['CONTATO 1° E-MAIL', 'CONTATO TEL.', 'IDENTIFICAÇÃO DO INTERESSE', 'NÃO QUER LIGAÇÃO', 'VENDA REALIZADA', 'PERDIDO'];
   const [etapas, setEtapas] = useState(etapasPadrao);
@@ -56,8 +60,6 @@ export function Campanhas() {
     setCarregando(true);
     try {
       const config = getHeaders();
-      
-      // Busca Campanhas E a nova lista de Cargos do banco
       const [resCamps, resCargos] = await Promise.all([
         axios.get(`${API_URL}/campanhas`, config),
         axios.get(`${API_URL}/cargos`, config).catch(() => ({ data: [] }))
@@ -67,7 +69,6 @@ export function Campanhas() {
         setListaCargos(resCargos.data.map(c => c.nome));
       }
 
-      // ALERTA DE ARQUITETURA: O ideal é que o backend já retorne os módulos junto com as campanhas em uma única requisição.
       const campanhasComModulos = await Promise.all(resCamps.data.map(async (camp) => {
         const resMods = await axios.get(`${API_URL}/campanhas/${camp.id}/modulos`, config);
         return { ...camp, listaModulos: resMods.data };
@@ -103,6 +104,8 @@ export function Campanhas() {
     setDataInicio(''); 
     setDataFim(''); 
     setCargosAlvo([]);
+    setApenasAdmin(false);
+    setEmailRemetente('');
     setEtapas(etapasPadrao); 
     setModulos([]); 
     setMostrarModal(true);
@@ -115,7 +118,8 @@ export function Campanhas() {
     setInformacaoExtra(camp.informacao_extra || '');
     setDataInicio(camp.data_inicio ? camp.data_inicio.split('T')[0] : '');
     setDataFim(camp.data_fim ? camp.data_fim.split('T')[0] : '');
-    
+    setApenasAdmin(camp.apenas_admin || false);
+    setEmailRemetente(camp.email_remetente || '');
     setCargosAlvo(parseJSONSeguro(camp.cargos_alvo, []));
     
     const modsFormatados = (camp.listaModulos || []).map(m => ({
@@ -180,6 +184,8 @@ export function Campanhas() {
         data_inicio: dataInicio || null, 
         data_fim: dataFim || null, 
         cargos_alvo: cargosAlvo, 
+        apenas_admin: apenasAdmin,
+        email_remetente: emailRemetente || null,
         modulos 
     };
     
@@ -286,7 +292,10 @@ export function Campanhas() {
               <CampaignCard key={camp.id} $arquivada={abaAtiva === 'arquivadas'}>
                 <CardHeader>
                   <CardTitle $arquivada={abaAtiva === 'arquivadas'}>
-                    <i className="fa-solid fa-graduation-cap"></i> {camp.nome}
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span><i className="fa-solid fa-graduation-cap"></i> {camp.nome}</span>
+                      {camp.apenas_admin && <span style={{ fontSize: '0.7rem', color: '#dc3545', fontWeight: 'bold', marginTop: '4px' }}><i className="fa-solid fa-lock"></i> Funil Restrito</span>}
+                    </div>
                   </CardTitle>
                   <CardActions>
                     <IconButton onClick={() => alternarArquivamento(camp.id, camp.arquivada)} title={camp.arquivada ? "Desarquivar" : "Arquivar"}>
@@ -373,6 +382,33 @@ export function Campanhas() {
                     <Label>Nome do Curso/Campanha *</Label>
                     <Input type="text" value={nome} onChange={e => setNome(e.target.value)} required />
                   </FormGroup>
+
+                  {/* NOVOS CONTROLES DE SISTEMA: Restrição e Remetente */}
+                  <SectionCard $bgColor="#f8f9fa" $borderColor="#dce1e6" style={{marginTop: '15px'}}>
+                    <SectionTitle $color="#1F4E79"><i className="fa-solid fa-gears"></i> Controle de Disparos e Acesso</SectionTitle>
+                    <FormGrid $columns="1fr 1fr">
+                      <FormGroup>
+                        <Label>Conta de E-mail para Disparo (n8n)</Label>
+                        <Select value={emailRemetente} onChange={e => setEmailRemetente(e.target.value)}>
+                          <option value="">-- Padrão (Sem roteamento específico) --</option>
+                          <option value="camila">Camila (camila@...)</option>
+                          <option value="daniel">Daniel (daniel@...)</option>
+                          <option value="julia">Julia (julia@...)</option>
+                        </Select>
+                      </FormGroup>
+                      
+                      <FormGroup>
+                        <Label>Exclusividade do Funil</Label>
+                        <CheckboxWrapper $active={apenasAdmin} onClick={() => setApenasAdmin(!apenasAdmin)}>
+                          <input type="checkbox" checked={apenasAdmin} readOnly />
+                          <div className="chk-text">
+                            <strong><i className="fa-solid fa-lock"></i> Restringir Acesso</strong>
+                            <span>Apenas Administradores verão este Funil de Vendas.</span>
+                          </div>
+                        </CheckboxWrapper>
+                      </FormGroup>
+                    </FormGrid>
+                  </SectionCard>
                     
                   <SectionCard $bgColor="#f0f4f8" $borderColor="#d0d7de">
                     <SectionTitle $color="#1F4E79"><i className="fa-solid fa-users-gear"></i> Automação: Público e Validade</SectionTitle>
@@ -483,85 +519,68 @@ export function Campanhas() {
 // ==========================================
 // STYLED COMPONENTS
 // ==========================================
-
 const PageContainer = styled.div`
   padding: 30px;
   background-color: #f4f7f6;
   min-height: calc(100vh - 70px);
 `;
-
 const LoadingContainer = styled.div`
   text-align: center; padding: 60px; color: #6c757d; font-size: 1.1rem; 
   i { font-size: 2.5rem; margin-bottom: 15px; color: #cbd5e1; }
 `;
-
 const TopSection = styled.div`
   display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;
 `;
-
 const Title = styled.h2`
   margin: 0; color: #2c3e50; font-size: 1.8rem; font-weight: 700;
 `;
-
 const Subtitle = styled.p`
   color: #6c757d; font-size: 0.95rem; margin: 5px 0 0 0;
 `;
-
 const TabsContainer = styled.div`
   display: flex; gap: 10px; margin-top: 15px;
 `;
-
 const TabButton = styled.button`
   padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.2s ease; display: flex; align-items: center; gap: 8px;
   background: ${props => props.$active ? '#1F4E79' : '#e9ecef'};
   color: ${props => props.$active ? '#ffffff' : '#6c757d'};
   &:hover { background: ${props => props.$active ? '#1F4E79' : '#dde2e6'}; }
 `;
-
 const EmptyState = styled.div`
   padding: 50px; text-align: center; background: #ffffff; border: 2px dashed #dce1e6; border-radius: 12px; color: #a0aec0; font-size: 1.1rem; display: flex; flex-direction: column; align-items: center; gap: 10px;
   i { font-size: 2.5rem; color: #cbd5e1; }
 `;
-
 const CampaignsGrid = styled.div`
   display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 20px;
 `;
-
 const CampaignCard = styled.div`
   background: #ffffff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #edf2f9; transition: transform 0.2s ease, box-shadow 0.2s ease;
   opacity: ${props => props.$arquivada ? 0.7 : 1}; filter: ${props => props.$arquivada ? 'grayscale(20%)' : 'none'};
   &:hover { transform: translateY(-4px); box-shadow: 0 8px 25px rgba(0,0,0,0.08); }
 `;
-
 const CardHeader = styled.div`
   display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;
 `;
-
-const CardTitle = styled.h3`
-  margin: 0; color: ${props => props.$arquivada ? '#6c757d' : '#007bff'}; font-size: 1.15rem; display: flex; align-items: center; gap: 8px;
+const CardTitle = styled.div`
+  margin: 0; color: ${props => props.$arquivada ? '#6c757d' : '#007bff'}; font-size: 1.15rem; font-weight: 700;
 `;
-
 const CardActions = styled.div`
   display: flex; gap: 5px;
 `;
-
 const IconButton = styled.button`
   background: none; border: none; color: #6c757d; cursor: pointer; padding: 6px; font-size: 1.1rem; border-radius: 4px; transition: all 0.2s ease;
   &:hover { background: #f8f9fa; color: #343a40; }
   &.edit:hover { color: #ffc107; background: #fffbeb; }
   &.delete:hover { color: #dc3545; background: #fdf5f6; }
 `;
-
 const CardDescription = styled.p`
   color: #555; font-size: 0.9rem; min-height: 40px; margin: 0 0 15px 0; line-height: 1.4;
 `;
-
 const CardDates = styled.div`
   display: flex; justify-content: space-between; font-size: 0.85rem; background: #f8fafc; padding: 10px 12px; border-radius: 6px; font-weight: 500; color: #495057;
   .text-green { color: #28a745; margin-right: 5px; }
   .text-red { color: #dc3545; margin-right: 5px; }
 `;
-
 const ModulesSection = styled.div`
   margin-top: 15px; border-top: 1px solid #edf2f9; padding-top: 15px;
   .section-title { margin: 0 0 10px 0; color: #2c3e50; font-size: 0.9rem; display: flex; align-items: center; gap: 6px; }
@@ -572,21 +591,16 @@ const ModulesSection = styled.div`
   }
   .empty-text { font-size: 0.85rem; color: #a0aec0; font-style: italic; }
 `;
-
 const ModuleItem = styled.div`
   background: #f8fafc; padding: 8px 12px; border-radius: 6px; font-size: 0.85rem; border-left: 3px solid #28a745; display: flex; justify-content: space-between; align-items: center;
   .module-name { font-weight: 600; color: #333; } .module-price { font-weight: 700; color: #28a745; }
 `;
-
-// --- MODAIS ---
 const ModalOverlay = styled.div`
   position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(2px); padding: 20px;
 `;
-
 const ModalContent = styled.div`
   background: #ffffff; border-radius: 12px; width: 100%; max-width: ${props => props.$small ? '420px' : '800px'}; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 15px 40px rgba(0,0,0,0.2); animation: slideUp 0.3s ease-out;
   @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-  
   .custom-scroll {
     &::-webkit-scrollbar { width: 6px; }
     &::-webkit-scrollbar-track { background: #f8fafc; border-radius: 12px; margin: 8px 0; }
@@ -594,56 +608,46 @@ const ModalContent = styled.div`
     &::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
   }
 `;
-
 const ModalHeader = styled.div`
   display: flex; justify-content: space-between; align-items: center; padding: 25px 30px; border-bottom: 1px solid #edf2f9;
   h3 { margin: 0; color: #2c3e50; font-size: 1.4rem; }
 `;
-
 const ModalFooter = styled.div`
   display: flex; justify-content: ${props => props.$small ? 'space-between' : 'flex-end'}; gap: 12px; padding: 20px 30px; background: #fbfbfc; border-top: 1px solid #edf2f9; border-radius: 0 0 12px 12px;
 `;
-
 const CloseButton = styled.button`
   background: none; border: none; font-size: 1.8rem; color: #a0aec0; cursor: pointer; transition: 0.2s; line-height: 1;
   &:hover { color: #dc3545; }
 `;
-
-// --- FORMULÁRIOS ---
 const FormGrid = styled.div`
   display: grid; grid-template-columns: ${props => props.$columns || '1fr'}; gap: 15px;
   .span-2 { grid-column: span 2; }
 `;
-
 const FormGroup = styled.div`
   display: flex; flex-direction: column; gap: 6px;
 `;
-
 const Label = styled.label`
   font-weight: 600; font-size: ${props => props.$small ? '0.75rem' : '0.9rem'}; color: ${props => props.$color || '#495057'};
 `;
-
 const Input = styled.input`
   width: 100%; padding: 10px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #333; background-color: #ffffff; transition: all 0.2s;
   &:focus { outline: none; border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); }
   &.highlight { border-color: #007bff; background-color: #f0f7ff; }
 `;
-
+const Select = styled.select`
+  width: 100%; padding: 10px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #333; background-color: #ffffff; transition: all 0.2s;
+  &:focus { outline: none; border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); }
+`;
 const TextArea = styled.textarea`
   width: 100%; padding: 10px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #333; background-color: #ffffff; resize: vertical; transition: all 0.2s;
   &:focus { outline: none; border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); }
 `;
-
-// --- BLOCOS DE SEÇÃO DO FORMULÁRIO ---
 const SectionCard = styled.div`
   background: ${props => props.$bgColor || '#f8f9fa'}; border: 1px solid ${props => props.$borderColor || '#e9ecef'}; padding: 20px; border-radius: 8px; margin-bottom: 20px;
 `;
-
 const SectionTitle = styled.h4`
   margin: 0 0 15px 0; color: ${props => props.$color || '#333'}; font-size: 1.05rem; display: flex; align-items: center; gap: 8px;
 `;
-
-// --- BOTÕES GENÉRICOS ---
 const ButtonBase = styled.button`
   padding: 10px 20px; border-radius: 6px; font-weight: 600; font-size: 0.95rem; cursor: pointer; border: none; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
   &:active { transform: scale(0.98); }
@@ -660,12 +664,9 @@ const DangerButton = styled(ButtonBase)`
 const AddButton = styled(ButtonBase)`
   background: #28a745; color: #fff; padding: 10px; &:hover { background: #218838; }
 `;
-
-// --- COMPONENTES ESPECÍFICOS (CHECKBOX PILLS, MODULOS, ETAPAS) ---
 const CheckboxGroup = styled.div`
   display: flex; flex-wrap: wrap; gap: 10px;
 `;
-
 const CheckboxPill = styled.label`
   display: flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
   background: ${props => props.$active ? '#e7f3ff' : '#ffffff'};
@@ -674,36 +675,28 @@ const CheckboxPill = styled.label`
   input { display: none; }
   &:hover { background: ${props => props.$active ? '#d6ebff' : '#f8fafc'}; }
 `;
-
 const ModuleInputGrid = styled.div`
   display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 10px; align-items: end; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 2px dashed #c3e6cb;
   @media (max-width: 768px) { grid-template-columns: 1fr; }
 `;
-
 const ModulesList = styled.div`
   display: flex; flex-direction: column; gap: 8px;
 `;
-
 const ModuleRow = styled.div`
   display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 10px; align-items: center; background: #ffffff; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0;
   @media (max-width: 768px) { grid-template-columns: 1fr; }
 `;
-
 const AddStageRow = styled.div`
   display: flex; gap: 10px; margin-bottom: 15px;
 `;
-
 const StagesList = styled.div`
   display: flex; flex-direction: column; gap: 8px;
 `;
-
 const StageItem = styled.div`
   display: flex; justify-content: space-between; align-items: center; background: #ffffff; padding: 10px 15px; border-radius: 6px; border: 1px solid #e2e8f0;
   .stage-name { font-weight: 600; color: #475569; }
   .stage-index { color: #007bff; margin-right: 8px; }
 `;
-
-// --- MODAL DE MATEMÁTICA ---
 const MathWarningIcon = styled.i`
   font-size: 3.5rem; color: #dc3545; margin-bottom: 15px; display: block; text-align: center;
 `;
@@ -721,4 +714,9 @@ const MathBox = styled.div`
       &:focus { border-color: #dc3545; outline: none; box-shadow: 0 0 0 3px rgba(220,53,69,0.15); }
     }
   }
+`;
+const CheckboxWrapper = styled.label`
+  display: flex; align-items: center; gap: 12px; padding: 15px; border-radius: 8px; cursor: pointer; transition: 0.2s; border: 1px solid ${props => props.$active ? '#f5c6cb' : '#e2e8f0'}; background: ${props => props.$active ? '#fdf5f6' : '#ffffff'};
+  input[type="checkbox"] { transform: scale(1.3); accent-color: #dc3545; cursor: pointer; }
+  .chk-text { display: flex; flex-direction: column; gap: 2px; strong { color: ${props => props.$active ? '#c82333' : '#475569'}; font-size: 0.95rem; i { color: ${props => props.$active ? '#dc3545' : '#cbd5e1'}; }} span { font-size: 0.8rem; color: #64748b; }}
 `;

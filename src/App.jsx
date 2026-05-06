@@ -95,8 +95,7 @@ export function App() {
         } />
       </Routes>
 
-      {/* O ChatFlutuante fica FORA das rotas para não recarregar ao trocar de página */}
-      <ChatFlutuante />
+      
       
     </HashRouter>
   );

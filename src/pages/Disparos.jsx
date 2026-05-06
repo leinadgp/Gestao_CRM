@@ -147,9 +147,7 @@ export function Disparos() {
   function inserirParagrafo() { inserirSnippet(`\n<p style="margin:0 0 15px 0;color:#1F4E79;">Novo parágrafo aqui.</p>\n`); }
   function inserirTituloSecundario() { inserirSnippet(`\n<h2 style="margin:0 0 15px 0;font-size:18px;color:#1F4E79;">Título da seção</h2>\n`); }
   function inserirLinhaSeparadora() { inserirSnippet(`\n<div style="height:1px;background:#e5e5e5;margin:20px 0;"></div>\n`); }
-  function inserirAvisoSeguranca() {
-    inserirSnippet(`\n<p style="margin: 0px 0 15px 0; padding: 0 24px; color: #1F4E79; text-align: center; font-size: 13px;">Obs: O link acima é oficial e 100% seguro.</p>\n`);
-  }
+  
   function inserirListaNaoOrdenada() {
     inserirSnippet(`\n<ul style="margin: 0 0 15px 20px; padding: 0; color: #1F4E79; font-size: 14px; line-height: 1.6;">\n  <li style="margin-bottom: 8px;">Primeiro benefício aqui</li>\n  <li style="margin-bottom: 8px;">Segundo benefício aqui</li>\n  <li style="margin-bottom: 8px;">Terceiro benefício aqui</li>\n</ul>\n`);
   }
@@ -165,7 +163,6 @@ export function Disparos() {
     const descricao = window.prompt('Descrição do clique:', 'Botão Principal') || 'Botão Principal';
     const linkRastreado = montarUrlRastreada({ redirect: urlDestino, descricao, etapaAtual: ordemEtapa, cursoId: cursoAlvo, tipoF: tipoFunil });
     
-    // HTML "Bulletproof" para e-mails (Tabela dupla forçando o centro)
     const htmlBotao = `
 <table width="100%" border="0" cellspacing="0" cellpadding="0" style="width: 100%; margin: 15px 0;">
   <tr>
@@ -188,7 +185,6 @@ export function Disparos() {
   }
 
   function inserirAvisoSeguranca() {
-    // Usando a mesma trava de tabela para garantir que o texto fique centralizado no Gmail
     inserirSnippet(`\n<table width="100%" border="0" cellspacing="0" cellpadding="0"><tr><td align="center" style="text-align: center;"><p style="margin: 0 0 15px 0; color: #1F4E79; font-size: 13px;">Obs: O link acima é oficial e 100% seguro.</p></td></tr></table>\n`);
   }
 
@@ -209,7 +205,17 @@ export function Disparos() {
     const linkSite = montarUrlRastreada({ redirect: 'https://www.gestao.srv.br', descricao: 'Link Site', etapaAtual: etapaEmail, cursoId, tipoF });
     const linkBot = montarUrlRastreada({ redirect: 'https://www.gestao.srv.br', descricao: 'bot', etapaAtual: etapaEmail, cursoId, tipoF });
 
-    return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${tituloSeguro}</title></head><body style="margin:0;padding:0;background-color:#f4f6f8;"><table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f6f8;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff;font-family:Arial,sans-serif;font-size:14px;color:#1F4E79;">${cabecalhoSeguro ? `<tr><td style="background-color:#1F4E79;color:#ffffff;padding:16px 20px;text-align:center;font-weight:bold;font-size:15px;">${cabecalhoSeguro}</td></tr>` : ''}<tr><td style="padding:30px 30px 10px 30px;line-height:1.6;text-align:justify;">${conteudoHtml}</td></tr><tr><td style="padding:10px 24px 25px 24px;color:#1F4E79;"><p style="margin:0 0 15px 0; font-family:Arial,sans-serif; font-size:14px; line-height:1.6; color:#1F4E79;">Fico à disposição!</p><p style="margin:0 0 10px 0; font-family:Arial,sans-serif; font-size:14px; line-height:1.6; color:#1F4E79;">Atenciosamente,</p><p style="margin:0; font-family:Arial,sans-serif; font-size:14px; line-height:1.6; color:#1F4E79;"><strong>Camila Silveira Guimarães</strong></p><p style="margin:0; font-family:Arial,sans-serif; font-size:14px; line-height:1.6; color:#1F4E79;">Setor Comercial</p><p style="margin:0; font-family:Arial,sans-serif; font-size:14px; line-height:1.6; color:#1F4E79;">(51) 3541 3355</p><p style="margin:0 0 10px 0; font-family:Arial,sans-serif; font-size:14px; line-height:1.6; color:#1F4E79;">(51) 98443-2097</p><p style="margin:0 0 15px 0; font-family:Arial,sans-serif; font-size:14px; line-height:1.6; color:#1F4E79;"><a href="${linkSite}" target="_blank" style="color:#1F4E79;text-decoration:none;font-weight:bold;">www.gestao.srv.br</a></p><a href="${linkBot}" target="_blank" style="color:#ffffff;text-decoration:none;font-weight:bold;">.</a></td></tr></table></td></tr></table></body></html>`;
+    // AJUSTE: Assinatura Dinâmica baseada no Remetente da Campanha
+    const camp = campanhas.find(c => c.id === Number(cursoId));
+    const sender = camp?.email_remetente || 'camila';
+    
+    let nomeAssinatura = "Camila Silveira Guimarães";
+    let foneAssinatura = "(51) 98443-2097";
+
+    if (sender === 'daniel') { nomeAssinatura = "Daniel [Sobrenome]"; foneAssinatura = "(51) 9XXXX-XXXX"; }
+    if (sender === 'julia') { nomeAssinatura = "Julia [Sobrenome]"; foneAssinatura = "(51) 9XXXX-XXXX"; }
+
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${tituloSeguro}</title></head><body style="margin:0;padding:0;background-color:#f4f6f8;"><table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f6f8;"><tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff;font-family:Arial,sans-serif;font-size:14px;color:#1F4E79;">${cabecalhoSeguro ? `<tr><td style="background-color:#1F4E79;color:#ffffff;padding:16px 20px;text-align:center;font-weight:bold;font-size:15px;">${cabecalhoSeguro}</td></tr>` : ''}<tr><td style="padding:30px 30px 10px 30px;line-height:1.6;text-align:justify;">${conteudoHtml}</td></tr><tr><td style="padding:10px 24px 25px 24px;color:#1F4E79;"><p style="margin:0 0 15px 0; font-family:Arial,sans-serif; font-size:14px; line-height:1.6; color:#1F4E79;">Fico à disposição!</p><p style="margin:0 0 10px 0; font-family:Arial,sans-serif; font-size:14px; line-height:1.6; color:#1F4E79;">Atenciosamente,</p><p style="margin:0; font-family:Arial,sans-serif; font-size:14px; line-height:1.6; color:#1F4E79;"><strong>${nomeAssinatura}</strong></p><p style="margin:0; font-family:Arial,sans-serif; font-size:14px; line-height:1.6; color:#1F4E79;">Setor Comercial</p><p style="margin:0; font-family:Arial,sans-serif; font-size:14px; line-height:1.6; color:#1F4E79;">(51) 3541 3355</p><p style="margin:0 0 10px 0; font-family:Arial,sans-serif; font-size:14px; line-height:1.6; color:#1F4E79;">${foneAssinatura}</p><p style="margin:0 0 15px 0; font-family:Arial,sans-serif; font-size:14px; line-height:1.6; color:#1F4E79;"><a href="${linkSite}" target="_blank" style="color:#1F4E79;text-decoration:none;font-weight:bold;">www.gestao.srv.br</a></p><a href="${linkBot}" target="_blank" style="color:#ffffff;text-decoration:none;font-weight:bold;">.</a></td></tr></table></td></tr></table></body></html>`;
   }
 
   // --- AÇÕES DOS MODAIS DE RELATÓRIO ---
@@ -370,9 +376,20 @@ export function Disparos() {
     setEnviandoTeste(true);
     try {
       const emailCruTeste = emailCru.replace(/\{\{\$json\.EmailLimpo\}\}/g, 'leinadgp@gmail.com');
+      
+      // AJUSTE: Passando o email_remetente para o teste do n8n
+      const sender = campanhaSelecionada?.email_remetente || 'camila';
+
       await fetch(WEBHOOK_TESTE, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ emailCru: emailCruTeste, cabecalhoEmail, tituloemail, etapa: ordemEtapa, curso: cursoAlvo })
+        body: JSON.stringify({ 
+          emailCru: emailCruTeste, 
+          cabecalhoEmail, 
+          tituloemail, 
+          etapa: ordemEtapa, 
+          curso: cursoAlvo,
+          email_remetente: sender // <--- Envia para o n8n qual conta usar
+        })
       });
       alert('✅ E-mail de teste enviado!');
     } catch (error) { alert('❌ Erro no teste.'); } 
@@ -408,7 +425,7 @@ export function Disparos() {
 
   const htmlPreviewFinal = useMemo(() => {
     return montarHtmlFinal({ titulo: tituloemail, cabecalho: cabecalhoEmail, conteudo: emailCru, etapaEmail: ordemEtapa, cursoId: cursoAlvo, tipoF: tipoFunil });
-  }, [tituloemail, cabecalhoEmail, emailCru, ordemEtapa, cursoAlvo, tipoFunil]); // Dependências controladas!
+  }, [tituloemail, cabecalhoEmail, emailCru, ordemEtapa, cursoAlvo, tipoFunil, campanhas]);
 
   const leadsAgrupados = useMemo(() => {
     return Object.values((dadosCliques || []).reduce((acc, clique) => {
@@ -464,6 +481,7 @@ export function Disparos() {
                     onClick={() => { setCursoAlvo(String(c.id)); setDropdownCampanhaAberto(false); limparFormularioEmail(); }}
                   >
                     {c.nome}
+                    {c.apenas_admin && <span style={{marginLeft: '10px', color: '#dc3545', fontSize: '0.7rem'}}>🔒 Restrito</span>}
                   </CustomDropdownItem>
                 ))}
               </CustomDropdownMenu>
@@ -475,7 +493,10 @@ export function Disparos() {
           <MotorControlPanel>
             <div className="motor-info">
               <h3><i className="fa-solid fa-robot"></i> Motor de Disparos: {campanhaSelecionada.nome}</h3>
-              <p>Controle a injeção de leads e os envios automáticos para esta campanha.</p>
+              <p>
+                Remetente: <strong style={{color: '#1F4E79', textTransform: 'capitalize'}}>{campanhaSelecionada.email_remetente || 'Camila'}</strong> 
+                {campanhaSelecionada.apenas_admin && <strong style={{color: '#dc3545', marginLeft: '15px'}}>🔒 Funil Restrito a Administradores</strong>}
+              </p>
             </div>
             <div className="motor-actions">
               {campanhaSelecionada.status_motor === 'rodando' ? (
@@ -715,7 +736,7 @@ export function Disparos() {
         {/* MODAL 1: CLIQUES DETALHADOS */}
         {mostrarModalCliques && (
           <ModalOverlay onClick={() => setMostrarModalCliques(false)}>
-            <ModalContent onClick={e => e.stopPropagation()}>
+            <ModalContent $large onClick={e => e.stopPropagation()}>
               <ModalHeader>
                 <div>
                   <h3 className="text-blue"><i className="fa-solid fa-mouse-pointer"></i> Relatório de Cliques</h3>
@@ -918,10 +939,9 @@ const MotorButton = styled.button`
   padding: 10px 20px; border-radius: 8px; font-weight: 700; font-size: 0.95rem; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s ease;
   background: ${props => props.$color === 'green' ? '#28a745' : '#ffc107'};
   color: ${props => props.$color === 'green' ? '#fff' : '#333'};
-  &:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+  &:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,123,255,0.1); }
 `;
 
-// --- FUNIS DE EMAILS ---
 const FunnelsGrid = styled.div`
   display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 30px;
 `;
@@ -942,7 +962,7 @@ const EmailCard = styled.div`
   background: ${props => props.$active ? '#f0f7ff' : '#ffffff'};
   padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; border-left: 4px solid ${props => props.$inativo ? '#cbd5e1' : props.$borderColor};
   box-shadow: 0 2px 5px rgba(0,0,0,0.02); transition: transform 0.2s;
-  opacity: ${props => props.$inativo ? 0.6 : 1}; /* Deixa o cartão apagado se inativo */
+  opacity: ${props => props.$inativo ? 0.6 : 1}; 
 
   &:hover { transform: ${props => props.$inativo ? 'none' : 'translateY(-2px)'}; box-shadow: ${props => props.$inativo ? 'none' : '0 4px 10px rgba(0,0,0,0.05)'}; }
 
@@ -959,7 +979,6 @@ const EmailCard = styled.div`
   .card-actions-top { border-top: 1px dashed #e2e8f0; padding-top: 12px; margin-bottom: 5px;}
 `;
 
-// --- EDITOR ---
 const EditorPanel = styled.div`
   background: #ffffff; border-top: 5px solid #6f42c1; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); margin-bottom: 30px;
   opacity: ${props => props.$visible ? 1 : 0.5}; pointer-events: ${props => props.$visible ? 'auto' : 'none'};
@@ -972,25 +991,20 @@ const EditorPanel = styled.div`
 const FormGrid = styled.div`
   display: grid; gap: 15px; background: #f8fafc; padding: 25px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 25px;
   grid-template-columns: ${props => props.$isPosClique ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)'};
-  
   .span-2 { grid-column: span 2; }
   .span-full { grid-column: 1 / -1; }
-  
   @media (max-width: 768px) { grid-template-columns: 1fr !important; .span-2, .span-full { grid-column: span 1 !important; } }
 `;
 
 const FormGroup = styled.div`
   display: flex; flex-direction: column; gap: 6px;
-
   label { font-weight: 600; font-size: 0.9rem; color: #495057; display: flex; align-items: center; gap: 6px;}
   .text-blue { color: #007bff; } .text-orange { color: #fd7e14; } .text-red { color: #dc3545; } .text-dark-blue { color: #1F4E79; }
-
   input, select {
     width: 100%; padding: 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #333; outline: none; transition: 0.2s;
     &:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); }
     &.bg-light-blue { background: #eef4fa; border-color: #b8cde1; }
   }
-
   .select-container {
     position: relative;
     &.highlight select { border: 2px solid #6f42c1; color: #6f42c1; font-weight: 700; appearance: none; padding-right: 30px;}
@@ -998,28 +1012,20 @@ const FormGroup = styled.div`
   }
 `;
 
-// --- BOTÕES GENÉRICOS ---
 const ActionButton = styled.button`
   flex: 1; padding: 8px 12px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; border: none; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px;
-
-  background: #e2e8f0; color: #475569; /* Default */
+  background: #e2e8f0; color: #475569;
   &:hover { background: #cbd5e1; }
-
   &.primary { background: #007bff; color: #fff; &:hover { background: #0056b3; } }
   &.secondary { background: #6c757d; color: #fff; &:hover { background: #5a6268; } }
-  &.danger { background: #ffeeba; color: #856404; &:hover { background: #f5d371; } }
   &.info { background: #17a2b8; color: #fff; &:hover { background: #117a8b; } }
-  
-  /* Botões de Status Ativar/Desabilitar */
   &.success { background: #d4edda; color: #155724; &:hover { background: #c3e6cb; } }
   &.warning { background: #fff3cd; color: #856404; &:hover { background: #ffeeba; } }
-  
   &:disabled { opacity: 0.6; cursor: not-allowed; }
 `;
 
 const SmallButton = styled.button`
   padding: 8px 12px; border-radius: 6px; font-size: 0.85rem; border: 1px solid #cbd5e1; background: #fff; cursor: pointer; transition: 0.2s; color: #495057;
-
   &:hover { background: #f8fafc; border-color: #a0aec0; }
   &.text-blue { color: #0056b3; background: #e7f3ff; border-color: #b8daff; }
   &.text-green { color: #155724; background: #d4edda; border-color: #c3e6cb; }
@@ -1027,7 +1033,6 @@ const SmallButton = styled.button`
   &.text-red { color: #721c24; background: #f8d7da; border-color: #f5c6cb; }
 `;
 
-// --- MODAIS ---
 const ModalOverlay = styled.div`
   position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(2px); padding: 20px;
 `;
@@ -1038,21 +1043,17 @@ const ModalContent = styled.div`
 const ModalHeader = styled.div`
   display: flex; justify-content: space-between; align-items: center; padding: 20px; background: ${props => props.$bg || '#fbfbfc'}; border-bottom: 1px solid #edf2f9;
   h3 { margin: 0; font-size: 1.2rem; display: flex; align-items: center; gap: 8px; color: ${props => props.$color || '#333'}; }
-  .text-blue { color: #007bff; }
   .subtitle { font-size: 0.85rem; margin-top: 4px; font-weight: 600; color: ${props => props.$color ? 'rgba(255,255,255,0.8)' : '#6c757d'}; }
 `;
 const CloseButton = styled.button`
-  background: none; border: none; font-size: 1.8rem; cursor: pointer; transition: 0.2s; color: ${props => props.$color || '#a0aec0'};
+  background: none; border: none; font-size: 1.8rem; cursor: pointer; color: ${props => props.$color || '#a0aec0'};
   &:hover { color: #dc3545; }
 `;
 
-// --- TABELAS DOS MODAIS ---
 const Table = styled.table`
   width: 100%; border-collapse: collapse;
   th { text-align: left; padding: 15px 20px; background: #f8fafc; color: #6c757d; font-size: 0.85rem; text-transform: uppercase; border-bottom: 2px solid #edf2f9; }
   td { padding: 15px 20px; border-bottom: 1px solid #edf2f9; color: #2c3e50; }
-  tr:last-child td { border-bottom: none; }
-  tr:hover td { background-color: #fbfbfc; }
   .sticky-head th { position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 2px -1px rgba(0,0,0,0.1); }
   .contact-subtext { font-size: 0.8rem; color: #6c757d; margin-top: 3px; }
 `;
@@ -1080,13 +1081,11 @@ const LoadingContainer = styled.div`
 const Grid3Col = styled.div`
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;
   @media (max-width: 900px) { grid-template-columns: 1fr; }
-
   .col-wrapper { background: #fff; border-radius: 8px; border: 1px solid #ddd; overflow: hidden; }
-  .col-header { padding: 12px 15px; font-weight: 700; border-bottom: 1px solid transparent; display: flex; align-items: center; gap: 8px;}
-  .col-header.success { background: #e6f4ea; color: #155724; border-color: #c3e6cb; }
-  .col-header.warning { background: #fff3cd; color: #856404; border-color: #ffeeba; }
-  .col-header.danger { background: #f8d7da; color: #721c24; border-color: #f5c6cb; }
-
+  .col-header { padding: 12px 15px; font-weight: 700; display: flex; align-items: center; gap: 8px;}
+  .col-header.success { background: #e6f4ea; color: #155724; }
+  .col-header.warning { background: #fff3cd; color: #856404; }
+  .col-header.danger { background: #f8d7da; color: #721c24; }
   .col-body { padding: 10px; max-height: 450px; overflow-y: auto; }
   .list-item { padding: 10px; border-bottom: 1px solid #edf2f9; }
   .list-item:last-child { border-bottom: none; }

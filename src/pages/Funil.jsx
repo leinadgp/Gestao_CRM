@@ -23,7 +23,7 @@ export function Funil() {
   // --- CONTROLES DE TELA E BUSCA ---
   const [carregando, setCarregando] = useState(false);
   const [filtroCampanha, setFiltroCampanha] = useState('');
-  const [buscaGeral, setBuscaGeral] = useState(''); // Estado para o campo de pesquisa do Kanban
+  const [buscaGeral, setBuscaGeral] = useState(''); 
   const [dropdownCampanhaAberto, setDropdownCampanhaAberto] = useState(false);
   const dropdownCampanhaRef = useRef(null);
 
@@ -43,7 +43,7 @@ export function Funil() {
   const [observacoes, setObservacoes] = useState('');
   const [statusOp, setStatusOp] = useState('aberto');
   const [vendedorId, setVendedorId] = useState('');
-  const [vendedorOriginal, setVendedorOriginal] = useState(''); // Guarda o vendedor original para auditoria
+  const [vendedorOriginal, setVendedorOriginal] = useState(''); 
   const [desconto, setDesconto] = useState(0);
 
   // --- ESTADOS DE MÓDULOS ---
@@ -64,6 +64,17 @@ export function Funil() {
   const [contatoCargo, setContatoCargo] = useState('');
   const [contatoEmails, setContatoEmails] = useState('');
   const [contatoTelefones, setContatoTelefones] = useState('');
+
+  // --- ESTADOS DO SUB-MODAL DE EMPRESA ---
+  const [mostrarModalEmpresa, setMostrarModalEmpresa] = useState(false);
+  const [empresaSelecionada, setEmpresaSelecionada] = useState(null);
+  const [editandoEmpresaRapida, setEditandoEmpresaRapida] = useState(false);
+  const [empresaNome, setEmpresaNome] = useState('');
+  const [empresaEstado, setEmpresaEstado] = useState('');
+  const [empresaCidade, setEmpresaCidade] = useState('');
+  const [empresaTelefones, setEmpresaTelefones] = useState('');
+  const [empresaClassificacao, setEmpresaClassificacao] = useState('nao_assessorada');
+  const [empresaEstrelas, setEmpresaEstrelas] = useState(0);
 
   // --- AUTOCOMPLETES ---
   const [buscaEmpresaNoModal, setBuscaEmpresaNoModal] = useState('');
@@ -104,7 +115,6 @@ export function Funil() {
     }
   }, [filtroCampanha]);
 
-  // Click outside para fechar dropdowns
   useEffect(() => {
     const handleClickFora = (event) => {
       if (dropdownEmpresaRef.current && !dropdownEmpresaRef.current.contains(event.target)) {
@@ -133,7 +143,6 @@ export function Funil() {
     return () => document.removeEventListener('mousedown', handleClickFora);
   }, [empresaId, empresas, contatoId, contatos]);
 
-
   // ==========================================
   // LÓGICA DO MOUSE (DRAG BOARD)
   // ==========================================
@@ -155,7 +164,6 @@ export function Funil() {
     const walk = (x - startX.current) * 1.5;
     if (boardRef.current) { boardRef.current.scrollLeft = scrollLeft.current - walk; }
   }
-
 
   // ==========================================
   // FETCH DE DADOS DA API
@@ -216,16 +224,14 @@ export function Funil() {
     } catch (e) { console.error('Erro ao buscar módulos', e); }
   }
 
-
   // ==========================================
-  // MEMOIZAÇÕES DE ALTA PERFORMANCE
+  // MEMOIZAÇÕES E ORDENAÇÃO DE ALTA PERFORMANCE
   // ==========================================
   
   const oportunidadesPorEtapa = useMemo(() => {
     const mapa = {};
     etapas.forEach(e => mapa[e.id] = []);
     
-    // Aplica a pesquisa geral na memória
     const termoBusca = buscaGeral.toLowerCase();
     const opsFiltradasBusca = oportunidades.filter(op => {
       const tituloMatch = (op.titulo || '').toLowerCase().includes(termoBusca);
@@ -234,12 +240,32 @@ export function Funil() {
       return tituloMatch || empresaMatch || contatoMatch;
     });
 
-    opsFiltradasBusca.forEach(op => {
+    const opsEnriquecidas = opsFiltradasBusca.map(op => {
+      const emp = empresas.find(e => e.id === op.empresa_id) || {};
+      return {
+        ...op,
+        classificacao: emp.classificacao || 'nao_assessorada',
+        estrelas: emp.estrelas !== undefined ? emp.estrelas : 0 
+      };
+    });
+
+    opsEnriquecidas.sort((a, b) => {
+      if (b.estrelas !== a.estrelas) return b.estrelas - a.estrelas;
+      
+      const pesos = { assessorada: 3, lead_quente: 2, nao_assessorada: 1 };
+      const pesoA = pesos[a.classificacao] || 1;
+      const pesoB = pesos[b.classificacao] || 1;
+      if (pesoA !== pesoB) return pesoB - pesoA;
+      
+      return new Date(b.criado_em) - new Date(a.criado_em);
+    });
+
+    opsEnriquecidas.forEach(op => {
       if (!mapa[op.etapa_id]) mapa[op.etapa_id] = [];
       mapa[op.etapa_id].push(op);
     });
     return mapa;
-  }, [etapas, oportunidades, buscaGeral]);
+  }, [etapas, oportunidades, buscaGeral, empresas]);
 
   const empresasFiltradasParaSelect = useMemo(() => {
     const busca = buscaEmpresaNoModal.toLowerCase();
@@ -267,7 +293,26 @@ export function Funil() {
 
 
   // ==========================================
-  // GERENCIAMENTO DE NOTAS
+  // UI HELPERS (ESTRELAS)
+  // ==========================================
+  const renderStarsLocal = (rating, readonly = true) => {
+    const stars = [];
+    for (let i = 1; i <= 5; i++) {
+      stars.push(
+        <i 
+          key={i} 
+          className={`fa-solid fa-star ${i <= rating ? 'active' : ''}`}
+          onClick={!readonly ? () => setEmpresaEstrelas(rating === i ? 0 : i) : undefined}
+          style={{ cursor: readonly ? 'default' : 'pointer' }}
+        ></i>
+      );
+    }
+    return <StarsContainer $readonly={readonly}>{stars}</StarsContainer>;
+  };
+
+
+  // ==========================================
+  // GERENCIAMENTO DE NOTAS, CONTATOS E EMPRESAS (SUB-MODAIS)
   // ==========================================
   async function carregarNotas(opId) {
     try { 
@@ -297,10 +342,6 @@ export function Funil() {
     } catch (e) { alert('Erro ao editar a nota.'); }
   }
 
-
-  // ==========================================
-  // CONTATOS (SUB-MODAL)
-  // ==========================================
   function abrirDetalheContato() {
     if (!contatoId) return;
     const contato = contatos.find(c => c.id === parseInt(contatoId));
@@ -327,15 +368,10 @@ export function Funil() {
     
     try {
       await axios.put(`${API_URL}/contatos/${contatoSelecionado.id}`, {
-        nome: contatoNome,
-        cargo: contatoCargo,
-        emails_json: emailsArr,
-        telefones_json: telsArr,
-        empresa_id: empresaId || contatoSelecionado.empresa_id 
+        nome: contatoNome, cargo: contatoCargo, emails_json: emailsArr, telefones_json: telsArr, empresa_id: empresaId || contatoSelecionado.empresa_id 
       }, getHeaders());
       
       setMostrarModalContato(false);
-      
       const resC = await axios.get(`${API_URL}/contatos`, getHeaders());
       setContatos(resC.data);
       setBuscaContatoNoModal(contatoNome); 
@@ -345,11 +381,49 @@ export function Funil() {
     }
   }
 
+  function abrirDetalheEmpresa() {
+    if (!empresaId) return;
+    const emp = empresas.find(e => e.id === parseInt(empresaId));
+    if (!emp) return;
+
+    setEmpresaSelecionada(emp);
+    setEmpresaNome(emp.nome || '');
+    setEmpresaEstado(emp.estado || '');
+    setEmpresaCidade(emp.cidade || '');
+    setEmpresaTelefones(emp.telefones || '');
+    setEmpresaClassificacao(emp.classificacao || 'nao_assessorada');
+    setEmpresaEstrelas(emp.estrelas !== undefined ? emp.estrelas : 0);
+
+    setEditandoEmpresaRapida(false);
+    setMostrarModalEmpresa(true);
+  }
+
+  async function salvarEmpresaRapido(e) {
+    e.preventDefault();
+    try {
+      await axios.put(`${API_URL}/empresas/${empresaSelecionada.id}`, {
+        nome: empresaNome,
+        estado: empresaEstado,
+        cidade: empresaCidade,
+        telefones: empresaTelefones,
+        classificacao: empresaClassificacao,
+        estrelas: empresaEstrelas
+      }, getHeaders());
+
+      setMostrarModalEmpresa(false);
+      const resE = await axios.get(`${API_URL}/empresas`, getHeaders());
+      setEmpresas(resE.data);
+      setBuscaEmpresaNoModal(empresaNome);
+      alert('Empresa atualizada com sucesso!');
+    } catch(error) {
+      alert(error.response?.data?.erro || 'Erro ao atualizar empresa.');
+    }
+  }
+
 
   // ==========================================
   // GESTÃO DA OPORTUNIDADE (MODAL PRINCIPAL)
   // ==========================================
-  
   function toggleModulo(id) {
     const numId = Number(id);
     setModulosSelecionados(prev => {
@@ -361,24 +435,16 @@ export function Funil() {
   function abrirModalNovo() {
     if (!filtroCampanha) return alert("Selecione uma campanha no topo da tela antes de criar uma negociação!");
     
-    setEditandoId(null); 
-    setTitulo(''); 
-    setEmpresaId(''); 
-    setContatoId(''); 
-    setObservacoes('');
-    setStatusOp('aberto'); 
-    setEtapaId(etapas.length > 0 ? etapas[0].id : '');
-    setVendedorId(meuUsuarioId || ''); 
-    setVendedorOriginal(meuUsuarioId || ''); // Guarda quem está criando
+    setEditandoId(null); setTitulo(''); setEmpresaId(''); setContatoId(''); setObservacoes('');
+    setStatusOp('aberto'); setEtapaId(etapas.length > 0 ? etapas[0].id : '');
+    setVendedorId(meuUsuarioId || ''); setVendedorOriginal(meuUsuarioId || ''); 
     setDesconto(0);
     
     if (modulosCampanha.length > 0) {
       const todosIds = modulosCampanha.map(m => Number(m.id));
-      setModulosSelecionados(todosIds);
-      setValor(''); 
+      setModulosSelecionados(todosIds); setValor(''); 
     } else {
-      setModulosSelecionados([]);
-      setValor(990.00); 
+      setModulosSelecionados([]); setValor(990.00); 
     }
 
     setBuscaEmpresaNoModal(''); setBuscaContatoNoModal(''); setNotas([]); setNovaNota(''); cancelarEdicaoNota();
@@ -386,26 +452,17 @@ export function Funil() {
   }
 
   function abrirModalEdicao(op) {
-    setEditandoId(op.id); 
-    setTitulo(op.titulo); 
-    setValor(op.valor);
-    setEmpresaId(op.empresa_id || ''); 
-    setContatoId(op.contato_id || '');
-    setEtapaId(op.etapa_id); 
-    setObservacoes(op.observacoes || '');
-    setStatusOp(op.status || 'aberto'); 
-    setVendedorId(op.vendedor_id || '');
-    setVendedorOriginal(op.vendedor_id || ''); // Guarda o dono original para auditoria
-    setDesconto(op.desconto || 0);
+    setEditandoId(op.id); setTitulo(op.titulo); setValor(op.valor);
+    setEmpresaId(op.empresa_id || ''); setContatoId(op.contato_id || '');
+    setEtapaId(op.etapa_id); setObservacoes(op.observacoes || '');
+    setStatusOp(op.status || 'aberto'); setVendedorId(op.vendedor_id || '');
+    setVendedorOriginal(op.vendedor_id || ''); setDesconto(op.desconto || 0);
 
     const mods = parseJSONSeguro(op.modulos_ids, []).map(Number);
     setModulosSelecionados(mods);
 
-    setBuscaEmpresaNoModal(op.empresa_nome || ''); 
-    setBuscaContatoNoModal(op.contato_nome || '');
-    setNotas([]); 
-    cancelarEdicaoNota(); 
-    carregarNotas(op.id);
+    setBuscaEmpresaNoModal(op.empresa_nome || ''); setBuscaContatoNoModal(op.contato_nome || '');
+    setNotas([]); cancelarEdicaoNota(); carregarNotas(op.id);
     setMostrarModal(true);
   }
 
@@ -416,33 +473,22 @@ export function Funil() {
       : (valor ? parseFloat(valor.toString().replace(/\./g, '').replace(',', '.')) : 0);
 
     const dados = {
-      titulo, 
-      valor: valorEnviar, 
-      empresa_id: empresaId || null, 
-      contato_id: contatoId || null,
-      etapa_id: etapaId, 
-      observacoes, 
-      campanha_id: filtroCampanha, 
-      status: statusOp,
-      vendedor_id: vendedorId || null, 
-      modulos_ids: modulosSelecionados.map(Number), // Garante que vai numérico pro banco
+      titulo, valor: valorEnviar, empresa_id: empresaId || null, contato_id: contatoId || null,
+      etapa_id: etapaId, observacoes, campanha_id: filtroCampanha, status: statusOp,
+      vendedor_id: vendedorId || null, modulos_ids: modulosSelecionados.map(Number), 
       desconto: modulosSelecionados.length > 0 ? Number(desconto) : 0
     };
 
     try {
       if (editandoId) {
         await axios.put(`${API_URL}/oportunidades/${editandoId}`, dados, getHeaders());
-        
-        // Auditoria de Troca de Vendedor
         if (String(vendedorId) !== String(vendedorOriginal)) {
           const nomeNovo = equipe.find(u => String(u.id) === String(vendedorId))?.nome || 'Sem dono';
           const nomeVelho = equipe.find(u => String(u.id) === String(vendedorOriginal))?.nome || 'Sem dono';
-          
           await axios.post(`${API_URL}/oportunidades/${editandoId}/notas`, { 
             nota: `🔄 Transferência de Responsável: A negociação foi alterada de "${nomeVelho}" para "${nomeNovo}".` 
           }, getHeaders());
         }
-
       } else {
         await axios.post(`${API_URL}/oportunidades`, dados, getHeaders());
       }
@@ -457,12 +503,8 @@ export function Funil() {
     if (!window.confirm('Excluir este negócio? O histórico de notas também será apagado.')) return;
     try { 
       await axios.delete(`${API_URL}/oportunidades/${editandoId}`, getHeaders()); 
-      setMostrarModal(false); 
-      carregarFunilDaCampanha(filtroCampanha); 
-    } catch (error) { 
-      console.error(error); 
-      alert("Falha ao excluir o negócio.");
-    }
+      setMostrarModal(false); carregarFunilDaCampanha(filtroCampanha); 
+    } catch (error) { alert("Falha ao excluir o negócio."); }
   }
 
   const formatarMoeda = (v) => Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -499,7 +541,14 @@ export function Funil() {
                 onClick={() => setDropdownCampanhaAberto(!dropdownCampanhaAberto)}
               >
                 <i className="fa-solid fa-layer-group icon"></i> 
-                <span>Funil: <strong>{campanhaSelecionadaObj ? campanhaSelecionadaObj.nome : '-- Selecione --'}</strong></span>
+                <span>Funil: <strong>
+                  {campanhaSelecionadaObj ? (
+                    <>
+                      {campanhaSelecionadaObj.nome}
+                      {campanhaSelecionadaObj.apenas_admin && <span style={{marginLeft: '8px', color: '#dc3545', fontSize: '0.8rem'}}><i className="fa-solid fa-lock"></i> Restrito</span>}
+                    </>
+                  ) : '-- Selecione --'}
+                </strong></span>
                 <i className={`fa-solid fa-chevron-${dropdownCampanhaAberto ? 'up' : 'down'} arrow`}></i>
               </FilterButton>
               
@@ -511,7 +560,9 @@ export function Funil() {
                       $active={filtroCampanha === String(c.id)} 
                       onClick={() => { setFiltroCampanha(String(c.id)); setDropdownCampanhaAberto(false); }}
                     >
-                      {c.nome} {c.arquivada ? '(Arquivada)' : ''}
+                      {c.nome} 
+                      {c.apenas_admin && <span style={{marginLeft: '8px', color: '#dc3545', fontSize: '0.75rem', fontWeight: 'bold'}}><i className="fa-solid fa-lock"></i> Restrito</span>}
+                      {c.arquivada && <span style={{marginLeft: '8px', color: '#6c757d', fontSize: '0.75rem'}}>(Arquivada)</span>}
                     </CustomDropdownItem>
                   ))}
                 </CustomDropdownMenu>
@@ -570,7 +621,16 @@ export function Funil() {
 
                       return (
                         <KanbanCard key={op.id} className="kanban-card" $status={statusConfig} onClick={() => abrirModalEdicao(op)}>
-                          <div className="card-title">{op.titulo}</div>
+                          
+                          <div className="card-header">
+                            <div className="card-title">{op.titulo}</div>
+                            {op.estrelas > 0 && (
+                              <div className="stars" title={`Temperatura: ${op.estrelas} Estrelas`}>
+                                {[1,2,3,4,5].map(n => <i key={n} className={`fa-solid fa-star ${n <= op.estrelas ? 'active' : ''}`}></i>)}
+                              </div>
+                            )}
+                          </div>
+
                           <div className="card-value">{formatarMoeda(op.valor)}</div>
 
                           {nomesModsCard.length > 0 && (
@@ -581,7 +641,14 @@ export function Funil() {
                             </CardModules>
                           )}
 
-                          {op.empresa_nome && <div className="card-company"><i className="fa-solid fa-building"></i> {op.empresa_nome}</div>}
+                          {op.empresa_nome && (
+                            <div className="card-company">
+                              <i className="fa-solid fa-building"></i> {op.empresa_nome}
+                              {op.classificacao === 'assessorada' && <span className="badge-vip" title="Prefeitura Assessorada VIP"><i className="fa-solid fa-crown"></i> VIP</span>}
+                              {op.classificacao === 'lead_quente' && <span className="badge-hot" title="Lead Quente e Engajado"><i className="fa-solid fa-fire"></i> Hot</span>}
+                              {(op.classificacao === 'nao_assessorada' || !op.classificacao) && <span className="badge-cold" title="Lead Frio"><i className="fa-solid fa-snowflake text-blue"></i> Frio</span>}
+                            </div>
+                          )}
                           
                           <SellerBadge>
                             <i className="fa-solid fa-user-tie"></i> {op.vendedor_nome || 'Sem dono'}
@@ -596,9 +663,7 @@ export function Funil() {
           </KanbanBoard>
         )}
 
-        {/* ==========================================
-            MODAL DE EDIÇÃO DE OPORTUNIDADE
-        ========================================== */}
+        {/* MODAL DE EDIÇÃO DE OPORTUNIDADE E SUB-MODAIS */}
         {mostrarModal && (
           <ModalOverlay onClick={() => setMostrarModal(false)}>
             <ModalContent onClick={e => e.stopPropagation()}>
@@ -646,30 +711,38 @@ export function Funil() {
                   <FormGrid $columns="1fr 1fr">
                     <FormGroup>
                       <label><i className="fa-solid fa-building text-blue"></i> Empresa/Prefeitura Alvo</label>
-                      <AutocompleteContainer ref={dropdownEmpresaRef}>
-                        <Input 
-                          type="text" 
-                          placeholder="🔍 Buscar..." 
-                          value={buscaEmpresaNoModal} 
-                          onFocus={() => { setBuscaEmpresaNoModal(''); setMostrarDropdownEmpresa(true); }} 
-                          onChange={(e) => {
-                            setBuscaEmpresaNoModal(e.target.value); setMostrarDropdownEmpresa(true);
-                            if (e.target.value === '') { setEmpresaId(''); setContatoId(''); setBuscaContatoNoModal(''); }
-                          }} 
-                        />
-                        {mostrarDropdownEmpresa && (
-                          <AutocompleteList>
-                            <AutocompleteOption className="danger" onClick={() => { setEmpresaId(''); setBuscaEmpresaNoModal(''); setContatoId(''); setBuscaContatoNoModal(''); setMostrarDropdownEmpresa(false); }}>
-                              <i className="fa-solid fa-eraser"></i> Limpar Seleção
-                            </AutocompleteOption>
-                            {empresasFiltradasParaSelect.map(emp => (
-                              <AutocompleteOption key={emp.id} onClick={() => { setEmpresaId(emp.id); setBuscaEmpresaNoModal(emp.nome); setMostrarDropdownEmpresa(false); }}>
-                                {emp.nome}
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <AutocompleteContainer ref={dropdownEmpresaRef} style={{ flex: 1 }}>
+                          <Input 
+                            type="text" 
+                            placeholder="🔍 Buscar..." 
+                            value={buscaEmpresaNoModal} 
+                            onFocus={() => { setBuscaEmpresaNoModal(''); setMostrarDropdownEmpresa(true); }} 
+                            onChange={(e) => {
+                              setBuscaEmpresaNoModal(e.target.value); setMostrarDropdownEmpresa(true);
+                              if (e.target.value === '') { setEmpresaId(''); setContatoId(''); setBuscaContatoNoModal(''); }
+                            }} 
+                          />
+                          {mostrarDropdownEmpresa && (
+                            <AutocompleteList>
+                              <AutocompleteOption className="danger" onClick={() => { setEmpresaId(''); setBuscaEmpresaNoModal(''); setContatoId(''); setBuscaContatoNoModal(''); setMostrarDropdownEmpresa(false); }}>
+                                <i className="fa-solid fa-eraser"></i> Limpar Seleção
                               </AutocompleteOption>
-                            ))}
-                          </AutocompleteList>
+                              {empresasFiltradasParaSelect.map(emp => (
+                                <AutocompleteOption key={emp.id} onClick={() => { setEmpresaId(emp.id); setBuscaEmpresaNoModal(emp.nome); setMostrarDropdownEmpresa(false); }}>
+                                  {emp.nome}
+                                </AutocompleteOption>
+                              ))}
+                            </AutocompleteList>
+                          )}
+                        </AutocompleteContainer>
+
+                        {empresaId && (
+                          <IconButton type="button" onClick={abrirDetalheEmpresa} title="Visualizar ou Editar Empresa">
+                            <i className="fa-solid fa-building-user"></i>
+                          </IconButton>
                         )}
-                      </AutocompleteContainer>
+                      </div>
                     </FormGroup>
 
                     <FormGroup>
@@ -724,7 +797,6 @@ export function Funil() {
                         const isSelected = modulosSelecionados.includes(Number(mod.id));
                         return (
                           <ModuleCard key={mod.id} $active={isSelected} onClick={() => toggleModulo(mod.id)}>
-                            {/* Checkbox puramente visual, o estado cuida de tudo */}
                             <div className={`custom-checkbox ${isSelected ? 'active' : ''}`}>
                                {isSelected && <i className="fa-solid fa-check"></i>}
                             </div>
@@ -847,7 +919,7 @@ export function Funil() {
           </ModalOverlay>
         )}
 
-        {/* SUB-MODAL DE CONTATO (Oculto para brevidade, mas está intacto na lógica) */}
+        {/* SUB-MODAL DE CONTATO RÁPIDO */}
         {mostrarModalContato && contatoSelecionado && (
           <ModalOverlay onClick={() => setMostrarModalContato(false)} style={{zIndex: 9999}}>
             <ModalContent $small onClick={e => e.stopPropagation()}>
@@ -924,6 +996,123 @@ export function Funil() {
           </ModalOverlay>
         )}
 
+        {/* SUB-MODAL DE EMPRESA RÁPIDO */}
+        {mostrarModalEmpresa && empresaSelecionada && (
+          <ModalOverlay onClick={() => setMostrarModalEmpresa(false)} style={{zIndex: 9999}}>
+            <ModalContent $small onClick={e => e.stopPropagation()}>
+              <ModalHeader $bg="#1F4E79" $color="#fff">
+                <div>
+                  <h3 style={{color: '#fff'}}><i className="fa-solid fa-building-user"></i> Detalhes da Empresa</h3>
+                </div>
+                <CloseButton $color="#fff" onClick={() => setMostrarModalEmpresa(false)}>&times;</CloseButton>
+              </ModalHeader>
+
+              <div style={{ padding: '20px' }}>
+                {!editandoEmpresaRapida ? (
+                  <>
+                    <FormGrid $columns="1fr 1fr" style={{marginBottom: '20px'}}>
+                      <InfoBox className="span-2">
+                        <label>NOME DA EMPRESA / PREFEITURA</label>
+                        <div>{empresaNome}</div>
+                      </InfoBox>
+                      <InfoBox>
+                        <label>ESTADO (UF)</label>
+                        <div>{empresaEstado || '-'}</div>
+                      </InfoBox>
+                      <InfoBox>
+                        <label>CIDADE</label>
+                        <div>{empresaCidade || '-'}</div>
+                      </InfoBox>
+                      <InfoBox className="span-2">
+                        <label><i className="fa-solid fa-phone"></i> TELEFONES GERAIS</label>
+                        <div className="phones">
+                          {empresaTelefones ? empresaTelefones.split(',').map((tel, idx) => (
+                            <a key={idx} href={`tel:${formatarTelefoneParaLink(tel)}`} className="phone-pill">
+                              <i className="fa-solid fa-phone text-green"></i> {tel.trim()}
+                            </a>
+                          )) : '-'}
+                        </div>
+                      </InfoBox>
+                      <InfoBox>
+                        <label><i className="fa-solid fa-fire"></i> CLASSIFICAÇÃO</label>
+                        <div style={{marginTop: '5px'}}>
+                          {empresaClassificacao === 'assessorada' ? <span style={{color: '#856404', fontWeight: 'bold'}}>👑 VIP (Assessorada)</span> : 
+                           empresaClassificacao === 'lead_quente' ? <span style={{color: '#dc3545', fontWeight: 'bold'}}>🔥 Lead Quente</span> : 
+                           <span style={{color: '#475569', fontWeight: 'bold'}}>❄️ Frio Padrão</span>}
+                        </div>
+                      </InfoBox>
+                      <InfoBox>
+                        <label><i className="fa-solid fa-star"></i> TEMPERATURA</label>
+                        <div style={{marginTop: '5px'}}>
+                          {renderStarsLocal(empresaEstrelas, true)}
+                        </div>
+                      </InfoBox>
+                    </FormGrid>
+                    <ModalFooter $justify="flex-end">
+                      <SecondaryButton onClick={() => setMostrarModalEmpresa(false)}>Voltar</SecondaryButton>
+                      <WarningButton onClick={() => setEditandoEmpresaRapida(true)}>
+                        <i className="fa-solid fa-pen"></i> Editar Empresa
+                      </WarningButton>
+                    </ModalFooter>
+                  </>
+                ) : (
+                  <form onSubmit={salvarEmpresaRapido}>
+                    <FormGrid $columns="1fr 1fr" style={{marginBottom: '20px'}}>
+                      <FormGroup className="span-2">
+                        <label>Nome da Empresa *</label>
+                        <Input type="text" required value={empresaNome} onChange={e => setEmpresaNome(e.target.value)} />
+                      </FormGroup>
+                      <FormGroup>
+                        <label>Estado (UF)</label>
+                        <Input type="text" value={empresaEstado} onChange={e => setEmpresaEstado(e.target.value.toUpperCase())} maxLength="2" style={{textTransform: 'uppercase'}} />
+                      </FormGroup>
+                      <FormGroup>
+                        <label>Cidade</label>
+                        <Input type="text" value={empresaCidade} onChange={e => setEmpresaCidade(e.target.value)} />
+                      </FormGroup>
+                      <FormGroup className="span-2">
+                        <label><i className="fa-solid fa-phone text-green"></i> Telefones</label>
+                        <Input type="text" value={empresaTelefones} onChange={e => setEmpresaTelefones(e.target.value)} />
+                      </FormGroup>
+
+                      {/* LEAD SCORING DENTRO DO QUICK EDIT */}
+                      <div className="span-2" style={{background: '#f8fafc', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0', marginTop: '10px'}}>
+                        <label style={{ display: 'block', marginBottom: '15px', color: '#1F4E79', fontSize: '0.95rem', fontWeight: 'bold' }}>
+                          <i className="fa-solid fa-fire"></i> Qualificação e Temperatura
+                        </label>
+                        <FormGrid $columns="1fr 1fr">
+                          <FormGroup>
+                            <label>Classificação no Funil</label>
+                            <Select 
+                              value={empresaClassificacao} 
+                              onChange={e => setEmpresaClassificacao(e.target.value)} 
+                              $status={empresaClassificacao}
+                            >
+                              <option value="nao_assessorada">❄️ Frio (Padrão)</option>
+                              <option value="lead_quente">🔥 Quente</option>
+                              <option value="assessorada">👑 VIP (Assessorada)</option>
+                            </Select>
+                          </FormGroup>
+                          <FormGroup>
+                            <label>Temperatura (Avaliação)</label>
+                            {renderStarsLocal(empresaEstrelas, false)}
+                          </FormGroup>
+                        </FormGrid>
+                      </div>
+
+                    </FormGrid>
+
+                    <ModalFooter $justify="flex-end">
+                      <SecondaryButton type="button" onClick={() => setEditandoEmpresaRapida(false)}>Cancelar</SecondaryButton>
+                      <PrimaryButton type="submit"><i className="fa-solid fa-save"></i> Salvar Alterações</PrimaryButton>
+                    </ModalFooter>
+                  </form>
+                )}
+              </div>
+            </ModalContent>
+          </ModalOverlay>
+        )}
+
       </PageContainer>
     </>
   );
@@ -934,7 +1123,7 @@ export function Funil() {
 // ==========================================
 
 const PageContainer = styled.div`
-  padding: 9px 30px 0px; background-color: #f4f7f6; min-height: calc(100vh - 70px); 
+  padding: 30px; background-color: #f4f7f6; min-height: calc(100vh - 70px);
 `;
 
 const TopSection = styled.div`
@@ -1020,7 +1209,6 @@ const ColumnHeader = styled.div`
   .badge { background: #e2e4e9; color: #555; padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; }
 `;
 
-// CORREÇÃO: Altura fixa e rolagem invisível
 const CardsContainer = styled.div`
   display: flex; flex-direction: column; gap: 12px; flex: 1; overflow-y: auto; padding-bottom: 40px;
   max-height: 60vh;
@@ -1032,9 +1220,16 @@ const KanbanCard = styled.div`
   &:hover { transform: translateY(-3px); box-shadow: 0 6px 15px rgba(0,0,0,0.08); }
   &:active { cursor: grabbing; opacity: 0.9; transform: scale(0.98); }
 
+  .card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
   .card-title { font-weight: 700; font-size: 1rem; color: #2c3e50; line-height: 1.3; }
+  .stars { display: flex; gap: 2px; flex-shrink: 0; margin-top: 3px; i { font-size: 0.65rem; color: #cbd5e1; &.active { color: #f59e0b; } } }
+
   .card-value { color: ${props => props.$status.border}; font-weight: 800; font-size: 1.1rem; }
-  .card-company { font-size: 0.8rem; color: #6c757d; display: flex; align-items: center; gap: 6px; }
+  
+  .card-company { font-size: 0.8rem; color: #6c757d; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;}
+  .badge-vip { background: #fff3cd; color: #856404; font-size: 0.65rem; padding: 2px 6px; border-radius: 10px; border: 1px solid #ffeeba;}
+  .badge-hot { background: #fdf2f2; color: #dc3545; font-size: 0.65rem; padding: 2px 6px; border-radius: 10px; border: 1px solid #f8d7da;}
+  .badge-cold { background: #f0f7ff; color: #1F4E79; font-size: 0.65rem; padding: 2px 6px; border-radius: 10px; border: 1px solid #b8daff;}
 `;
 
 const CardModules = styled.div`
@@ -1099,7 +1294,6 @@ const Select = styled.select`
   &.highlight { background: #f8f9fa; border-color: #007bff; font-weight: 600;}
   &.disabled { background: #f8fafc; color: #94a3b8; cursor: not-allowed; }
   
-  /* Dinâmica de cor baseada no status */
   background-color: ${props => {
     switch(props.$status) {
       case 'naofunciona': return '#fff9db';
@@ -1109,6 +1303,9 @@ const Select = styled.select`
       case 'interessada': return '#e9f7ef';
       case 'avaliar'    : return '#e9f7ef';
       case 'perdido'    : return '#fdecea';
+      case 'assessorada': return '#fff3cd';
+      case 'lead_quente': return '#fdf2f2';
+      case 'nao_assessorada': return '#f8fafc';
       default           : return '#fff';
     }
   }};
@@ -1229,4 +1426,18 @@ const InfoBox = styled.div`
   .phones { display: flex; gap: 10px; flex-wrap: wrap; }
   .phone-pill { display: inline-flex; align-items: center; gap: 6px; background: #e6f4ea; color: #155724; padding: 6px 12px; border-radius: 20px; text-decoration: none; font-size: 0.9rem; border: 1px solid #c3e6cb; transition: 0.2s; &:hover{ background: #28a745; color: #fff; .text-green{color: #fff;} } }
   .text-green { color: #28a745; }
+`;
+
+// --- NOVO: COMPONENTE DE ESTRELAS NO FUNIL ---
+const StarsContainer = styled.div`
+  display: flex; gap: 5px; align-items: center;
+  i {
+    font-size: 1.2rem;
+    color: #cbd5e1;
+    transition: 0.2s;
+    &.active { color: #f59e0b; }
+  }
+  ${props => !props.$readonly && `
+    i:hover { transform: scale(1.2); color: #fbbf24; }
+  `}
 `;

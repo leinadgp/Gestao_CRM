@@ -46,12 +46,13 @@ export function Contatos() {
   // === ESTADOS DO MODAL DE NOVO CARGO ===
   const [mostrarModalNovoCargo, setMostrarModalNovoCargo] = useState(false);
   const [novoCargoNome, setNovoCargoNome] = useState('');
-  const [cargoAnterior, setCargoAnterior] = useState('');
+  const [cargoIndexAtual, setCargoIndexAtual] = useState(null);
+  const [cargoAnteriorParaCancelamento, setCargoAnteriorParaCancelamento] = useState('');
 
-  // === FORMULÁRIO ===
+  // === FORMULÁRIO (AGORA CARGOS É UM ARRAY) ===
   const [editandoId, setEditandoId] = useState(null);
   const [nome, setNome] = useState('');
-  const [cargo, setCargo] = useState('');
+  const [cargos, setCargos] = useState(['']);
   const [empresaId, setEmpresaId] = useState('');
   const [emails, setEmails] = useState(['']);
   const [telefones, setTelefones] = useState(['']);
@@ -107,9 +108,12 @@ export function Contatos() {
     return () => document.removeEventListener('mousedown', handleClickFora);
   }, [empresaId, empresas]);
 
+  // Função genérica de manipulação de arrays do formulário
   const gerenciarCampo = (tipo, acao, index, valor) => {
-    const set = tipo === 'email' ? setEmails : setTelefones;
-    const lista = tipo === 'email' ? emails : telefones;
+    let set; let lista;
+    if (tipo === 'email') { set = setEmails; lista = emails; }
+    else if (tipo === 'tel') { set = setTelefones; lista = telefones; }
+    else { set = setCargos; lista = cargos; } // O tipo 'cargo' também usa a mesma lógica
 
     if (acao === 'add') set([...lista, '']);
     if (acao === 'remove') set(lista.filter((_, i) => i !== index));
@@ -126,8 +130,16 @@ export function Contatos() {
       const matchBusca = (c.nome || '').toLowerCase().includes(termo) ||
         (c.empresa_nome || '').toLowerCase().includes(termo) ||
         (c.emails_json || '').toLowerCase().includes(termo);
+      
       const matchEstado = filtroEstado === '' || (c.estado || '').toUpperCase() === filtroEstado.toUpperCase();
-      const matchCargo = filtroCargo === '' || c.cargo === filtroCargo;
+      
+      // Checagem de cargo agora varre o array de cargos do contato
+      let matchCargo = true;
+      if (filtroCargo !== '') {
+        const cargosContato = parseJSONSeguro(c.cargos_json, []);
+        matchCargo = cargosContato.includes(filtroCargo);
+      }
+
       return matchBusca && matchEstado && matchCargo;
     });
   }, [contatos, buscaGeral, filtroEstado, filtroCargo]);
@@ -143,13 +155,14 @@ export function Contatos() {
   }, [empresas, buscaEmpresaNoForm]);
 
   const abrirModalNovo = () => {
-    setEditandoId(null); setNome(''); setCargo(''); setEmpresaId(''); setBuscaEmpresaNoForm('');
+    setEditandoId(null); setNome(''); setCargos(['']); setEmpresaId(''); setBuscaEmpresaNoForm('');
     setEmails(['']); setTelefones(['']); setEmailsComErroForm([]);
     setModoEdicao(true); setMostrarModalContato(true);
   };
 
   const abrirModalContatoDetalhes = async (c) => {
-    setEditandoId(c.id); setNome(c.nome || ''); setCargo(c.cargo || '');
+    setEditandoId(c.id); setNome(c.nome || ''); 
+    setCargos(parseJSONSeguro(c.cargos_json, ['']));
     setEmpresaId(c.empresa_id || ''); setBuscaEmpresaNoForm(c.empresa_nome || '');
     setEmails(parseJSONSeguro(c.emails_json, ['']));
     setTelefones(parseJSONSeguro(c.telefones_json, ['']));
@@ -166,14 +179,15 @@ export function Contatos() {
     }
   };
 
-  const handleCargoChange = (e) => {
+  const handleCargoChange = (e, idx) => {
     const valor = e.target.value;
     if (valor === 'NOVO_CARGO_ACTION') {
-      setCargoAnterior(cargo);
+      setCargoAnteriorParaCancelamento(cargos[idx] || '');
+      setCargoIndexAtual(idx);
       setNovoCargoNome('');
       setMostrarModalNovoCargo(true);
     } else {
-      setCargo(valor);
+      gerenciarCampo('cargo', 'update', idx, valor);
     }
   };
 
@@ -186,7 +200,7 @@ export function Contatos() {
       if (!listaCargos.includes(nomeFormatado)) {
         setListaCargos(prev => [...prev, nomeFormatado].sort((a, b) => a.localeCompare(b)));
       }
-      setCargo(nomeFormatado);
+      gerenciarCampo('cargo', 'update', cargoIndexAtual, nomeFormatado);
       setMostrarModalNovoCargo(false);
     } catch (err) {
       console.error(err);
@@ -195,14 +209,16 @@ export function Contatos() {
   };
 
   const cancelarNovoCargo = () => {
-    setCargo(cargoAnterior);
+    gerenciarCampo('cargo', 'update', cargoIndexAtual, cargoAnteriorParaCancelamento);
     setMostrarModalNovoCargo(false);
   };
 
   const salvarContato = async (e) => {
     e.preventDefault();
     const dados = {
-      nome, cargo, empresa_id: empresaId || null,
+      nome, 
+      empresa_id: empresaId || null,
+      cargos_json: cargos.filter(c => c.trim() !== ''),
       emails_json: emails.filter(em => em.trim() !== ''),
       telefones_json: telefones.filter(t => t.trim() !== '')
     };
@@ -307,7 +323,7 @@ export function Contatos() {
                 <tr>
                   <th>Contato (Lead)</th>
                   <th>Prefeitura / Vínculo</th>
-                  <th>Função / Cargo</th>
+                  <th>Função / Cargos</th>
                 </tr>
               </thead>
               <tbody>
@@ -319,6 +335,7 @@ export function Contatos() {
                   itensExibidos.map(c => {
                     const ems = parseJSONSeguro(c.emails_json);
                     const tels = parseJSONSeguro(c.telefones_json);
+                    const carLista = parseJSONSeguro(c.cargos_json, []);
                     const hasEmailError = c.emails_com_erro?.includes(ems[0]);
 
                     return (
@@ -341,7 +358,13 @@ export function Contatos() {
                           <div className="company-name">{c.empresa_nome || 'Avulso'}</div>
                           {c.estado && <div className="state-tag">{c.estado}</div>}
                         </td>
-                        <td>{c.cargo ? <Badge className="badge-gray">{c.cargo}</Badge> : '-'}</td>
+                        <td>
+                          <div style={{display: 'flex', gap: '5px', flexWrap: 'wrap'}}>
+                            {carLista.length > 0 ? carLista.map((cg, idx) => (
+                              <Badge key={idx} className="badge-gray">{cg}</Badge>
+                            )) : '-'}
+                          </div>
+                        </td>
                       </ClickableRow>
                     );
                   })
@@ -368,7 +391,7 @@ export function Contatos() {
               <ModalHeader $bg={modoEdicao ? '#1F4E79' : '#ffffff'} $color={modoEdicao ? '#ffffff' : '#2c3e50'}>
                 <div>
                   <h3>{modoEdicao ? (editandoId ? 'Editar Contato' : 'Novo Contato') : nome}</h3>
-                  {!modoEdicao && <div className="subtitle">{cargo} | {buscaEmpresaNoForm}</div>}
+                  {!modoEdicao && <div className="subtitle">{cargos.join(' | ')} <br/> {buscaEmpresaNoForm}</div>}
                 </div>
                 <div className="actions">
                   {!modoEdicao && <WarningButton onClick={() => setModoEdicao(true)}><i className="fa-solid fa-pen"></i> Editar</WarningButton>}
@@ -384,23 +407,9 @@ export function Contatos() {
                         <label>Nome Completo *</label>
                         <Input type="text" value={nome} onChange={e => setNome(e.target.value)} required />
                       </FormGroup>
-                      
-                      <FormGroup>
-                        <label>Cargo / Função</label>
-                        <Select value={cargo} onChange={handleCargoChange}>
-                          <option value="">-- Nenhum Cargo / Avulso --</option>
-                          {listaCargos.map(c => (
-                            <option key={c} value={c}>{c}</option>
-                          ))}
-                          <option disabled>──────────</option>
-                          <option value="NOVO_CARGO_ACTION" style={{ fontWeight: 'bold', color: '#007bff' }}>
-                            + Adicionar novo cargo...
-                          </option>
-                        </Select>
-                      </FormGroup>
 
                       <FormGroup>
-                        <label>Prefeitura</label>
+                        <label>Prefeitura / Empresa Vínculo</label>
                         <AutocompleteContainer ref={dropdownRef}>
                           <Input value={buscaEmpresaNoForm} onFocus={() => setMostrarDropdown(true)} onChange={e => setBuscaEmpresaNoForm(e.target.value)} placeholder="Buscar prefeitura..." />
                           {mostrarDropdown && (
@@ -420,8 +429,25 @@ export function Contatos() {
                     </FormGrid>
 
                     <FormGrid $columns="1fr 1fr" style={{ marginTop: '20px' }}>
+                      <DynamicInputBox className="span-2">
+                        <div className="box-header"><span>Cargos e Funções</span> <AddLinkBtn type="button" onClick={() => gerenciarCampo('cargo', 'add')}><i className="fa-solid fa-plus"></i> Novo Cargo</AddLinkBtn></div>
+                        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
+                          {cargos.map((cg, i) => (
+                            <DynamicInputRow key={i}>
+                              <Select value={cg} onChange={(e) => handleCargoChange(e, i)}>
+                                <option value="">-- Selecione ou digite novo --</option>
+                                {listaCargos.map(c => <option key={c} value={c}>{c}</option>)}
+                                <option disabled>──────────</option>
+                                <option value="NOVO_CARGO_ACTION" style={{ fontWeight: 'bold', color: '#007bff' }}>+ Adicionar novo...</option>
+                              </Select>
+                              <IconButton type="button" className="danger" onClick={() => gerenciarCampo('cargo', 'remove', i)}><i className="fa-solid fa-trash"></i></IconButton>
+                            </DynamicInputRow>
+                          ))}
+                        </div>
+                      </DynamicInputBox>
+
                       <DynamicInputBox>
-                        <div className="box-header"><span>E-mails</span> <AddLinkBtn type="button" onClick={() => gerenciarCampo('email', 'add')}>+ Novo</AddLinkBtn></div>
+                        <div className="box-header"><span>E-mails</span> <AddLinkBtn type="button" onClick={() => gerenciarCampo('email', 'add')}><i className="fa-solid fa-plus"></i> Novo</AddLinkBtn></div>
                         {emails.map((em, i) => (
                           <DynamicInputRow key={i}>
                             <Input value={em} onChange={e => gerenciarCampo('email', 'update', i, e.target.value)} />
@@ -431,7 +457,7 @@ export function Contatos() {
                       </DynamicInputBox>
 
                       <DynamicInputBox>
-                        <div className="box-header"><span>Telefones</span> <AddLinkBtn type="button" onClick={() => gerenciarCampo('tel', 'add')}>+ Novo</AddLinkBtn></div>
+                        <div className="box-header"><span>Telefones</span> <AddLinkBtn type="button" onClick={() => gerenciarCampo('tel', 'add')}><i className="fa-solid fa-plus"></i> Novo</AddLinkBtn></div>
                         {telefones.map((tel, i) => (
                           <DynamicInputRow key={i}>
                             <Input value={tel} onChange={e => gerenciarCampo('tel', 'update', i, e.target.value)} />
@@ -442,7 +468,7 @@ export function Contatos() {
                     </FormGrid>
 
                     <ModalFooter $justify="flex-end">
-                      <PrimaryButton type="submit">Salvar Contato</PrimaryButton>
+                      <PrimaryButton type="submit"><i className="fa-solid fa-save"></i> Salvar Contato</PrimaryButton>
                     </ModalFooter>
                   </form>
                 ) : (
@@ -560,7 +586,7 @@ const PaginationContainer = styled.div` padding: 15px; display: flex; justify-co
 const PageButton = styled.button` padding: 5px 15px; cursor: pointer; `;
 const ModalOverlay = styled.div` position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; `;
 const ModalContent = styled.div` background: #fff; border-radius: 8px; width: 90%; max-width: ${props => props.$large ? '900px' : '400px'}; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; `;
-const ModalHeader = styled.div` padding: 20px; display: flex; justify-content: space-between; background: ${props => props.$bg}; color: ${props => props.$color}; h3 { margin: 0; } .subtitle { font-size: 0.85rem; opacity: 0.8; margin-top: 4px; } `;
+const ModalHeader = styled.div` padding: 20px; display: flex; justify-content: space-between; background: ${props => props.$bg}; color: ${props => props.$color}; h3 { margin: 0; } .subtitle { font-size: 0.85rem; opacity: 0.8; margin-top: 4px; line-height: 1.4; } `;
 const ModalBody = styled.div` padding: 20px; overflow-y: auto; `;
 const ModalFooter = styled.div` padding: 20px; border-top: 1px solid #eee; display: flex; justify-content: ${props => props.$justify || 'space-between'}; gap: 10px; `;
 const CloseButton = styled.button` background: none; border: none; font-size: 1.5rem; color: ${props => props.$color}; cursor: pointer; `;
@@ -575,7 +601,7 @@ const AutocompleteContainer = styled.div` position: relative; `;
 const AutocompleteList = styled.div` position: absolute; width: 100%; background: #fff; border: 1px solid #ddd; z-index: 20; max-height: 150px; overflow-y: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); `;
 const AutocompleteOption = styled.div` padding: 10px; cursor: pointer; font-size: 0.9rem; &:hover { background: #f0f7ff; } &.danger { color: #dc3545; border-bottom: 1px solid #eee; } `;
 const DynamicInputBox = styled.div` border: 1px solid #eee; padding: 15px; border-radius: 8px; .box-header { display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: bold; font-size: 0.9rem; } `;
-const DynamicInputRow = styled.div` display: flex; gap: 5px; margin-bottom: 10px; `;
+const DynamicInputRow = styled.div` display: flex; gap: 5px; margin-bottom: 10px; flex: 1;`;
 const AddLinkBtn = styled.button` background: none; border: none; color: #007bff; cursor: pointer; font-weight: bold; font-size: 0.8rem; `;
 const IconButton = styled.button` padding: 5px 10px; cursor: pointer; background: none; border: 1px solid transparent; &.danger { color: #dc3545; } `;
 

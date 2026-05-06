@@ -1,5 +1,5 @@
 // src/pages/Empresas.jsx
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import styled from 'styled-components';
 import { Header } from '../componentes/Header.jsx';
@@ -21,12 +21,12 @@ export function Empresas() {
   // === FILTROS DA TABELA ===
   const [buscaGeral, setBuscaGeral] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('');
-  const [filtroAssessorada, setFiltroAssessorada] = useState('');
+  const [filtroClassificacao, setFiltroClassificacao] = useState('');
 
   const [dropdownEstadoAberto, setDropdownEstadoAberto] = useState(false);
-  const [dropdownAssessoradaAberto, setDropdownAssessoradaAberto] = useState(false);
+  const [dropdownClassificacaoAberto, setDropdownClassificacaoAberto] = useState(false);
   const dropdownEstadoRef = useRef(null);
-  const dropdownAssessoradaRef = useRef(null);
+  const dropdownClassificacaoRef = useRef(null);
 
   const [paginaAtual, setPaginaAtual] = useState(1);
   const itensPorPagina = 15;
@@ -44,7 +44,8 @@ export function Empresas() {
   const [cidade, setCidade] = useState('');
   const [telefones, setTelefones] = useState('');
   const [horarioFuncionamento, setHorarioFuncionamento] = useState('');
-  const [assessorada, setAssessorada] = useState(false);
+  const [classificacao, setClassificacao] = useState('nao_assessorada');
+  const [estrelas, setEstrelas] = useState(0);
 
   // === CONTROLE DO SUB-MODAL DE CONTATO RÁPIDO ===
   const [mostrarModalContato, setMostrarModalContato] = useState(false);
@@ -63,25 +64,38 @@ export function Empresas() {
 
   const listaEstados = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
 
+  const getHeaders = useCallback(() => {
+    const token = localStorage.getItem('token');
+    return { headers: { Authorization: `Bearer ${token}` } };
+  }, []);
+
+  const buscarEmpresas = useCallback(async () => {
+    setCarregando(true);
+    try {
+      const resposta = await axios.get(`${API_URL}/empresas`, getHeaders());
+      setEmpresas(resposta.data);
+    } catch (erro) {
+      console.error('Erro ao buscar empresas:', erro);
+    } finally {
+      setCarregando(false);
+    }
+  }, [API_URL, getHeaders]);
+
   useEffect(() => {
     buscarEmpresas();
-  }, []);
+  }, [buscarEmpresas]);
 
   useEffect(() => {
     const handleClickFora = (event) => {
       if (dropdownEstadoRef.current && !dropdownEstadoRef.current.contains(event.target)) setDropdownEstadoAberto(false);
-      if (dropdownAssessoradaRef.current && !dropdownAssessoradaRef.current.contains(event.target)) setDropdownAssessoradaAberto(false);
+      if (dropdownClassificacaoRef.current && !dropdownClassificacaoRef.current.contains(event.target)) setDropdownClassificacaoAberto(false);
     };
     document.addEventListener('mousedown', handleClickFora);
     return () => document.removeEventListener('mousedown', handleClickFora);
   }, []);
 
-  function getHeaders() {
-    const token = localStorage.getItem('token');
-    return { headers: { Authorization: `Bearer ${token}` } };
-  }
 
-  // --- FUNÇÕES DE FORMATAÇÃO ---
+  // --- FUNÇÕES DE FORMATAÇÃO E UI ---
   function formatarData(dataIso) {
     if (!dataIso) return '-';
     return new Date(dataIso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -100,6 +114,21 @@ export function Empresas() {
     if (!telefoneStr) return '';
     return telefoneStr.replace(/[^0-9]/g, '');
   }
+
+  const renderStars = (rating, readonly = true) => {
+    const stars = [];
+    for (let i = 1; i <= 5; i++) {
+      stars.push(
+        <i 
+          key={i} 
+          className={`fa-solid fa-star ${i <= rating ? 'active' : ''}`}
+          onClick={!readonly ? () => setEstrelas(rating === i ? 0 : i) : undefined}
+          style={{ cursor: readonly ? 'default' : 'pointer' }}
+        ></i>
+      );
+    }
+    return <StarsContainer $readonly={readonly}>{stars}</StarsContainer>;
+  };
 
   // --- REQUISIÇÕES ---
   async function popularEstado() {
@@ -120,18 +149,6 @@ export function Empresas() {
     }
   }
 
-  async function buscarEmpresas() {
-    setCarregando(true);
-    try {
-      const resposta = await axios.get(`${API_URL}/empresas`, getHeaders());
-      setEmpresas(resposta.data);
-    } catch (erro) {
-      console.error('Erro ao buscar empresas:', erro);
-    } finally {
-      setCarregando(false);
-    }
-  }
-
   async function recarregarVisao360(id) {
     setCarregandoDetalhes(true);
     try {
@@ -147,7 +164,8 @@ export function Empresas() {
   // --- AÇÕES DOS MODAIS ---
   function abrirModalNovo() {
     setEditandoId(null); 
-    setNome(''); setEstado(''); setCidade(''); setTelefones(''); setHorarioFuncionamento(''); setAssessorada(false);
+    setNome(''); setEstado(''); setCidade(''); setTelefones(''); setHorarioFuncionamento(''); 
+    setClassificacao('nao_assessorada'); setEstrelas(0); 
     setDetalhesEmpresa(null);
     setModoEdicaoEmpresa(true); 
     setMostrarModalEmpresa(true);
@@ -155,12 +173,13 @@ export function Empresas() {
 
   function abrirModalDetalhes(emp) {
     setEditandoId(emp.id);
-    setNome(emp.nome);
+    setNome(emp.nome || '');
     setEstado(emp.estado || '');
     setCidade(emp.cidade || '');
     setTelefones(emp.telefones || '');
     setHorarioFuncionamento(emp.horario_funcionamento || '');
-    setAssessorada(emp.assessorada || false);
+    setClassificacao(emp.classificacao || 'nao_assessorada');
+    setEstrelas(emp.estrelas !== undefined ? emp.estrelas : 0);
     
     setModoEdicaoEmpresa(false); 
     setMostrarModalEmpresa(true);
@@ -184,7 +203,7 @@ export function Empresas() {
 
   function abrirDetalheContato(contato) {
     setContatoSelecionado(contato);
-    setContatoNome(contato.nome);
+    setContatoNome(contato.nome || '');
     setContatoCargo(contato.cargo || '');
     
     const emails = parseJSONSeguro(contato.emails_json, []);
@@ -200,7 +219,7 @@ export function Empresas() {
   // --- SALVAMENTO E EXCLUSÃO ---
   async function salvarEmpresa(e) {
     e.preventDefault();
-    const dados = { nome, estado, cidade, telefones, horario_funcionamento: horarioFuncionamento, assessorada };
+    const dados = { nome, estado, cidade, telefones, horario_funcionamento: horarioFuncionamento, classificacao, estrelas };
     try {
       if (editandoId) {
         await axios.put(`${API_URL}/empresas/${editandoId}`, dados, getHeaders());
@@ -258,20 +277,18 @@ export function Empresas() {
                          (emp.cidade || '').toLowerCase().includes(termo);
       const matchEstado = filtroEstado === '' || (emp.estado || '').toUpperCase() === filtroEstado.toUpperCase();
       
-      let matchAssessorada = true;
-      if (filtroAssessorada === 'true') matchAssessorada = emp.assessorada === true;
-      if (filtroAssessorada === 'false') matchAssessorada = emp.assessorada !== true;
+      const matchClass = filtroClassificacao === '' || (emp.classificacao || 'nao_assessorada') === filtroClassificacao;
       
-      return matchBusca && matchEstado && matchAssessorada;
+      return matchBusca && matchEstado && matchClass;
     });
-  }, [empresas, buscaGeral, filtroEstado, filtroAssessorada]);
+  }, [empresas, buscaGeral, filtroEstado, filtroClassificacao]);
 
   const empresasOrdenadas = useMemo(() => {
     return [...empresasFiltradas].sort((a, b) => {
-      const estadoA = a.estado || '';
-      const estadoB = b.estado || '';
-      if (estadoA === estadoB) return (a.cidade || '').localeCompare(b.cidade || '');
-      return estadoA.localeCompare(estadoB);
+      const aEstrelas = a.estrelas !== undefined ? a.estrelas : 0;
+      const bEstrelas = b.estrelas !== undefined ? b.estrelas : 0;
+      if (bEstrelas !== aEstrelas) return bEstrelas - aEstrelas;
+      return (a.nome || '').localeCompare(b.nome || '');
     });
   }, [empresasFiltradas]);
 
@@ -305,13 +322,13 @@ export function Empresas() {
   // ==========================================
   return (
     <>
-      <Header titulo="Gestão de Empresas" />
+      <Header titulo="Gestão de Empresas"/>
       <PageContainer>
         
         <TopSection>
           <div>
             <Title>Base de Prefeituras / Empresas</Title>
-            <Subtitle>Gerencie o cadastro geral e identifique os clientes assessorados (VIPs).</Subtitle>
+            <Subtitle>Controle de temperatura, assessoria e cadastro de clientes.</Subtitle>
           </div>
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
             <InfoButton onClick={popularEstado}>
@@ -351,17 +368,22 @@ export function Empresas() {
             )}
           </FilterPillWrapper>
 
-          <FilterPillWrapper ref={dropdownAssessoradaRef}>
-            <FilterButton $hasValue={!!filtroAssessorada} onClick={() => setDropdownAssessoradaAberto(!dropdownAssessoradaAberto)}>
-              <i className="fa-solid fa-star icon"></i> 
-              <span>Tipo: <strong>{filtroAssessorada === 'true' ? '⭐ VIP' : filtroAssessorada === 'false' ? 'Padrão' : 'Todos'}</strong></span>
-              <i className={`fa-solid fa-chevron-${dropdownAssessoradaAberto ? 'up' : 'down'} arrow`}></i>
+          <FilterPillWrapper ref={dropdownClassificacaoRef}>
+            <FilterButton $hasValue={!!filtroClassificacao} onClick={() => setDropdownClassificacaoAberto(!dropdownClassificacaoAberto)}>
+              <i className="fa-solid fa-fire icon"></i> 
+              <span>Tipo: <strong>
+                {filtroClassificacao === 'assessorada' ? '👑 Assessoradas' : 
+                 filtroClassificacao === 'lead_quente' ? '🔥 Leads Quentes' : 
+                 filtroClassificacao === 'nao_assessorada' ? '❄️ Frios' : 'Todos'}
+              </strong></span>
+              <i className={`fa-solid fa-chevron-${dropdownClassificacaoAberto ? 'up' : 'down'} arrow`}></i>
             </FilterButton>
-            {dropdownAssessoradaAberto && (
+            {dropdownClassificacaoAberto && (
               <CustomDropdownMenu>
-                <CustomDropdownItem $active={filtroAssessorada === ''} onClick={() => { setFiltroAssessorada(''); setDropdownAssessoradaAberto(false); setPaginaAtual(1); }}>Todos os Tipos</CustomDropdownItem>
-                <CustomDropdownItem $active={filtroAssessorada === 'true'} onClick={() => { setFiltroAssessorada('true'); setDropdownAssessoradaAberto(false); setPaginaAtual(1); }}>⭐ Assessoradas (VIP)</CustomDropdownItem>
-                <CustomDropdownItem $active={filtroAssessorada === 'false'} onClick={() => { setFiltroAssessorada('false'); setDropdownAssessoradaAberto(false); setPaginaAtual(1); }}>⚪ Padrão (Não Assessoradas)</CustomDropdownItem>
+                <CustomDropdownItem $active={filtroClassificacao === ''} onClick={() => { setFiltroClassificacao(''); setDropdownClassificacaoAberto(false); setPaginaAtual(1); }}>Todos os Tipos</CustomDropdownItem>
+                <CustomDropdownItem $active={filtroClassificacao === 'assessorada'} onClick={() => { setFiltroClassificacao('assessorada'); setDropdownClassificacaoAberto(false); setPaginaAtual(1); }}>👑 Assessoradas (VIP)</CustomDropdownItem>
+                <CustomDropdownItem $active={filtroClassificacao === 'lead_quente'} onClick={() => { setFiltroClassificacao('lead_quente'); setDropdownClassificacaoAberto(false); setPaginaAtual(1); }}>🔥 Leads Quentes</CustomDropdownItem>
+                <CustomDropdownItem $active={filtroClassificacao === 'nao_assessorada'} onClick={() => { setFiltroClassificacao('nao_assessorada'); setDropdownClassificacaoAberto(false); setPaginaAtual(1); }}>❄️ Frios (Padrão)</CustomDropdownItem>
               </CustomDropdownMenu>
             )}
           </FilterPillWrapper>
@@ -373,30 +395,35 @@ export function Empresas() {
               <thead className="sticky-head">
                 <tr>
                   <th>Prefeitura / Empresa</th>
-                  <th className="text-center">Negociações</th>
-                  <th className="text-center">Último Contato</th>
+                  <th>Classificação</th>
+                  <th>Temperatura</th>
+                  <th className="text-center">Últ. Contato</th>
                   {perfilUsuario === 'admin' && <th className="text-center" style={{width: '80px'}}>Ações</th>}
                 </tr>
               </thead>
               <tbody>
                 {carregando ? (
-                  <tr><td colSpan={perfilUsuario === 'admin' ? 4 : 3} className="text-center text-muted"><i className="fa-solid fa-spinner fa-spin"></i> Carregando dados...</td></tr>
+                  <tr><td colSpan={perfilUsuario === 'admin' ? 5 : 4} className="text-center text-muted"><i className="fa-solid fa-spinner fa-spin"></i> Carregando dados...</td></tr>
                 ) : itensAtuais.length === 0 ? (
-                  <tr><td colSpan={perfilUsuario === 'admin' ? 4 : 3} className="text-center text-muted">Nenhuma empresa encontrada com estes filtros.</td></tr>
+                  <tr><td colSpan={perfilUsuario === 'admin' ? 5 : 4} className="text-center text-muted">Nenhuma empresa encontrada com estes filtros.</td></tr>
                 ) : (
                   itensAtuais.map(empresa => (
                     <ClickableRow key={empresa.id}>
                       <td onClick={() => abrirModalDetalhes(empresa)} title="Clique para ver o perfil">
                         <div className="main-name">
                           {empresa.nome}
-                          {empresa.assessorada && <span className="vip-badge"><i className="fa-solid fa-star"></i> VIP</span>}
                         </div>
                         <div className="meta">
                           <span><i className="fa-solid fa-location-dot"></i> {empresa.cidade || '-'} {empresa.estado ? `(${empresa.estado})` : ''}</span>
                         </div>
                       </td>
-                      <td onClick={() => abrirModalDetalhes(empresa)} className="text-center">
-                        <Badge>{empresa.total_negociacoes || 0}</Badge>
+                      <td onClick={() => abrirModalDetalhes(empresa)}>
+                        <StatusBadge className={empresa.classificacao || 'nao_assessorada'}>
+                          {empresa.classificacao === 'assessorada' ? '👑 Assessorada' : empresa.classificacao === 'lead_quente' ? '🔥 Lead Quente' : '❄️ Frio'}
+                        </StatusBadge>
+                      </td>
+                      <td onClick={() => abrirModalDetalhes(empresa)}>
+                        {renderStars(empresa.estrelas || 0, true)}
                       </td>
                       <td onClick={() => abrirModalDetalhes(empresa)} className="text-center text-muted font-bold">
                         {formatarData(empresa.ultimo_contato)}
@@ -415,7 +442,7 @@ export function Empresas() {
 
           {!carregando && empresasOrdenadas.length > 0 && (
             <PaginationContainer>
-              <div className="info">Total: <strong>{empresasOrdenadas.length}</strong> prefeituras</div>
+              <div className="info">Total: <strong>{empresasOrdenadas.length}</strong> empresas</div>
               <div className="controls">
                 <PageButton disabled={paginaAtual === 1} onClick={() => setPaginaAtual(1)}><i className="fa-solid fa-angles-left"></i></PageButton>
                 <PageButton disabled={paginaAtual === 1} onClick={() => setPaginaAtual(paginaAtual - 1)}>Anterior</PageButton>
@@ -427,9 +454,7 @@ export function Empresas() {
           )}
         </Panel>
 
-        {/* ======================================================== */}
-        {/* SUPER MODAL (RAIO-X 360º OU FORMULÁRIO DE EDIÇÃO)        */}
-        {/* ======================================================== */}
+        {/* SUPER MODAL DE EMPRESA */}
         {mostrarModalEmpresa && (
           <ModalOverlay onClick={() => setMostrarModalEmpresa(false)}>
             <ModalContent $large onClick={e => e.stopPropagation()}>
@@ -444,7 +469,8 @@ export function Empresas() {
                   </h3>
                   {!modoEdicaoEmpresa && (
                     <div className="subtitle">
-                      {assessorada && <span className="vip-badge" style={{fontSize: '0.85rem'}}><i className="fa-solid fa-star"></i> Assessorada VIP</span>}
+                      {classificacao === 'assessorada' && <span className="vip-badge" style={{fontSize: '0.85rem'}}><i className="fa-solid fa-crown"></i> Assessorada VIP</span>}
+                      {classificacao === 'lead_quente' && <span className="vip-badge text-red" style={{fontSize: '0.85rem'}}><i className="fa-solid fa-fire"></i> Lead Quente</span>}
                       <span><i className="fa-solid fa-location-dot"></i> {cidade} - {estado}</span>
                     </div>
                   )}
@@ -484,7 +510,14 @@ export function Empresas() {
                       <ProfileGrid>
                         <InfoCard $borderTop="#e2e8f0">
                           <h4><i className="fa-solid fa-circle-info text-blue"></i> Informações Cadastrais</h4>
-                          <div className="info-line"><strong>Status no Funil:</strong> {detalhesEmpresa.empresa.assessorada ? <span className="text-yellow font-bold">VIP (Quente)</span> : <span className="text-muted font-bold">Padrão (Frio)</span>}</div>
+                          <div className="info-line" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <strong>Status no Funil:</strong> 
+                            {detalhesEmpresa.empresa.classificacao === 'assessorada' ? <span className="text-yellow font-bold">👑 Assessorada VIP</span> : 
+                             detalhesEmpresa.empresa.classificacao === 'lead_quente' ? <span className="text-red font-bold">🔥 Lead Quente</span> : 
+                             <span className="text-muted font-bold">❄️ Frio Padrão</span>}
+                             
+                             <span style={{marginLeft: '10px'}}>{renderStars(detalhesEmpresa.empresa.estrelas || 0, true)}</span>
+                          </div>
                           <div className="info-line"><strong>Telefone Geral:</strong> {detalhesEmpresa.empresa.telefones || '-'}</div>
                           <div className="info-line"><strong>Horário de Func.:</strong> {detalhesEmpresa.empresa.horario_funcionamento || '-'}</div>
                           <div className="info-line"><strong>Cadastrada em:</strong> {formatarData(detalhesEmpresa.empresa.criado_em)}</div>
@@ -573,19 +606,42 @@ export function Empresas() {
                         <label>Horário de Funcionamento</label>
                         <Input type="text" value={horarioFuncionamento} onChange={e => setHorarioFuncionamento(e.target.value)} placeholder="Ex: 08:00 às 17:00" />
                       </FormGroup>
-                      
-                      <FormGroup className="span-2">
-                        <CheckboxWrapper $active={assessorada} onClick={() => setAssessorada(!assessorada)}>
-                          <input type="checkbox" checked={assessorada} readOnly />
-                          <div className="chk-text">
-                            <strong><i className="fa-solid fa-star"></i> Marcar como Prefeitura Assessorada</strong>
-                            <span>Isso coloca a prefeitura no funil Quente VIP.</span>
-                          </div>
-                        </CheckboxWrapper>
-                      </FormGroup>
                     </FormGrid>
+
+                    {/* SESSÃO DE LEAD SCORING */}
+                    <SectionCard style={{marginTop: '20px'}}>
+                      <label style={{ display: 'block', marginBottom: '15px', color: '#1F4E79', fontSize: '1rem', fontWeight: 'bold' }}>
+                        <i className="fa-solid fa-fire"></i> Qualificação e Temperatura (Lead Scoring)
+                      </label>
+                      <FormGrid $columns="1fr 1fr">
+                        <FormGroup>
+                          <label>Classificação no Funil</label>
+                          <Select 
+                            value={classificacao} 
+                            onChange={e => setClassificacao(e.target.value)} 
+                            $status={classificacao}
+                          >
+                            <option value="nao_assessorada">❄️ Frio (Não Assessorada)</option>
+                            <option value="lead_quente">🔥 Quente (Lead Quente)</option>
+                            <option value="assessorada">👑 VIP (Assessorada)</option>
+                          </Select>
+                          <small style={{color: '#64748b', fontSize: '0.75rem', marginTop: '4px'}}>
+                            * Quentes e Assessoradas recebem o broadcast VIP.
+                          </small>
+                        </FormGroup>
+
+                        <FormGroup>
+                          <label>Temperatura (Avaliação)</label>
+                          {/* O renderStars gerencia os cliques para poder zerar */}
+                          {renderStars(estrelas, false)}
+                          <small style={{color: '#64748b', fontSize: '0.75rem', marginTop: '4px'}}>
+                            * Clique na estrela ativa para remover a pontuação (Zero).
+                          </small>
+                        </FormGroup>
+                      </FormGrid>
+                    </SectionCard>
                     
-                    <ModalFooter $justify="flex-end" style={{border: 'none', padding: '20px 0 0 0'}}>
+                    <ModalFooter $justify="flex-end" style={{border: 'none', padding: '20px 0 0'}}>
                       <SecondaryButton type="button" onClick={() => editandoId ? setModoEdicaoEmpresa(false) : setMostrarModalEmpresa(false)}>Cancelar</SecondaryButton>
                       <PrimaryButton type="submit"><i className="fa-solid fa-save"></i> {editandoId ? 'Atualizar Empresa' : 'Salvar Empresa'}</PrimaryButton>
                     </ModalFooter>
@@ -632,7 +688,7 @@ export function Empresas() {
                         </div>
                       </InfoBox>
                     </FormGrid>
-                    <ModalFooter $justify="flex-end" style={{padding: '20px 0 0 0', borderTop: 'none'}}>
+                    <ModalFooter $justify="flex-end" style={{padding: '20px 0 0', borderTop: 'none'}}>
                       <SecondaryButton onClick={() => setMostrarModalContato(false)}>Voltar</SecondaryButton>
                       <WarningButton onClick={() => setEditandoContatoRapido(true)}><i className="fa-solid fa-pen"></i> Editar Contato</WarningButton>
                     </ModalFooter>
@@ -645,7 +701,7 @@ export function Empresas() {
                       <FormGroup><label><i className="fa-regular fa-envelope text-blue"></i> E-mails (Separe por vírgula)</label><Input type="text" value={contatoEmails} onChange={e => setContatoEmails(e.target.value)} className="highlight-blue" /></FormGroup>
                       <FormGroup><label><i className="fa-solid fa-phone text-green"></i> Telefones (Separe por vírgula)</label><Input type="text" value={contatoTelefonesRapido} onChange={e => setContatoTelefonesRapido(e.target.value)} className="highlight-green" /></FormGroup>
                     </FormGrid>
-                    <ModalFooter $justify="flex-end" style={{padding: '20px 0 0 0', borderTop: 'none'}}>
+                    <ModalFooter $justify="flex-end" style={{padding: '20px 0 0', borderTop: 'none'}}>
                       <SecondaryButton type="button" onClick={() => setEditandoContatoRapido(false)}>Cancelar</SecondaryButton>
                       <PrimaryButton type="submit"><i className="fa-solid fa-save"></i> Salvar</PrimaryButton>
                     </ModalFooter>
@@ -656,7 +712,7 @@ export function Empresas() {
           </ModalOverlay>
         )}
 
-        {/* SUB-MODAL DE OPORTUNIDADES / NOTAS */}
+        {/* SUB-MODAL DE OPORTUNIDADE E NOTAS */}
         {mostrarModalOp && opSelecionada && (
           <ModalOverlay onClick={() => setMostrarModalOp(false)} style={{zIndex: 10000}}>
             <ModalContent $small onClick={e => e.stopPropagation()}>
@@ -720,6 +776,24 @@ const Subtitle = styled.p`
   color: #6c757d; font-size: 0.95rem; margin: 5px 0 0 0;
 `;
 
+// --- NOVO: LEAD SCORING ---
+const StarsContainer = styled.div`
+  display: flex; gap: 5px; align-items: center;
+  i {
+    font-size: 1.2rem;
+    color: #cbd5e1;
+    transition: 0.2s;
+    &.active { color: #f59e0b; }
+  }
+  ${props => !props.$readonly && `
+    i:hover { transform: scale(1.2); color: #fbbf24; }
+  `}
+`;
+
+const SectionCard = styled.div`
+  background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 12px; margin-bottom: 20px;
+`;
+
 // --- FILTROS ---
 const FilterBar = styled.div`
   display: flex; gap: 15px; align-items: center; flex-wrap: wrap; margin-bottom: 25px; background: #fff; padding: 15px 20px; border-radius: 12px; border: 1px solid #edf2f9;
@@ -773,9 +847,16 @@ const ClickableRow = styled.tr`
   cursor: pointer; transition: 0.2s;
   &:hover { background-color: #f8fafc; }
   .main-name { font-size: 1.05rem; font-weight: 700; color: #007bff; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;}
-  .vip-badge { font-size: 0.7rem; background: #fff3cd; color: #856404; padding: 2px 8px; border-radius: 12px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid #ffeeba;}
   .meta { display: flex; gap: 15px; font-size: 0.85rem; color: #64748b; span { display: flex; align-items: center; gap: 5px; } }
 `;
+
+const StatusBadge = styled.span`
+  padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center;
+  &.assessorada { background: #fff3cd; color: #856404; border: 1px solid #ffeeba;}
+  &.lead_quente { background: #fdf2f2; color: #dc3545; border: 1px solid #f8d7da;}
+  &.nao_assessorada { background: #e2e8f0; color: #475569; border: 1px solid #cbd5e1;}
+`;
+
 const Badge = styled.span`
   background: #e2e8f0; color: #475569; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 700;
 `;
@@ -805,6 +886,8 @@ const ModalHeader = styled.div`
   h3 { margin: 0; font-size: 1.4rem; display: flex; align-items: center; gap: 10px; }
   .text-blue { color: #007bff; }
   .subtitle { display: flex; gap: 12px; align-items: center; margin-top: 8px; font-size: 0.9rem; color: #64748b; }
+  .vip-badge { font-size: 0.75rem; background: #fff3cd; color: #856404; padding: 2px 8px; border-radius: 12px; border: 1px solid #ffeeba; font-weight: bold;}
+  .vip-badge.text-red { background: #fdf2f2; color: #dc3545; border-color: #f8d7da; }
   .actions { display: flex; gap: 10px; align-items: center; }
 `;
 const ModalBody = styled.div`padding: 30px; overflow-y: auto; flex: 1; background: #fbfbfc;`;
@@ -824,7 +907,7 @@ const InfoCard = styled.div`
   h4 { margin: 0 0 15px 0; padding-bottom: 10px; border-bottom: 1px solid #f1f5f9; color: #2c3e50; display: flex; align-items: center; gap: 8px; font-size: 1.05rem;}
   .text-blue { color: #007bff; } .text-green { color: #28a745; }
   .info-line { margin-bottom: 10px; font-size: 0.95rem; color: #4a5568; strong { color: #2d3748; } }
-  .text-yellow { color: #d39e00; } .empty { color: #a0aec0; font-style: italic; font-size: 0.9rem;}
+  .text-yellow { color: #d39e00; } .text-red { color: #dc3545; } .empty { color: #a0aec0; font-style: italic; font-size: 0.9rem;}
   .contacts-list { display: flex; flex-direction: column; gap: 10px; max-height: 180px; overflow-y: auto; padding-right: 5px; }
 `;
 
@@ -864,11 +947,12 @@ const Input = styled.input`
   &:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.1); }
   &.highlight-blue { border-color: #b8daff; background: #e7f3ff; } &.highlight-green { border-color: #c3e6cb; background: #d4edda; }
 `;
-
-const CheckboxWrapper = styled.label`
-  display: flex; align-items: center; gap: 12px; padding: 15px; border-radius: 8px; cursor: pointer; transition: 0.2s; border: 1px solid ${props => props.$active ? '#fcd34d' : '#e2e8f0'}; background: ${props => props.$active ? '#fffbeb' : '#f8fafc'};
-  input[type="checkbox"] { transform: scale(1.3); accent-color: #f59e0b; cursor: pointer; }
-  .chk-text { display: flex; flex-direction: column; gap: 2px; strong { color: ${props => props.$active ? '#b45309' : '#475569'}; font-size: 1rem; i { color: ${props => props.$active ? '#f59e0b' : '#cbd5e1'}; }} span { font-size: 0.8rem; color: #64748b; }}
+const Select = styled.select`
+  padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; transition: 0.2s; font-size: 0.95rem; cursor: pointer;
+  background-color: ${props => props.$status === 'assessorada' ? '#fff3cd' : props.$status === 'lead_quente' ? '#fdf2f2' : '#f8fafc'};
+  font-weight: 600;
+  color: ${props => props.$status === 'assessorada' ? '#856404' : props.$status === 'lead_quente' ? '#dc3545' : '#475569'};
+  &:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.1); }
 `;
 
 // --- INFO BOX (MODAL CONTATO) ---
@@ -889,6 +973,16 @@ const DangerButton = styled(ButtonBase)`background: #fdf2f2; color: #dc3545; bor
 const WarningButton = styled(ButtonBase)`background: #ffc107; color: #333; &:hover { background: #e0a800; color: #fff; }`;
 const InfoButton = styled(ButtonBase)`background: #17a2b8; color: #fff; &:hover { background: #138496; }`;
 const IconButton = styled.button`background: #f1f5f9; color: #475569; border: none; border-radius: 6px; padding: 8px 12px; cursor: pointer; font-size: 1.1rem; transition: 0.2s; &.danger { color: #dc3545; background: #fef2f2; &:hover { background: #dc3545; color: #fff; }} &:hover { background: #e2e8f0; }`;
+
+const ModalFooter = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: ${props => props.$justify || 'flex-end'};
+  gap: 10px;
+  padding: 20px 30px;
+  background: #fff;
+  border-top: 1px solid #edf2f9;
+`;
 
 const OpDetailCard = styled.div`
   background: #fff; border: 1px solid #edf2f9; padding: 20px; border-radius: 12px; margin-bottom: 20px;
