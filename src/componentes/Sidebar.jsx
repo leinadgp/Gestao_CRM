@@ -19,7 +19,8 @@ const MENU_CONFIG = [
     section: 'OPERAÇÃO',
     items: [
       { label: 'Contatos', path: '/contatos', icon: 'fa-users' },
-      { label: 'Prefeituras / Empresas', path: '/empresas', icon: 'fa-building' }
+      { label: 'Prefeituras / Empresas', path: '/empresas', icon: 'fa-building' },
+        
     ]
   },
   {

@@ -61,6 +61,8 @@ export function App() {
             <Funil />
           </RotaProtegida>
         } />
+         
+          
         
         <Route path="/dashboard" element={
           <RotaProtegida>
