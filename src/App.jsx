@@ -1,5 +1,5 @@
 // src/App.jsx
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'; 
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'; 
 import { Sidebar } from './componentes/Sidebar.jsx';
 import { Home } from './pages/Home.jsx';
 import { Contatos } from './pages/Contatos.jsx';
@@ -34,7 +34,7 @@ function RotaProtegida({ children }) {
 
 export function App() {
   return (
-    <HashRouter>
+    <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
 
@@ -62,8 +62,6 @@ export function App() {
           </RotaProtegida>
         } />
          
-          
-        
         <Route path="/dashboard" element={
           <RotaProtegida>
             <Dashboard />
@@ -94,10 +92,7 @@ export function App() {
           </RotaProtegida>
         } />
       </Routes>
-
-      
-      
-    </HashRouter>
+    </BrowserRouter>
   );
 }
 
