@@ -1,17 +1,14 @@
-// src/componentes/Header.jsx
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { getUserFirstName, clearAuth } from '../utils/auth';
 
-export function Header({ titulo }) {
+export function Header({ titulo, setMenuAberto }) {
   const navigate = useNavigate();
   
-  // Lê o nome e a foto na montagem do componente
   const [nomeUsuario, setNomeUsuario] = useState(() => getUserFirstName() || 'Usuário');
   const [fotoPerfil, setFotoPerfil] = useState(() => localStorage.getItem('foto_perfil') || null);
 
-  // Escuta o evento de atualização do perfil para trocar a foto na hora, sem precisar dar F5
   useEffect(() => {
     const handleStorageChange = () => {
       setNomeUsuario(getUserFirstName() || 'Usuário');
@@ -33,7 +30,13 @@ export function Header({ titulo }) {
 
   return (
     <HeaderContainer>
-      <HeaderTitle>{titulo}</HeaderTitle>
+      <HeaderLeft>
+        {/* Botão Sanduíche: Só aparece no celular */}
+        <MobileMenuButton onClick={() => setMenuAberto(true)}>
+          <i className="fa-solid fa-bars"></i>
+        </MobileMenuButton>
+        <HeaderTitle>{titulo}</HeaderTitle>
+      </HeaderLeft>
       
       <HeaderActions>
         <UserInfo>
@@ -42,7 +45,7 @@ export function Header({ titulo }) {
           ) : (
             <i className="fa-solid fa-user-circle"></i>
           )}
-          <span>Olá, {nomeUsuario}</span>
+          <span className="hide-mobile">Olá, {nomeUsuario}</span>
         </UserInfo>
         
         <ConfigButton onClick={irParaConfiguracoes} title="Configurações da Conta">
@@ -50,7 +53,7 @@ export function Header({ titulo }) {
         </ConfigButton>
         
         <LogoutButton onClick={fazerLogout} title="Sair do Sistema">
-          <i className="fa-solid fa-sign-out-alt"></i> Sair
+          <i className="fa-solid fa-sign-out-alt"></i> <span className="hide-mobile">Sair</span>
         </LogoutButton>
       </HeaderActions>
     </HeaderContainer>
@@ -63,7 +66,7 @@ export function Header({ titulo }) {
 
 const HeaderContainer = styled.header`
   background-color: #ffffff;
-  padding: 20px 30px;
+  padding: 15px 30px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -71,7 +74,30 @@ const HeaderContainer = styled.header`
   border-bottom: 1px solid #edf2f9;
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 10;
+  
+  @media (max-width: 768px) {
+    padding: 15px 20px;
+  }
+`;
+
+const HeaderLeft = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 15px;
+`;
+
+const MobileMenuButton = styled.button`
+  display: none;
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  color: #2c3e50;
+  cursor: pointer;
+  
+  @media (max-width: 768px) {
+    display: block;
+  }
 `;
 
 const HeaderTitle = styled.div`
@@ -79,12 +105,20 @@ const HeaderTitle = styled.div`
   font-weight: 700;
   color: #2c3e50;
   letter-spacing: -0.5px;
+  
+  @media (max-width: 768px) {
+    font-size: 1.2rem;
+  }
 `;
 
 const HeaderActions = styled.div`
   display: flex;
   align-items: center;
   gap: 20px;
+
+  @media (max-width: 768px) {
+    gap: 10px;
+  }
 `;
 
 const UserInfo = styled.div`
@@ -93,74 +127,33 @@ const UserInfo = styled.div`
   display: flex;
   align-items: center;
   font-size: 0.95rem;
-  margin-right: 5px;
 
   i {
     margin-right: 8px;
-    font-size: 1.8rem; /* Aumentei um pouco para igualar com o tamanho da foto */
+    font-size: 1.8rem; 
     color: #007bff;
+  }
+
+  .hide-mobile {
+    @media (max-width: 768px) { display: none; }
   }
 `;
 
 const AvatarImage = styled.img`
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  object-fit: cover;
-  margin-right: 8px;
-  border: 2px solid #edf2f9;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  width: 36px; height: 36px; border-radius: 50%; object-fit: cover; margin-right: 8px; border: 2px solid #edf2f9;
 `;
 
 const ConfigButton = styled.button`
-  background: #f8fafc;
-  color: #64748b;
-  border: 1px solid #cbd5e1;
-  padding: 10px;
-  border-radius: 8px;
-  font-size: 1.1rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: #e2e8f0;
-    color: #007bff;
-    border-color: #94a3b8;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-  }
-
-  &:active {
-    transform: translateY(0);
-  }
+  background: #f8fafc; color: #64748b; border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;
+  &:hover { background: #e2e8f0; color: #007bff; border-color: #94a3b8; transform: translateY(-2px); }
 `;
 
 const LogoutButton = styled.button`
-  background: #fff5f5;
-  color: #dc3545;
-  border: 1px solid #f8d7da;
-  padding: 10px 18px;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 0.9rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: #dc3545;
-    color: #ffffff;
-    border-color: #dc3545;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 10px rgba(220, 53, 69, 0.2);
-  }
+  background: #fff5f5; color: #dc3545; border: 1px solid #f8d7da; padding: 10px 18px; border-radius: 8px; font-weight: 600; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s ease;
+  &:hover { background: #dc3545; color: #ffffff; border-color: #dc3545; transform: translateY(-2px); }
   
-  &:active {
-    transform: translateY(0);
+  .hide-mobile {
+    @media (max-width: 768px) { display: none; }
   }
+  @media (max-width: 768px) { padding: 10px; }
 `;

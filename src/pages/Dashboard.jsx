@@ -1,8 +1,6 @@
-// src/pages/Dashboard.jsx
 import { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import styled from 'styled-components';
-import { Header } from '../componentes/Header.jsx';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 // --- UTILITÁRIOS ---
@@ -308,370 +306,365 @@ export function Dashboard() {
   // --- RENDERIZAÇÃO ---
   if (erroGlobal) {
     return (
-      <>
-        <Header titulo="Inteligência de Vendas" />
-        <PageContainer>
-          <ErrorMessage>
-            <i className="fa-solid fa-triangle-exclamation"></i>
-            <p>{erroGlobal}</p>
-            <button onClick={() => window.location.reload()}>Recarregar Página</button>
-          </ErrorMessage>
-        </PageContainer>
-      </>
+      <PageContainer>
+        <ErrorMessage>
+          <i className="fa-solid fa-triangle-exclamation"></i>
+          <p>{erroGlobal}</p>
+          <button onClick={() => window.location.reload()}>Recarregar Página</button>
+        </ErrorMessage>
+      </PageContainer>
     );
   }
 
   return (
-    <>
-      <Header titulo="Inteligência de Vendas" />
+    <PageContainer>
+      <TopSection>
+        <div>
+          <Title>Dashboard Estratégico</Title>
+          <Subtitle>Análise financeira e engajamento da automação.</Subtitle>
+        </div>
 
-      <PageContainer>
-        <TopSection>
-          <div>
-            <Title>Dashboard Estratégico</Title>
-            <Subtitle>Análise financeira e engajamento da automação.</Subtitle>
-          </div>
-
-          <FiltersContainer>
-            {/* BOTÃO MÊS */}
-            <FilterPillWrapper>
-              <FilterButton $hasValue={!!mesFiltro}>
-                <i className="fa-regular fa-calendar-days icon"></i> 
-                <span>Competência: <strong>{formatarMesApresentacao(mesFiltro)}</strong></span>
-                <i className="fa-solid fa-chevron-down arrow"></i>
-              </FilterButton>
-              <HiddenMonthInput 
-                type="month" 
-                value={mesFiltro}
-                onChange={(e) => setMesFiltro(e.target.value)}
-              />
-              {mesFiltro && (
-                <ClearFilterBtn onClick={(e) => { e.preventDefault(); setMesFiltro(''); }} title="Remover filtro de mês">
-                  <i className="fa-solid fa-times-circle"></i>
-                </ClearFilterBtn>
-              )}
-            </FilterPillWrapper>
-
-            {/* BOTÃO CAMPANHA */}
-            <FilterPillWrapper ref={dropdownRef}>
-              <FilterButton 
-                $hasValue={!!filtroCampanha} 
-                onClick={() => setDropdownCampanhaAberto(!dropdownCampanhaAberto)}
-              >
-                <i className="fa-solid fa-filter icon"></i> 
-                <span>Curso: <strong>{campanhaSelecionada ? campanhaSelecionada.nome : 'Visão Macro (Todos)'}</strong></span>
-                <i className={`fa-solid fa-chevron-${dropdownCampanhaAberto ? 'up' : 'down'} arrow`}></i>
-              </FilterButton>
-              
-              {dropdownCampanhaAberto && (
-                <CustomDropdownMenu>
-                  <CustomDropdownItem 
-                    $active={filtroCampanha === ''} 
-                    onClick={() => { setFiltroCampanha(''); setDropdownCampanhaAberto(false); }}
-                  >
-                    Visão Macro (Todos os Cursos)
-                  </CustomDropdownItem>
-                  {campanhas.map(c => (
-                    <CustomDropdownItem 
-                      key={c.id} 
-                      $active={filtroCampanha === String(c.id)} 
-                      onClick={() => { setFiltroCampanha(String(c.id)); setDropdownCampanhaAberto(false); }}
-                    >
-                      {c.nome}
-                    </CustomDropdownItem>
-                  ))}
-                </CustomDropdownMenu>
-              )}
-            </FilterPillWrapper>
-          </FiltersContainer>
-        </TopSection>
-
-        {carregando ? (
-          <LoadingContainer>
-            <i className="fa-solid fa-spinner fa-spin"></i><br/>Calculando relatórios...
-          </LoadingContainer>
-        ) : (
-          <>
-            <KpiGrid>
-              <KpiCard $borderColor="#007bff">
-                <div className="kpi-header">
-                  <span className="kpi-label">VALOR NEGOCIANDO</span>
-                  <i className="fa-solid fa-chart-line" style={{ color: '#007bff' }}></i>
-                </div>
-                <div className="kpi-value">{formatarMoeda(kpis.totalAberto)}</div>
-                <div className="kpi-subtitle" style={{ color: '#007bff' }}>{kpis.qtdAberto} negócios em aberto</div>
-              </KpiCard>
-
-              <KpiCard $borderColor="#28a745" $bgColor="#f4fbf5">
-                <div className="kpi-header">
-                  <span className="kpi-label">RECEITA FRACIONADA</span>
-                  <i className="fa-solid fa-hand-holding-dollar" style={{ color: '#28a745' }}></i>
-                </div>
-                <div className="kpi-value">{formatarMoeda(kpis.totalGanho)}</div>
-                <div className="kpi-subtitle" style={{ color: '#28a745' }}>{kpis.qtdGanhaCompetencia} inscrições no mês</div>
-              </KpiCard>
-
-              <KpiCard $borderColor="#17a2b8">
-                <div className="kpi-header">
-                  <span className="kpi-label">TICKET POR MÓDULO</span>
-                  <i className="fa-solid fa-ticket" style={{ color: '#17a2b8' }}></i>
-                </div>
-                <div className="kpi-value">{formatarMoeda(kpis.ticketMedio)}</div>
-                <div className="kpi-subtitle" style={{ color: '#17a2b8' }}>Média de valor por inscrição</div>
-              </KpiCard>
-
-              <KpiCard $borderColor="#dc3545">
-                <div className="kpi-header">
-                  <span className="kpi-label">VALOR PERDIDO</span>
-                  <i className="fa-solid fa-circle-xmark" style={{ color: '#dc3545' }}></i>
-                </div>
-                <div className="kpi-value">{formatarMoeda(kpis.totalPerdido)}</div>
-                <div className="kpi-subtitle" style={{ color: '#dc3545' }}>{kpis.qtdPerdido} negócios descartados</div>
-              </KpiCard>
-            </KpiGrid>
-
-            {/* ENGAJAMENTO DE E-MAILS */}
-            {filtroCampanha && sequenciaEmails.length > 0 && (
-              <Panel $borderLeft="#6f42c1">
-                <PanelTitle><i className="fa-solid fa-envelope-open-text text-purple"></i> Funil de Engajamento de E-mails</PanelTitle>
-                <PanelSubtitle>Acompanhe os cliques de cada e-mail cadastrado nesta campanha.</PanelSubtitle>
-                
-                <EngagementListsContainer>
-                  {seqFrios.length > 0 && (
-                    <EngagementColumn>
-                      <h5 className="col-title text-blue"><i className="fa-solid fa-snowflake"></i> Broadcast Frios</h5>
-                      {seqFrios.map(email => (
-                        <EmailRow key={email.id} onClick={() => abrirModalCliquesDetalhado(email)}>
-                          <div className="email-info">
-                            <span className="badge-step">Etapa {email.ordem_etapa}</span>
-                            <span className="email-name">{email.titulo_email}</span>
-                          </div>
-                          <div className="clicks-badge">
-                            {getCliquesDoEmail(email)} cliques <i className="fa-solid fa-chevron-right"></i>
-                          </div>
-                        </EmailRow>
-                      ))}
-                    </EngagementColumn>
-                  )}
-
-                  {seqQuentes.length > 0 && (
-                    <EngagementColumn>
-                      <h5 className="col-title text-red"><i className="fa-solid fa-fire"></i> Broadcast Quentes</h5>
-                      {seqQuentes.map(email => (
-                        <EmailRow key={email.id} onClick={() => abrirModalCliquesDetalhado(email)}>
-                          <div className="email-info">
-                            <span className="badge-step">Etapa {email.ordem_etapa}</span>
-                            <span className="email-name">{email.titulo_email}</span>
-                          </div>
-                          <div className="clicks-badge">
-                            {getCliquesDoEmail(email)} cliques <i className="fa-solid fa-chevron-right"></i>
-                          </div>
-                        </EmailRow>
-                      ))}
-                    </EngagementColumn>
-                  )}
-
-                  {seqPosClique.length > 0 && (
-                    <EngagementColumn>
-                      <h5 className="col-title text-orange"><i className="fa-solid fa-bolt"></i> Pós-Clique</h5>
-                      {seqPosClique.map(email => (
-                        <EmailRow key={email.id} onClick={() => abrirModalCliquesDetalhado(email)}>
-                          <div className="email-info">
-                            <span className="badge-step">Etapa {email.ordem_etapa}</span>
-                            <span className="email-name">{email.titulo_email}</span>
-                          </div>
-                          <div className="clicks-badge">
-                            {getCliquesDoEmail(email)} cliques <i className="fa-solid fa-chevron-right"></i>
-                          </div>
-                        </EmailRow>
-                      ))}
-                    </EngagementColumn>
-                  )}
-                </EngagementListsContainer>
-              </Panel>
+        <FiltersContainer>
+          {/* BOTÃO MÊS */}
+          <FilterPillWrapper>
+            <FilterButton $hasValue={!!mesFiltro}>
+              <i className="fa-regular fa-calendar-days icon"></i> 
+              <span>Competência: <strong>{formatarMesApresentacao(mesFiltro)}</strong></span>
+              <i className="fa-solid fa-chevron-down arrow"></i>
+            </FilterButton>
+            <HiddenMonthInput 
+              type="month" 
+              value={mesFiltro}
+              onChange={(e) => setMesFiltro(e.target.value)}
+            />
+            {mesFiltro && (
+              <ClearFilterBtn onClick={(e) => { e.preventDefault(); setMesFiltro(''); }} title="Remover filtro de mês">
+                <i className="fa-solid fa-times-circle"></i>
+              </ClearFilterBtn>
             )}
+          </FilterPillWrapper>
 
-            <DashboardGrid>
-              <Panel $borderTop="#17a2b8">
-                <PanelTitle className="text-center">Efetividade Geral</PanelTitle>
-                <PanelSubtitle className="text-center">Comparativo do período filtrado.</PanelSubtitle>
-                <ChartContainer>
-                  {dadosPizza.length === 0 ? (
-                     <EmptyChartMsg>Nenhum dado para analisar.</EmptyChartMsg>
-                  ) : (
-                    <>
-                      <ResponsiveContainer minHeight={1}>
-                        <PieChart>
-                          <Pie data={dadosPizza} cx="50%" cy="50%" innerRadius={70} outerRadius={100} paddingAngle={5} dataKey="value">
-                            {dadosPizza.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                          </Pie>
-                          <Tooltip />
-                        </PieChart>
-                      </ResponsiveContainer>
-                      <LegendContainer>
-                        {dadosPizza.map(d => (
-                          <LegendItem key={d.name}>
-                            <div className="color-box" style={{ background: d.color }}></div>
-                            {d.name} ({d.value})
-                          </LegendItem>
-                        ))}
-                      </LegendContainer>
-                    </>
-                  )}
-                </ChartContainer>
-              </Panel>
+          {/* BOTÃO CAMPANHA */}
+          <FilterPillWrapper ref={dropdownRef}>
+            <FilterButton 
+              $hasValue={!!filtroCampanha} 
+              onClick={() => setDropdownCampanhaAberto(!dropdownCampanhaAberto)}
+            >
+              <i className="fa-solid fa-filter icon"></i> 
+              <span>Curso: <strong>{campanhaSelecionada ? campanhaSelecionada.nome : 'Visão Macro (Todos)'}</strong></span>
+              <i className={`fa-solid fa-chevron-${dropdownCampanhaAberto ? 'up' : 'down'} arrow`}></i>
+            </FilterButton>
+            
+            {dropdownCampanhaAberto && (
+              <CustomDropdownMenu>
+                <CustomDropdownItem 
+                  $active={filtroCampanha === ''} 
+                  onClick={() => { setFiltroCampanha(''); setDropdownCampanhaAberto(false); }}
+                >
+                  Visão Macro (Todos os Cursos)
+                </CustomDropdownItem>
+                {campanhas.map(c => (
+                  <CustomDropdownItem 
+                    key={c.id} 
+                    $active={filtroCampanha === String(c.id)} 
+                    onClick={() => { setFiltroCampanha(String(c.id)); setDropdownCampanhaAberto(false); }}
+                  >
+                    {c.nome}
+                  </CustomDropdownItem>
+                ))}
+              </CustomDropdownMenu>
+            )}
+          </FilterPillWrapper>
+        </FiltersContainer>
+      </TopSection>
 
-              <Panel>
-                <PanelTitle><i className="fa-solid fa-medal text-blue"></i> Ranking de Vendas (Rateadas)</PanelTitle>
-                <TableContainer>
-                  <Table>
-                    <thead>
-                      <tr>
-                        <th>Vendedor</th>
-                        <th className="text-center">Inscrições</th>
-                        <th className="text-right">Receita Gerada</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dadosEquipe.length === 0 ? (
-                        <tr><td colSpan="3" className="text-center text-muted">Nenhuma venda para este mês.</td></tr>
-                      ) : (
-                        dadosEquipe.map((v, index) => (
-                          <tr key={index}>
-                            <td>
-                              <strong>
-                                {index === 0 && <i className="fa-solid fa-crown text-yellow"></i>} {v.nome}
-                              </strong>
-                            </td>
-                            <td className="text-center">
-                              <Badge className="badge-gray">{v.quantidade}</Badge>
-                            </td>
-                            <td className="text-right text-green font-bold">
-                              {formatarMoeda(v.total)}
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </Table>
-                </TableContainer>
-              </Panel>
-            </DashboardGrid>
+      {carregando ? (
+        <LoadingContainer>
+          <i className="fa-solid fa-spinner fa-spin"></i><br/>Calculando relatórios...
+        </LoadingContainer>
+      ) : (
+        <>
+          <KpiGrid>
+            <KpiCard $borderColor="#007bff">
+              <div className="kpi-header">
+                <span className="kpi-label">VALOR NEGOCIANDO</span>
+                <i className="fa-solid fa-chart-line" style={{ color: '#007bff' }}></i>
+              </div>
+              <div className="kpi-value">{formatarMoeda(kpis.totalAberto)}</div>
+              <div className="kpi-subtitle" style={{ color: '#007bff' }}>{kpis.qtdAberto} negócios em aberto</div>
+            </KpiCard>
 
-            <DashboardGrid>
-              <Panel>
-                <PanelTitle><i className="fa-solid fa-handshake text-green"></i> Últimos Negócios Fechados</PanelTitle>
-                <TableContainer>
-                  <Table>
-                    <thead>
-                      <tr>
-                        <th>Negociação</th>
-                        <th>Origem/Vendedor</th>
-                        <th className="text-right">Valor Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {ultimasVendas.length === 0 ? (
-                        <tr><td colSpan="3" className="text-center text-muted">Nenhuma venda concluída no período.</td></tr>
-                      ) : (
-                        ultimasVendas.map(op => (
-                          <tr key={op.id}>
-                            <td>
-                              <strong>{op.titulo}</strong>
-                              <div className="date-subtext">{formatarData(op.atualizado_em || op.criado_em)}</div>
-                            </td>
-                            <td>
-                              <Badge className="badge-blue">
-                                {op.origem_venda === 'landing_page' ? '🤖 Landing Page' : (op.vendedor_nome || 'Equipe')}
-                              </Badge>
-                            </td>
-                            <td className="text-right text-green font-bold large-text">
-                              {formatarMoeda(op.valor)}
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </Table>
-                </TableContainer>
-              </Panel>
+            <KpiCard $borderColor="#28a745" $bgColor="#f4fbf5">
+              <div className="kpi-header">
+                <span className="kpi-label">RECEITA FRACIONADA</span>
+                <i className="fa-solid fa-hand-holding-dollar" style={{ color: '#28a745' }}></i>
+              </div>
+              <div className="kpi-value">{formatarMoeda(kpis.totalGanho)}</div>
+              <div className="kpi-subtitle" style={{ color: '#28a745' }}>{kpis.qtdGanhaCompetencia} inscrições no mês</div>
+            </KpiCard>
 
-              <Panel $borderTop="#28a745">
-                <PanelTitle><i className="fa-solid fa-users-viewfinder text-green"></i> Lista Nominal de Inscritos (Convertidos)</PanelTitle>
-                <TableContainer $maxHeight="500px">
-                  <Table>
-                    <thead className="sticky-head">
-                      <tr>
-                        <th>Lead (Contato)</th>
-                        <th>Curso Base</th>
-                        <th>Data</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {listaInscritosFiltrada.length === 0 ? (
-                        <tr><td colSpan="3" className="text-center text-muted">Nenhuma inscrição encontrada para este período/curso.</td></tr>
-                      ) : (
-                        listaInscritosFiltrada.map(ins => {
-                          let emailDisplay = "Sem E-mail";
-                          const emails = parseJSONSeguro(ins.emails_json);
-                          if (emails.length > 0) emailDisplay = emails[0];
-                          
-                          let fonesDisplay = "Sem Telefone";
-                          const fones = parseJSONSeguro(ins.telefones_json);
-                          if (fones.length > 0) fonesDisplay = fones[0];
+            <KpiCard $borderColor="#17a2b8">
+              <div className="kpi-header">
+                <span className="kpi-label">TICKET POR MÓDULO</span>
+                <i className="fa-solid fa-ticket" style={{ color: '#17a2b8' }}></i>
+              </div>
+              <div className="kpi-value">{formatarMoeda(kpis.ticketMedio)}</div>
+              <div className="kpi-subtitle" style={{ color: '#17a2b8' }}>Média de valor por inscrição</div>
+            </KpiCard>
 
-                          return (
-                            <tr key={ins.oportunidade_id}>
-                              <td>
-                                <strong>{ins.contato_nome}</strong>
-                                <div className="contact-subtext"><i className="fa-solid fa-envelope"></i> {emailDisplay}</div>
-                                <div className="contact-subtext"><i className="fa-solid fa-phone"></i> {fonesDisplay}</div>
-                              </td>
-                              <td className="text-blue font-bold">
-                                {ins.curso_nome}
-                              </td>
-                              <td className="date-text">
-                                {formatarData(ins.data_inscricao)}
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </Table>
-                </TableContainer>
-              </Panel>
-            </DashboardGrid>
-          </>
-        )}
+            <KpiCard $borderColor="#dc3545">
+              <div className="kpi-header">
+                <span className="kpi-label">VALOR PERDIDO</span>
+                <i className="fa-solid fa-circle-xmark" style={{ color: '#dc3545' }}></i>
+              </div>
+              <div className="kpi-value">{formatarMoeda(kpis.totalPerdido)}</div>
+              <div className="kpi-subtitle" style={{ color: '#dc3545' }}>{kpis.qtdPerdido} negócios descartados</div>
+            </KpiCard>
+          </KpiGrid>
 
-        {/* MODAL DE CLIQUES DETALHADOS */}
-        {mostrarModalCliques && (
-          <ModalOverlay onClick={() => setMostrarModalCliques(false)}>
-            <ModalContent onClick={e => e.stopPropagation()}>
-              <ModalHeader>
-                <div>
-                  <h3 className="text-blue"><i className="fa-solid fa-mouse-pointer"></i> Relatório de Cliques</h3>
-                  <div className="subtitle">{emailSelecionado?.titulo_email} (Etapa {emailSelecionado?.ordem_etapa})</div>
-                </div>
-                <CloseButton onClick={() => setMostrarModalCliques(false)}>&times;</CloseButton>
-              </ModalHeader>
+          {/* ENGAJAMENTO DE E-MAILS */}
+          {filtroCampanha && sequenciaEmails.length > 0 && (
+            <Panel $borderLeft="#6f42c1">
+              <PanelTitle><i className="fa-solid fa-envelope-open-text text-purple"></i> Funil de Engajamento de E-mails</PanelTitle>
+              <PanelSubtitle>Acompanhe os cliques de cada e-mail cadastrado nesta campanha.</PanelSubtitle>
               
-              <div style={{ padding: '20px', maxHeight: '60vh', overflowY: 'auto' }}>
-                {carregandoCliquesModal ? (
-                  <LoadingContainer>
-                    <i className="fa-solid fa-spinner fa-spin"></i><br/>Buscando detalhes...
-                  </LoadingContainer>
-                ) : erroModal ? (
-                  <ErrorMessage>
-                    <i className="fa-solid fa-circle-exclamation"></i>
-                    <p>{erroModal}</p>
-                  </ErrorMessage>
-                ) : cliquesAgrupadosModal.length === 0 ? (
-                  <EmptyChartMsg>Nenhum clique registrado para este e-mail.</EmptyChartMsg>
+              <EngagementListsContainer>
+                {seqFrios.length > 0 && (
+                  <EngagementColumn>
+                    <h5 className="col-title text-blue"><i className="fa-solid fa-snowflake"></i> Broadcast Frios</h5>
+                    {seqFrios.map(email => (
+                      <EmailRow key={email.id} onClick={() => abrirModalCliquesDetalhado(email)}>
+                        <div className="email-info">
+                          <span className="badge-step">Etapa {email.ordem_etapa}</span>
+                          <span className="email-name">{email.titulo_email}</span>
+                        </div>
+                        <div className="clicks-badge">
+                          {getCliquesDoEmail(email)} cliques <i className="fa-solid fa-chevron-right"></i>
+                        </div>
+                      </EmailRow>
+                    ))}
+                  </EngagementColumn>
+                )}
+
+                {seqQuentes.length > 0 && (
+                  <EngagementColumn>
+                    <h5 className="col-title text-red"><i className="fa-solid fa-fire"></i> Broadcast Quentes</h5>
+                    {seqQuentes.map(email => (
+                      <EmailRow key={email.id} onClick={() => abrirModalCliquesDetalhado(email)}>
+                        <div className="email-info">
+                          <span className="badge-step">Etapa {email.ordem_etapa}</span>
+                          <span className="email-name">{email.titulo_email}</span>
+                        </div>
+                        <div className="clicks-badge">
+                          {getCliquesDoEmail(email)} cliques <i className="fa-solid fa-chevron-right"></i>
+                        </div>
+                      </EmailRow>
+                    ))}
+                  </EngagementColumn>
+                )}
+
+                {seqPosClique.length > 0 && (
+                  <EngagementColumn>
+                    <h5 className="col-title text-orange"><i className="fa-solid fa-bolt"></i> Pós-Clique</h5>
+                    {seqPosClique.map(email => (
+                      <EmailRow key={email.id} onClick={() => abrirModalCliquesDetalhado(email)}>
+                        <div className="email-info">
+                          <span className="badge-step">Etapa {email.ordem_etapa}</span>
+                          <span className="email-name">{email.titulo_email}</span>
+                        </div>
+                        <div className="clicks-badge">
+                          {getCliquesDoEmail(email)} cliques <i className="fa-solid fa-chevron-right"></i>
+                        </div>
+                      </EmailRow>
+                    ))}
+                  </EngagementColumn>
+                )}
+              </EngagementListsContainer>
+            </Panel>
+          )}
+
+          <DashboardGrid>
+            <Panel $borderTop="#17a2b8">
+              <PanelTitle className="text-center">Efetividade Geral</PanelTitle>
+              <PanelSubtitle className="text-center">Comparativo do período filtrado.</PanelSubtitle>
+              <ChartContainer>
+                {dadosPizza.length === 0 ? (
+                   <EmptyChartMsg>Nenhum dado para analisar.</EmptyChartMsg>
                 ) : (
+                  <>
+                    <ResponsiveContainer minHeight={1}>
+                      <PieChart>
+                        <Pie data={dadosPizza} cx="50%" cy="50%" innerRadius={70} outerRadius={100} paddingAngle={5} dataKey="value">
+                          {dadosPizza.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <LegendContainer>
+                      {dadosPizza.map(d => (
+                        <LegendItem key={d.name}>
+                          <div className="color-box" style={{ background: d.color }}></div>
+                          {d.name} ({d.value})
+                        </LegendItem>
+                      ))}
+                    </LegendContainer>
+                  </>
+                )}
+              </ChartContainer>
+            </Panel>
+
+            <Panel>
+              <PanelTitle><i className="fa-solid fa-medal text-blue"></i> Ranking de Vendas (Rateadas)</PanelTitle>
+              <TabelaResponsiva>
+                <Table>
+                  <thead>
+                    <tr>
+                      <th>Vendedor</th>
+                      <th className="text-center">Inscrições</th>
+                      <th className="text-right">Receita Gerada</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dadosEquipe.length === 0 ? (
+                      <tr><td colSpan="3" className="text-center text-muted">Nenhuma venda para este mês.</td></tr>
+                    ) : (
+                      dadosEquipe.map((v, index) => (
+                        <tr key={index}>
+                          <td data-label="Vendedor">
+                            <strong>
+                              {index === 0 && <i className="fa-solid fa-crown text-yellow"></i>} {v.nome}
+                            </strong>
+                          </td>
+                          <td data-label="Inscrições" className="text-center">
+                            <Badge className="badge-gray">{v.quantidade}</Badge>
+                          </td>
+                          <td data-label="Receita Gerada" className="text-right text-green font-bold">
+                            {formatarMoeda(v.total)}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </Table>
+              </TabelaResponsiva>
+            </Panel>
+          </DashboardGrid>
+
+          <DashboardGrid>
+            <Panel>
+              <PanelTitle><i className="fa-solid fa-handshake text-green"></i> Últimos Negócios Fechados</PanelTitle>
+              <TabelaResponsiva>
+                <Table>
+                  <thead>
+                    <tr>
+                      <th>Negociação</th>
+                      <th>Origem/Vendedor</th>
+                      <th className="text-right">Valor Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ultimasVendas.length === 0 ? (
+                      <tr><td colSpan="3" className="text-center text-muted">Nenhuma venda concluída no período.</td></tr>
+                    ) : (
+                      ultimasVendas.map(op => (
+                        <tr key={op.id}>
+                          <td data-label="Negociação">
+                            <strong>{op.titulo}</strong>
+                            <div className="date-subtext">{formatarData(op.atualizado_em || op.criado_em)}</div>
+                          </td>
+                          <td data-label="Vendedor">
+                            <Badge className="badge-blue">
+                              {op.origem_venda === 'landing_page' ? '🤖 Landing Page' : (op.vendedor_nome || 'Equipe')}
+                            </Badge>
+                          </td>
+                          <td data-label="Valor" className="text-right text-green font-bold large-text">
+                            {formatarMoeda(op.valor)}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </Table>
+              </TabelaResponsiva>
+            </Panel>
+
+            <Panel $borderTop="#28a745">
+              <PanelTitle><i className="fa-solid fa-users-viewfinder text-green"></i> Lista Nominal de Inscritos</PanelTitle>
+              <TabelaResponsiva $maxHeight="500px">
+                <Table>
+                  <thead className="sticky-head">
+                    <tr>
+                      <th>Lead (Contato)</th>
+                      <th>Curso Base</th>
+                      <th>Data</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {listaInscritosFiltrada.length === 0 ? (
+                      <tr><td colSpan="3" className="text-center text-muted">Nenhuma inscrição encontrada para este período.</td></tr>
+                    ) : (
+                      listaInscritosFiltrada.map(ins => {
+                        let emailDisplay = "Sem E-mail";
+                        const emails = parseJSONSeguro(ins.emails_json);
+                        if (emails.length > 0) emailDisplay = emails[0];
+                        
+                        let fonesDisplay = "Sem Telefone";
+                        const fones = parseJSONSeguro(ins.telefones_json);
+                        if (fones.length > 0) fonesDisplay = fones[0];
+
+                        return (
+                          <tr key={ins.oportunidade_id}>
+                            <td data-label="Contato">
+                              <strong>{ins.contato_nome}</strong>
+                              <div className="contact-subtext"><i className="fa-solid fa-envelope"></i> {emailDisplay}</div>
+                              <div className="contact-subtext"><i className="fa-solid fa-phone"></i> {fonesDisplay}</div>
+                            </td>
+                            <td data-label="Curso Base" className="text-blue font-bold">
+                              {ins.curso_nome}
+                            </td>
+                            <td data-label="Data" className="date-text">
+                              {formatarData(ins.data_inscricao)}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </Table>
+              </TabelaResponsiva>
+            </Panel>
+          </DashboardGrid>
+        </>
+      )}
+
+      {/* MODAL DE CLIQUES DETALHADOS */}
+      {mostrarModalCliques && (
+        <ModalOverlay onClick={() => setMostrarModalCliques(false)}>
+          <ModalContent onClick={e => e.stopPropagation()}>
+            <ModalHeader>
+              <div>
+                <h3 className="text-blue"><i className="fa-solid fa-mouse-pointer"></i> Relatório de Cliques</h3>
+                <div className="subtitle">{emailSelecionado?.titulo_email} (Etapa {emailSelecionado?.ordem_etapa})</div>
+              </div>
+              <CloseButton onClick={() => setMostrarModalCliques(false)}>&times;</CloseButton>
+            </ModalHeader>
+            
+            <div style={{ padding: '20px', maxHeight: '60vh', overflowY: 'auto' }}>
+              {carregandoCliquesModal ? (
+                <LoadingContainer>
+                  <i className="fa-solid fa-spinner fa-spin"></i><br/>Buscando detalhes...
+                </LoadingContainer>
+              ) : erroModal ? (
+                <ErrorMessage>
+                  <i className="fa-solid fa-circle-exclamation"></i>
+                  <p>{erroModal}</p>
+                </ErrorMessage>
+              ) : cliquesAgrupadosModal.length === 0 ? (
+                <EmptyChartMsg>Nenhum clique registrado para este e-mail.</EmptyChartMsg>
+              ) : (
+                <TabelaResponsiva>
                   <Table>
                     <thead>
                       <tr>
@@ -682,11 +675,11 @@ export function Dashboard() {
                     <tbody>
                       {cliquesAgrupadosModal.map(lead => (
                         <tr key={lead.nome + lead.email}>
-                          <td style={{ verticalAlign: 'top' }}>
+                          <td data-label="Contato" style={{ verticalAlign: 'top' }}>
                             <strong>{lead.nome}</strong>
                             <div className="contact-subtext">{lead.email}</div>
                           </td>
-                          <td>
+                          <td data-label="Links Clicados">
                             {lead.interacoes.map((int, i) => (
                               <ClickBadge key={i}>
                                 <span className="link-name">{int.link_descricao}</span>
@@ -698,14 +691,14 @@ export function Dashboard() {
                       ))}
                     </tbody>
                   </Table>
-                )}
-              </div>
-            </ModalContent>
-          </ModalOverlay>
-        )}
+                </TabelaResponsiva>
+              )}
+            </div>
+          </ModalContent>
+        </ModalOverlay>
+      )}
 
-      </PageContainer>
-    </>
+    </PageContainer>
   );
 }
 
@@ -722,10 +715,12 @@ const ErrorMessage = styled.div`
 
 const PageContainer = styled.div`
   padding: 30px; background-color: #f4f7f6; min-height: calc(100vh - 70px);
+  @media (max-width: 768px) { padding: 15px; }
 `;
 
 const TopSection = styled.div`
   display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; margin-bottom: 25px;
+  @media (max-width: 768px) { flex-direction: column; align-items: flex-start; }
 `;
 
 const Title = styled.h2`
@@ -738,15 +733,17 @@ const Subtitle = styled.p`
 
 const FiltersContainer = styled.div`
   display: flex; gap: 15px; flex-wrap: wrap;
+  @media (max-width: 768px) { width: 100%; }
 `;
 
 const FilterPillWrapper = styled.div`
   position: relative; display: inline-block;
+  @media (max-width: 768px) { flex: 1; min-width: 200px; }
 `;
 
 const FilterButton = styled.button`
-  display: flex; align-items: center; background: ${props => props.$hasValue ? '#eef4fa' : '#ffffff'};
-  border: 1px solid ${props => props.$hasValue ? '#b8cde1' : '#cbd5e1'}; color: #2c3e50; padding: 10px 18px; border-radius: 50px; font-size: 0.95rem; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+  display: flex; align-items: center; justify-content: space-between; background: ${props => props.$hasValue ? '#eef4fa' : '#ffffff'};
+  border: 1px solid ${props => props.$hasValue ? '#b8cde1' : '#cbd5e1'}; color: #2c3e50; padding: 10px 18px; border-radius: 50px; font-size: 0.95rem; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 2px 5px rgba(0,0,0,0.02); width: 100%;
   &:hover { background: #e7f3ff; border-color: #007bff; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,123,255,0.1); }
   span { margin: 0 10px; strong { color: #007bff; } }
   .icon { color: #6c757d; font-size: 1.05rem; } .arrow { color: #007bff; font-size: 0.8rem; }
@@ -764,6 +761,7 @@ const ClearFilterBtn = styled.button`
 
 const CustomDropdownMenu = styled.ul`
   position: absolute; top: calc(100% + 8px); right: 0; background: #ffffff; border: 1px solid #edf2f9; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); min-width: 250px; max-height: 300px; overflow-y: auto; z-index: 1000; padding: 8px 0; list-style: none; margin: 0; animation: fadeInDown 0.2s ease-out;
+  @media (max-width: 768px) { left: 0; right: auto; width: 100%; }
   @keyframes fadeInDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 `;
 
@@ -796,7 +794,7 @@ const DashboardGrid = styled.div`
 `;
 
 const Panel = styled.div`
-  background: #ffffff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border: 1px solid #edf2f9; border-left: ${props => props.$borderLeft ? `5px solid ${props.$borderLeft}` : 'none'}; border-top: ${props => props.$borderTop ? `5px solid ${props.$borderTop}` : 'none'}; margin-bottom: 30px; overflow: hidden;
+  background: #ffffff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border: 1px solid #edf2f9; border-left: ${props => props.$borderLeft ? `5px solid ${props.$borderLeft}` : 'none'}; border-top: ${props => props.$borderTop ? `5px solid ${props.$borderTop}` : 'none'}; overflow: hidden;
 `;
 
 const PanelTitle = styled.h4`
@@ -864,19 +862,48 @@ const LegendItem = styled.div`
   display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: #495057; font-weight: 600; .color-box { width: 12px; height: 12px; border-radius: 3px; }
 `;
 
-const TableContainer = styled.div`
+// === RESPONSIVIDADE EM TABELAS PARA O MOBILE ===
+
+const TabelaResponsiva = styled.div`
   padding: 0; overflow-x: auto; max-height: ${props => props.$maxHeight || 'auto'};
+  &::-webkit-scrollbar { height: 6px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 `;
 
 const Table = styled.table`
-  width: 100%; border-collapse: collapse;
+  width: 100%; border-collapse: collapse; min-width: 500px;
   th { text-align: left; padding: 15px 20px; background: #fbfbfc; color: #6c757d; font-size: 0.85rem; text-transform: uppercase; border-bottom: 2px solid #edf2f9; }
   td { padding: 15px 20px; border-bottom: 1px solid #edf2f9; vertical-align: middle; color: #2c3e50; }
   tr:last-child td { border-bottom: none; } tr:hover td { background-color: #f8fafc; }
   .sticky-head th { position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 2px -1px rgba(0,0,0,0.1); }
-  .text-center { text-align: center; } .text-right { text-align: right; } .text-muted { color: #a0aec0; font-style: italic; } .text-blue { color: #007bff; } .text-green { color: #28a745; } .text-yellow { color: #f59e0b; margin-right: 6px; }
+  
+  .text-center { text-align: center; } .text-right { text-align: right; } .text-muted { color: #a0aec0; font-style: italic; } 
+  .text-blue { color: #007bff; } .text-green { color: #28a745; } .text-yellow { color: #f59e0b; margin-right: 6px; }
   .font-bold { font-weight: 700; } .large-text { font-size: 1.05rem; }
-  .date-subtext { font-size: 0.8rem; color: #6c757d; margin-top: 3px; } .date-text { font-size: 0.9rem; color: #495057; } .contact-subtext { font-size: 0.8rem; color: #6c757d; margin-top: 3px; i { width: 14px; text-align: center; } }
+  .date-subtext { font-size: 0.8rem; color: #6c757d; margin-top: 3px; } .date-text { font-size: 0.9rem; color: #495057; } 
+  .contact-subtext { font-size: 0.8rem; color: #6c757d; margin-top: 3px; i { width: 14px; text-align: center; } }
+
+  @media (max-width: 768px) {
+    min-width: unset; display: block;
+    thead, tbody, th, td, tr { display: block; }
+    thead tr { position: absolute; top: -9999px; left: -9999px; }
+    tr {
+      border: 1px solid #edf2f9; border-radius: 12px; margin: 15px; padding: 10px; background: #fff;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+    }
+    td {
+      border: none; border-bottom: 1px solid #f1f5f9; position: relative; padding: 12px 10px 12px 40%; 
+      text-align: right; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; min-height: 40px;
+    }
+    td:last-child { border-bottom: none; }
+    td::before {
+      position: absolute; top: 50%; left: 10px; transform: translateY(-50%); width: 35%; padding-right: 10px; 
+      white-space: nowrap; text-align: left; font-weight: 700; color: #6c757d; font-size: 0.75rem; 
+      content: attr(data-label); text-transform: uppercase;
+    }
+    .text-center, .text-right { text-align: right; }
+  }
 `;
 
 const Badge = styled.span`

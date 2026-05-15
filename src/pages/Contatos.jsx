@@ -1,7 +1,6 @@
-// src/pages/Contatos.jsx
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import axios from 'axios';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 import { Header } from '../componentes/Header.jsx';
 
 // --- UTILITÁRIOS ---
@@ -113,7 +112,7 @@ export function Contatos() {
     let set; let lista;
     if (tipo === 'email') { set = setEmails; lista = emails; }
     else if (tipo === 'tel') { set = setTelefones; lista = telefones; }
-    else { set = setCargos; lista = cargos; } // O tipo 'cargo' também usa a mesma lógica
+    else { set = setCargos; lista = cargos; } 
 
     if (acao === 'add') set([...lista, '']);
     if (acao === 'remove') set(lista.filter((_, i) => i !== index));
@@ -254,14 +253,13 @@ export function Contatos() {
 
   return (
     <>
-      <Header titulo="Gestão de Contatos" />
       <PageContainer>
         <TopSection>
           <div>
             <Title>Base de Contatos</Title>
             <Subtitle>Gerencie leads e visualize o histórico 360º.</Subtitle>
           </div>
-          <PrimaryButton onClick={abrirModalNovo}>
+          <PrimaryButton onClick={abrirModalNovo} className="btn-novo">
             <i className="fa-solid fa-plus"></i> Novo Contato
           </PrimaryButton>
         </TopSection>
@@ -317,7 +315,7 @@ export function Contatos() {
         </FilterBar>
 
         <Panel>
-          <TableContainer>
+          <TabelaResponsiva>
             <Table>
               <thead className="sticky-head">
                 <tr>
@@ -332,15 +330,15 @@ export function Contatos() {
                 ) : itensExibidos.length === 0 ? (
                   <tr><td colSpan="3" className="text-center text-muted">Nenhum resultado.</td></tr>
                 ) : (
-                  itensExibidos.map(c => {
+                  itensExibidos.map((c, index) => {
                     const ems = parseJSONSeguro(c.emails_json);
                     const tels = parseJSONSeguro(c.telefones_json);
                     const carLista = parseJSONSeguro(c.cargos_json, []);
                     const hasEmailError = c.emails_com_erro?.includes(ems[0]);
 
                     return (
-                      <ClickableRow key={c.id} onClick={() => abrirModalContatoDetalhes(c)}>
-                        <td>
+                      <ClickableRow key={c.id} onClick={() => abrirModalContatoDetalhes(c)} style={{ animationDelay: `${index * 0.05}s` }}>
+                        <td data-label="Contato (Lead)">
                           <div className="contact-name">{c.nome}</div>
                           <div className="contact-meta">
                             <span className={hasEmailError ? 'text-red font-bold' : ''}>
@@ -354,11 +352,11 @@ export function Contatos() {
                             </span>
                           </div>
                         </td>
-                        <td>
+                        <td data-label="Vínculo">
                           <div className="company-name">{c.empresa_nome || 'Avulso'}</div>
                           {c.estado && <div className="state-tag">{c.estado}</div>}
                         </td>
-                        <td>
+                        <td data-label="Cargos">
                           <div style={{display: 'flex', gap: '5px', flexWrap: 'wrap'}}>
                             {carLista.length > 0 ? carLista.map((cg, idx) => (
                               <Badge key={idx} className="badge-gray">{cg}</Badge>
@@ -371,7 +369,7 @@ export function Contatos() {
                 )}
               </tbody>
             </Table>
-          </TableContainer>
+          </TabelaResponsiva>
 
           {totalPaginas > 1 && (
             <PaginationContainer>
@@ -394,7 +392,7 @@ export function Contatos() {
                   {!modoEdicao && <div className="subtitle">{cargos.join(' | ')} <br/> {buscaEmpresaNoForm}</div>}
                 </div>
                 <div className="actions">
-                  {!modoEdicao && <WarningButton onClick={() => setModoEdicao(true)}><i className="fa-solid fa-pen"></i> Editar</WarningButton>}
+                  {!modoEdicao && <WarningButton onClick={() => setModoEdicao(true)}><i className="fa-solid fa-pen"></i> <span className="hide-mobile">Editar</span></WarningButton>}
                   <CloseButton $color={modoEdicao ? '#fff' : '#a0aec0'} onClick={() => setMostrarModalContato(false)}>&times;</CloseButton>
                 </div>
               </ModalHeader>
@@ -431,7 +429,7 @@ export function Contatos() {
                     <FormGrid $columns="1fr 1fr" style={{ marginTop: '20px' }}>
                       <DynamicInputBox className="span-2">
                         <div className="box-header"><span>Cargos e Funções</span> <AddLinkBtn type="button" onClick={() => gerenciarCampo('cargo', 'add')}><i className="fa-solid fa-plus"></i> Novo Cargo</AddLinkBtn></div>
-                        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
+                        <div className="dynamic-grid">
                           {cargos.map((cg, i) => (
                             <DynamicInputRow key={i}>
                               <Select value={cg} onChange={(e) => handleCargoChange(e, i)}>
@@ -504,7 +502,7 @@ export function Contatos() {
                             <div className="op-title">{op.titulo} <span className="status-tag">{op.status}</span></div>
                             <div className="op-meta">Valor: {formatarMoeda(op.valor)} | Criado em {formatarData(op.criado_em)}</div>
                           </div>
-                          <PrimaryButton>Ver Notas</PrimaryButton>
+                          <PrimaryButton className="btn-history">Ver Notas</PrimaryButton>
                         </HistoryRow>
                       ))}
                     </FunnelHistoryCard>
@@ -563,47 +561,143 @@ export function Contatos() {
   );
 }
 
-// --- ESTILOS ---
-const PageContainer = styled.div` padding: 30px; background: #f4f7f6; min-height: 100vh; `;
-const TopSection = styled.div` display: flex; justify-content: space-between; margin-bottom: 20px; `;
-const Title = styled.h2` margin: 0; color: #2c3e50; `;
-const Subtitle = styled.p` color: #6c757d; `;
-const FilterBar = styled.div` display: flex; gap: 15px; background: #fff; padding: 15px; border-radius: 12px; margin-bottom: 20px; `;
-const SearchWrapper = styled.div` flex: 1; position: relative; input { width: 100%; padding: 10px 40px; border-radius: 20px; border: 1px solid #ddd; } .icon { position: absolute; left: 15px; top: 12px; color: #aaa; } `;
-const FilterPillWrapper = styled.div` position: relative; `;
-const FilterButton = styled.button` padding: 10px 20px; border-radius: 20px; border: 1px solid #ddd; cursor: pointer; background: ${props => props.$hasValue ? '#eef4fa' : '#fff'}; `;
+// === ANIMAÇÕES ===
+const fadeInUp = keyframes`
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
+`;
+
+// --- ESTILOS RESPONSIVOS E PREMIUM CLARO ---
+const PageContainer = styled.div` 
+  padding: 30px; background: #f4f7f6; min-height: 100vh; 
+  @media (max-width: 768px) { padding: 15px; }
+`;
+
+const TopSection = styled.div` 
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;
+  @media (max-width: 768px) { flex-direction: column; align-items: flex-start; .btn-novo { width: 100%; justify-content: center; } }
+`;
+const Title = styled.h2` margin: 0; color: #2c3e50; font-size: 1.8rem; font-weight: 700; `;
+const Subtitle = styled.p` color: #6c757d; font-size: 0.95rem; margin: 5px 0 0 0; `;
+
+const FilterBar = styled.div` 
+  display: flex; flex-wrap: wrap; gap: 15px; background: #fff; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #edf2f9; box-shadow: 0 4px 10px rgba(0,0,0,0.02);
+  @media (max-width: 768px) { flex-direction: column; }
+`;
+
+const SearchWrapper = styled.div` 
+  flex: 1; position: relative; min-width: 250px;
+  input { width: 100%; padding: 12px 40px; border-radius: 20px; border: 1px solid #cbd5e1; font-size: 0.95rem; outline: none; transition: 0.2s; box-sizing: border-box; } 
+  input:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); }
+  .icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #a0aec0; } 
+  @media (max-width: 768px) { width: 100%; }
+`;
+
+const FilterPillWrapper = styled.div` position: relative; @media (max-width: 768px) { width: 100%; } `;
+
+const FilterButton = styled.button` 
+  display: flex; align-items: center; padding: 10px 20px; border-radius: 20px; border: 1px solid #cbd5e1; cursor: pointer; transition: 0.2s;
+  background: ${props => props.$hasValue ? '#eef4fa' : '#fff'}; color: #2c3e50; font-size: 0.95rem; width: 100%; justify-content: space-between;
+  &:hover { background: #e7f3ff; border-color: #007bff; }
+  span { margin: 0 10px; }
+  .icon { color: #007bff; font-size: 1.05rem; }
+`;
+
 const CustomDropdownMenu = styled.ul`
   position: absolute; top: calc(100% + 8px); right: 0; background: #ffffff; border: 1px solid #edf2f9; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); min-width: 200px; 
-  max-height: 250px; overflow-y: auto; overflow-x: hidden; z-index: 1000; padding: 8px 0; list-style: none; margin: 0;
+  max-height: 250px; overflow-y: auto; z-index: 1000; padding: 8px 0; list-style: none; margin: 0;
+  @media (max-width: 768px) { left: 0; width: 100%; }
 `;
-const CustomDropdownItem = styled.li` padding: 10px 20px; font-size: 0.9rem; cursor: pointer; &:hover { background: #f8fafc; color: #007bff; } `;
-const Panel = styled.div` background: #fff; border-radius: 12px; overflow: hidden; border: 1px solid #eee; `;
-const TableContainer = styled.div` overflow-x: auto; `;
-const Table = styled.table` width: 100%; border-collapse: collapse; th { text-align: left; padding: 15px; background: #fbfbfc; border-bottom: 1px solid #eee; } td { padding: 15px; border-bottom: 1px solid #eee; } `;
-const ClickableRow = styled.tr` cursor: pointer; &:hover { background: #f8fafc; } .contact-name { font-weight: bold; color: #007bff; } .contact-meta { font-size: 0.8rem; color: #777; display: flex; gap: 10px; margin-top: 4px; } .state-tag { color: #007bff; font-weight: bold; font-size: 0.7rem; } .text-red { color: #e53e3e; } span { display: flex; align-items: center; gap: 5px;}`;
-const Badge = styled.span` padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; &.badge-gray { background: #eee; } `;
-const PaginationContainer = styled.div` padding: 15px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #eee; `;
-const PageButton = styled.button` padding: 5px 15px; cursor: pointer; `;
-const ModalOverlay = styled.div` position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; `;
-const ModalContent = styled.div` background: #fff; border-radius: 8px; width: 90%; max-width: ${props => props.$large ? '900px' : '400px'}; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; `;
-const ModalHeader = styled.div` padding: 20px; display: flex; justify-content: space-between; background: ${props => props.$bg}; color: ${props => props.$color}; h3 { margin: 0; } .subtitle { font-size: 0.85rem; opacity: 0.8; margin-top: 4px; line-height: 1.4; } `;
-const ModalBody = styled.div` padding: 20px; overflow-y: auto; `;
-const ModalFooter = styled.div` padding: 20px; border-top: 1px solid #eee; display: flex; justify-content: ${props => props.$justify || 'space-between'}; gap: 10px; `;
-const CloseButton = styled.button` background: none; border: none; font-size: 1.5rem; color: ${props => props.$color}; cursor: pointer; `;
-const PrimaryButton = styled.button` background: #007bff; color: #fff; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; &:hover { background: #0056b3; } `;
-const WarningButton = styled.button` background: #ffc107; border: none; padding: 5px 15px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; `;
-const SecondaryButton = styled.button` background: #eee; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; `;
-const Input = styled.input` width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; `;
-const Select = styled.select` width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ddd; background: #fff; `;
-const FormGrid = styled.div` display: grid; grid-template-columns: ${props => props.$columns}; gap: 15px; .span-2 { grid-column: span 2; } `;
-const FormGroup = styled.div` display: flex; flex-direction: column; label { font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; } `;
+const CustomDropdownItem = styled.li` 
+  padding: 10px 20px; font-size: 0.9rem; cursor: pointer; transition: 0.2s;
+  &:hover { background: #f8fafc; color: #007bff; } 
+  ${props => props.$active && `color: #007bff; font-weight: 700; background: #f0f7ff;`}
+`;
+
+const Panel = styled.div` background: #fff; border-radius: 12px; overflow: hidden; border: 1px solid #edf2f9; box-shadow: 0 4px 10px rgba(0,0,0,0.02); `;
+
+const TabelaResponsiva = styled.div`
+  overflow-x: auto; 
+  &::-webkit-scrollbar { height: 6px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+`;
+
+// === AQUI ESTÁ A CORREÇÃO PRINCIPAL DO MOBILE (EMPILHADO) ===
+const Table = styled.table` 
+  width: 100%; border-collapse: collapse; min-width: 600px;
+  th { text-align: left; padding: 15px 20px; background: #fbfbfc; border-bottom: 2px solid #edf2f9; color: #6c757d; font-size: 0.85rem; text-transform: uppercase; } 
+  td { padding: 15px 20px; border-bottom: 1px solid #edf2f9; vertical-align: middle; } 
+
+  @media (max-width: 768px) {
+    min-width: unset; display: block;
+    thead, tbody, th, td, tr { display: block; }
+    thead tr { position: absolute; top: -9999px; left: -9999px; }
+    
+    tr {
+      background: #fff; border: 1px solid #edf2f9; border-radius: 12px; margin: 15px 0; padding: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+    }
+    
+    td {
+      border: none; border-bottom: 1px solid #f1f5f9; position: relative; padding: 12px 15px; text-align: left; display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+    }
+    
+    td:last-child { border-bottom: none; }
+    
+    td::before {
+      position: relative; top: auto; left: auto; transform: none; width: 100%; padding: 0; white-space: nowrap; text-align: left; font-weight: 800; color: #94a3b8; font-size: 0.7rem; content: attr(data-label); text-transform: uppercase; letter-spacing: 0.5px;
+    }
+  }
+`;
+
+const ClickableRow = styled.tr` 
+  cursor: pointer; transition: 0.2s; animation: ${fadeInUp} 0.4s ease forwards; opacity: 0;
+  &:hover { background: #f8fafc; } 
+  .contact-name { font-weight: 800; color: #2c3e50; font-size: 1.05rem; margin-bottom: 4px; } 
+  .contact-meta { font-size: 0.85rem; color: #6c757d; display: flex; flex-direction: column; gap: 4px; margin-top: 4px; align-items: flex-start; } 
+  .state-tag { color: #007bff; font-weight: bold; font-size: 0.75rem; margin-top: 4px; } 
+  .text-red { color: #e53e3e; } 
+  .company-name { font-weight: 600; color: #495057; }
+  span { display: flex; align-items: center; gap: 5px;}
+`;
+
+const Badge = styled.span` padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 700; &.badge-gray { background: #f1f5f9; color: #475569; } `;
+
+const PaginationContainer = styled.div` padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; background: #fbfbfc; border-top: 1px solid #edf2f9; @media (max-width: 600px){ flex-direction: column; gap: 15px; } `;
+const PageButton = styled.button` padding: 8px 15px; cursor: pointer; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; color: #475569; font-weight: 600; transition: 0.2s; &:hover:not(:disabled) { background: #eef4fa; border-color: #007bff; color: #007bff; } &:disabled{ opacity: 0.4; cursor: not-allowed; } `;
+
+const ModalOverlay = styled.div` position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 9998; padding: 20px; padding-bottom: calc(20px + env(safe-area-inset-bottom)); box-sizing: border-box; `;
+const ModalContent = styled.div` background: #fff; border-radius: 16px; width: 100%; max-width: ${props => props.$large ? '900px' : '500px'}; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 15px 40px rgba(0,0,0,0.2); animation: ${fadeInUp} 0.3s ease-out; `;
+const ModalHeader = styled.div` 
+  padding: 20px 25px; display: flex; justify-content: space-between; align-items: center; background: ${props => props.$bg}; color: ${props => props.$color}; border-bottom: 1px solid rgba(0,0,0,0.05);
+  h3 { margin: 0; font-size: 1.3rem; font-weight: 800;} 
+  .subtitle { font-size: 0.85rem; opacity: 0.9; margin-top: 6px; line-height: 1.4; font-weight: 500;} 
+  .actions { display: flex; align-items: center; gap: 15px; }
+  .hide-mobile { @media (max-width: 600px) { display: none; } }
+`;
+const ModalBody = styled.div` padding: 25px; overflow-y: auto; flex: 1; @media (max-width: 600px) { padding: 15px; } `;
+const ModalFooter = styled.div` padding: 20px 25px; border-top: 1px solid #edf2f9; display: flex; justify-content: ${props => props.$justify || 'space-between'}; gap: 10px; background: #fbfbfc; @media (max-width: 600px){ flex-direction: column; button { width: 100%; justify-content: center; } } `;
+const CloseButton = styled.button` background: none; border: none; font-size: 1.8rem; color: ${props => props.$color}; cursor: pointer; transition: 0.2s; &:hover { transform: scale(1.1); } `;
+
+const ButtonBase = styled.button` padding: 12px 20px; border-radius: 8px; font-weight: 700; font-size: 0.95rem; cursor: pointer; border: none; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; &:active { transform: scale(0.98); }`;
+const PrimaryButton = styled(ButtonBase)` background: #007bff; color: #fff; &:hover { background: #0056b3; box-shadow: 0 4px 10px rgba(0,123,255,0.2); } `;
+const SecondaryButton = styled(ButtonBase)` background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; &:hover { background: #e2e8f0; } `;
+const WarningButton = styled(ButtonBase)` background: #ffc107; color: #333; padding: 8px 15px; font-size: 0.9rem; &:hover { background: #e0a800; box-shadow: 0 4px 10px rgba(255,193,7,0.2); } `;
+const DangerButton = styled(ButtonBase)` background: #fff5f5; color: #dc3545; border: 1px solid #f8d7da; &:hover { background: #dc3545; color: #fff; box-shadow: 0 4px 10px rgba(220,53,69,0.2); } `;
+
+const Input = styled.input` width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; outline: none; transition: 0.2s; &:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); } `;
+const Select = styled.select` width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; font-size: 0.95rem; outline: none; transition: 0.2s; &:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); } `;
+const FormGrid = styled.div` display: grid; grid-template-columns: ${props => props.$columns}; gap: 15px; .span-2 { grid-column: span 2; } @media (max-width: 600px) { grid-template-columns: 1fr; .span-2 { grid-column: span 1; } } `;
+const FormGroup = styled.div` display: flex; flex-direction: column; label { font-weight: 700; margin-bottom: 6px; font-size: 0.85rem; color: #475569; } `;
+
 const AutocompleteContainer = styled.div` position: relative; `;
-const AutocompleteList = styled.div` position: absolute; width: 100%; background: #fff; border: 1px solid #ddd; z-index: 20; max-height: 150px; overflow-y: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); `;
-const AutocompleteOption = styled.div` padding: 10px; cursor: pointer; font-size: 0.9rem; &:hover { background: #f0f7ff; } &.danger { color: #dc3545; border-bottom: 1px solid #eee; } `;
-const DynamicInputBox = styled.div` border: 1px solid #eee; padding: 15px; border-radius: 8px; .box-header { display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: bold; font-size: 0.9rem; } `;
-const DynamicInputRow = styled.div` display: flex; gap: 5px; margin-bottom: 10px; flex: 1;`;
-const AddLinkBtn = styled.button` background: none; border: none; color: #007bff; cursor: pointer; font-weight: bold; font-size: 0.8rem; `;
-const IconButton = styled.button` padding: 5px 10px; cursor: pointer; background: none; border: 1px solid transparent; &.danger { color: #dc3545; } `;
+const AutocompleteList = styled.div` position: absolute; width: 100%; background: #fff; border: 1px solid #edf2f9; border-radius: 8px; z-index: 20; max-height: 200px; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.1); margin-top: 5px; `;
+const AutocompleteOption = styled.div` padding: 12px 15px; cursor: pointer; font-size: 0.9rem; border-bottom: 1px solid #f8fafc; &:hover { background: #f0f7ff; color: #007bff; font-weight: 600; } &.danger { color: #dc3545; font-weight: 700; &:hover { background: #fff5f5; } } `;
+
+const DynamicInputBox = styled.div` border: 1px solid #edf2f9; background: #fbfbfc; padding: 20px; border-radius: 12px; .box-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-weight: 700; font-size: 0.95rem; color: #2c3e50; } .dynamic-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; @media(max-width:600px){grid-template-columns: 1fr;} }`;
+const DynamicInputRow = styled.div` display: flex; gap: 8px; flex: 1; align-items: center;`;
+const AddLinkBtn = styled.button` background: rgba(0,123,255,0.1); border: none; color: #007bff; cursor: pointer; font-weight: 700; font-size: 0.8rem; padding: 6px 12px; border-radius: 6px; transition: 0.2s; &:hover { background: #007bff; color: #fff; } `;
+const IconButton = styled.button` padding: 8px 12px; border-radius: 8px; cursor: pointer; background: #f1f5f9; border: 1px solid #cbd5e1; color: #475569; transition: 0.2s; &.danger { color: #dc3545; background: #fff5f5; border-color: #f8d7da; &:hover { background: #dc3545; color: #fff; } } `;
 
 // --- REVISÃO DE ESTILO DOS CARDS DE VISUALIZAÇÃO ---
 const ProfileGrid = styled.div` 
@@ -619,82 +713,69 @@ const InfoCard = styled.div`
   padding: 20px; 
   border-radius: 12px;
   background: #fff;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.02);
 
   h4 { 
     margin: 0 0 15px 0; 
-    color: #4a5568; 
-    font-size: 0.95rem; 
+    color: #2c3e50; 
+    font-size: 1.05rem; 
     display: flex;
     align-items: center;
     gap: 8px;
   }
 
-  ul { 
-    list-style: none; 
-    padding: 0; 
-    margin: 0; 
-  }
+  ul { list-style: none; padding: 0; margin: 0; }
 
   .email-item {
-    padding: 8px 12px;
-    border-radius: 6px;
-    margin-bottom: 6px;
+    padding: 10px 15px;
+    border-radius: 8px;
+    margin-bottom: 8px;
     background: #f8fafc;
-    border: 1px solid #edf2f7;
-    font-size: 0.9rem;
+    border: 1px solid #edf2f9;
+    font-size: 0.95rem;
+    color: #475569;
     display: flex;
     justify-content: space-between;
     align-items: center;
 
     &.error {
-      background: #fff5f5; /* Vermelho clarinho */
-      border-color: #fed7d7;
-      color: #c53030;
-      font-weight: 500;
+      background: #fff5f5;
+      border-color: #f8d7da;
+      color: #dc3545;
+      font-weight: 600;
     }
   }
 
-  .icon-err { color: #e53e3e; font-size: 0.8rem; }
+  .icon-err { color: #dc3545; font-size: 1rem; }
 
-  .phones-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
+  .phones-container { display: flex; flex-wrap: wrap; gap: 10px; }
 
   .phone-pill {
-    background: #f0fff4;
-    border: 1px solid #c6f6d5;
-    color: #2f855a;
-    padding: 6px 14px;
-    border-radius: 20px;
-    font-size: 0.85rem;
-    font-weight: 500;
+    background: #e6f4ea; border: 1px solid #c3e6cb; color: #155724;
+    padding: 8px 16px; border-radius: 20px; font-size: 0.9rem; font-weight: 600;
   }
 `;
 
 const FunnelHistoryCard = styled.div` 
-  margin-top: 25px; 
-  border: 1px solid #edf2f7; 
-  padding: 20px; 
-  border-radius: 12px; 
-  background: #fff;
-  h4 { margin: 0 0 15px 0; font-size: 1rem; color: #2d3748; }
+  margin-top: 25px; border: 1px solid #edf2f9; padding: 25px; border-radius: 12px; background: #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.02);
+  h4 { margin: 0 0 15px 0; font-size: 1.1rem; color: #2c3e50; }
 `;
 
 const HistoryRow = styled.div` 
-  display: flex; 
-  justify-content: space-between; 
-  align-items: center; 
-  padding: 15px; 
-  border-left: 4px solid ${props => props.$borderColor}; 
-  background: #f8fafc; 
-  margin-bottom: 12px; 
-  border-radius: 0 8px 8px 0;
-  cursor: pointer; 
-  transition: 0.2s;
-  &:hover { transform: translateX(5px); background: #f1f5f9; }
-  .op-title { font-weight: bold; color: #2d3748; margin-bottom: 4px; }
-  .status-tag { font-size: 0.7rem; background: #e2e8f0; padding: 2px 8px; border-radius: 10px; margin-left: 8px; }
-  .op-meta { font-size: 0.8rem; color: #718096; }
+  display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-left: 4px solid ${props => props.$borderColor}; 
+  background: #f8fafc; margin-bottom: 12px; border-radius: 0 8px 8px 0; cursor: pointer; transition: 0.2s; border-top: 1px solid #edf2f9; border-right: 1px solid #edf2f9; border-bottom: 1px solid #edf2f9;
+  
+  &:hover { transform: translateX(5px); background: #eef4fa; border-color: #007bff; }
+  
+  .info-main { display: flex; flex-direction: column; gap: 6px; }
+  .op-title { font-weight: 800; color: #2c3e50; font-size: 1.05rem;}
+  .status-tag { font-size: 0.75rem; background: #e2e8f0; padding: 4px 10px; border-radius: 12px; margin-left: 8px; color: #475569; font-weight: bold; text-transform: uppercase;}
+  .op-meta { font-size: 0.85rem; color: #64748b; }
+  
+  .btn-history { padding: 8px 15px; font-size: 0.85rem; border-radius: 6px;}
+  
+  @media (max-width: 600px) {
+    flex-direction: column; align-items: flex-start; gap: 15px;
+    .btn-history { width: 100%; justify-content: center; }
+  }
 `;

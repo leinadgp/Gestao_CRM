@@ -1,8 +1,6 @@
-// src/pages/Funil.jsx
 import { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
-import styled from 'styled-components';
-import { Header } from '../componentes/Header.jsx';
+import styled, { keyframes } from 'styled-components';
 
 // --- UTILITÁRIOS ---
 const parseJSONSeguro = (dadoString, fallback = []) => {
@@ -225,7 +223,7 @@ export function Funil() {
   }
 
   // ==========================================
-  // MEMOIZAÇÕES E ORDENAÇÃO DE ALTA PERFORMANCE
+  // MEMOIZAÇÕES E ORDENAÇÃO
   // ==========================================
   
   const oportunidadesPorEtapa = useMemo(() => {
@@ -312,7 +310,7 @@ export function Funil() {
 
 
   // ==========================================
-  // GERENCIAMENTO DE NOTAS, CONTATOS E EMPRESAS (SUB-MODAIS)
+  // GERENCIAMENTO DE NOTAS E SUB-MODAIS
   // ==========================================
   async function carregarNotas(opId) {
     try { 
@@ -402,12 +400,8 @@ export function Funil() {
     e.preventDefault();
     try {
       await axios.put(`${API_URL}/empresas/${empresaSelecionada.id}`, {
-        nome: empresaNome,
-        estado: empresaEstado,
-        cidade: empresaCidade,
-        telefones: empresaTelefones,
-        classificacao: empresaClassificacao,
-        estrelas: empresaEstrelas
+        nome: empresaNome, estado: empresaEstado, cidade: empresaCidade,
+        telefones: empresaTelefones, classificacao: empresaClassificacao, estrelas: empresaEstrelas
       }, getHeaders());
 
       setMostrarModalEmpresa(false);
@@ -419,7 +413,6 @@ export function Funil() {
       alert(error.response?.data?.erro || 'Erro ao atualizar empresa.');
     }
   }
-
 
   // ==========================================
   // GESTÃO DA OPORTUNIDADE (MODAL PRINCIPAL)
@@ -514,607 +507,602 @@ export function Funil() {
   // RENDERIZAÇÃO
   // ==========================================
   return (
-    <>
-      <Header titulo="Funil de Vendas" />
+    <PageContainer>
+      <TopSection>
+        <div>
+          <Title>Gestão de Pipeline</Title>
+          <Subtitle>Selecione um Funil / Campanha abaixo para trabalhar.</Subtitle>
+        </div>
 
-      <PageContainer>
-        <TopSection>
-          <div>
-            <Title>Gestão de Pipeline</Title>
-            <Subtitle>Selecione um Funil / Campanha abaixo para trabalhar.</Subtitle>
-          </div>
+        <ActionsContainer>
+          <SearchInputWrapper>
+            <i className="fa-solid fa-search"></i>
+            <input 
+              type="text" 
+              placeholder="Buscar cliente, prefeitura..." 
+              value={buscaGeral} 
+              onChange={e => setBuscaGeral(e.target.value)} 
+            />
+          </SearchInputWrapper>
 
-          <ActionsContainer>
-            <SearchInputWrapper>
-              <i className="fa-solid fa-search"></i>
-              <input 
-                type="text" 
-                placeholder="Buscar cliente, prefeitura..." 
-                value={buscaGeral} 
-                onChange={e => setBuscaGeral(e.target.value)} 
-              />
-            </SearchInputWrapper>
-
-            <FilterPillWrapper ref={dropdownCampanhaRef}>
-              <FilterButton 
-                $hasValue={!!filtroCampanha} 
-                onClick={() => setDropdownCampanhaAberto(!dropdownCampanhaAberto)}
-              >
-                <i className="fa-solid fa-layer-group icon"></i> 
-                <span>Funil: <strong>
-                  {campanhaSelecionadaObj ? (
-                    <>
-                      {campanhaSelecionadaObj.nome}
-                      {campanhaSelecionadaObj.apenas_admin && <span style={{marginLeft: '8px', color: '#dc3545', fontSize: '0.8rem'}}><i className="fa-solid fa-lock"></i> Restrito</span>}
-                    </>
-                  ) : '-- Selecione --'}
-                </strong></span>
-                <i className={`fa-solid fa-chevron-${dropdownCampanhaAberto ? 'up' : 'down'} arrow`}></i>
-              </FilterButton>
-              
-              {dropdownCampanhaAberto && (
-                <CustomDropdownMenu>
-                  {campanhas.map(c => (
-                    <CustomDropdownItem 
-                      key={c.id} 
-                      $active={filtroCampanha === String(c.id)} 
-                      onClick={() => { setFiltroCampanha(String(c.id)); setDropdownCampanhaAberto(false); }}
-                    >
-                      {c.nome} 
-                      {c.apenas_admin && <span style={{marginLeft: '8px', color: '#dc3545', fontSize: '0.75rem', fontWeight: 'bold'}}><i className="fa-solid fa-lock"></i> Restrito</span>}
-                      {c.arquivada && <span style={{marginLeft: '8px', color: '#6c757d', fontSize: '0.75rem'}}>(Arquivada)</span>}
-                    </CustomDropdownItem>
-                  ))}
-                </CustomDropdownMenu>
-              )}
-            </FilterPillWrapper>
-
-            {filtroCampanha && (
-              <PrimaryButton onClick={abrirModalNovo}>
-                <i className="fa-solid fa-plus-circle"></i> Nova Oportunidade
-              </PrimaryButton>
+          <FilterPillWrapper ref={dropdownCampanhaRef}>
+            <FilterButton 
+              $hasValue={!!filtroCampanha} 
+              onClick={() => setDropdownCampanhaAberto(!dropdownCampanhaAberto)}
+            >
+              <i className="fa-solid fa-layer-group icon"></i> 
+              <span>Funil: <strong>
+                {campanhaSelecionadaObj ? (
+                  <>
+                    {campanhaSelecionadaObj.nome}
+                    {campanhaSelecionadaObj.apenas_admin && <span style={{marginLeft: '8px', color: '#dc3545', fontSize: '0.8rem'}}><i className="fa-solid fa-lock"></i> Restrito</span>}
+                  </>
+                ) : '-- Selecione --'}
+              </strong></span>
+              <i className={`fa-solid fa-chevron-${dropdownCampanhaAberto ? 'up' : 'down'} arrow`}></i>
+            </FilterButton>
+            
+            {dropdownCampanhaAberto && (
+              <CustomDropdownMenu>
+                {campanhas.map(c => (
+                  <CustomDropdownItem 
+                    key={c.id} 
+                    $active={filtroCampanha === String(c.id)} 
+                    onClick={() => { setFiltroCampanha(String(c.id)); setDropdownCampanhaAberto(false); }}
+                  >
+                    {c.nome} 
+                    {c.apenas_admin && <span style={{marginLeft: '8px', color: '#dc3545', fontSize: '0.75rem', fontWeight: 'bold'}}><i className="fa-solid fa-lock"></i> Restrito</span>}
+                    {c.arquivada && <span style={{marginLeft: '8px', color: '#6c757d', fontSize: '0.75rem'}}>(Arquivada)</span>}
+                  </CustomDropdownItem>
+                ))}
+              </CustomDropdownMenu>
             )}
-          </ActionsContainer>
-        </TopSection>
+          </FilterPillWrapper>
 
-        {!filtroCampanha ? (
-          <EmptyState>
-            <i className="fa-solid fa-filter-circle-xmark"></i>
-            <h2>Nenhum Funil Selecionado</h2>
-            <p>Selecione uma campanha no topo da tela para carregar as etapas e negócios.</p>
-          </EmptyState>
-        ) : carregando ? (
-          <LoadingContainer>
-            <i className="fa-solid fa-spinner fa-spin"></i><br />Carregando seu Funil...
-          </LoadingContainer>
-        ) : (
-          <KanbanBoard ref={boardRef} onMouseDown={onBoardMouseDown} onMouseLeave={onBoardMouseLeave} onMouseUp={onBoardMouseUp} onMouseMove={onBoardMouseMove}>
-            {etapas.map((etapa) => {
-              const cardsDestaColuna = oportunidadesPorEtapa[etapa.id] || [];
-              
-              return (
-                <KanbanColumn key={etapa.id}>
-                  <ColumnHeader>
-                    <span className="title">{etapa.nome}</span>
-                    <span className="badge">{cardsDestaColuna.length}</span>
-                  </ColumnHeader>
-                  
-                  <CardsContainer>
-                    {cardsDestaColuna.length === 0 && buscaGeral && (
-                       <div style={{textAlign: 'center', color: '#a0aec0', fontSize: '0.85rem', marginTop: '20px'}}>Nenhum resultado</div>
-                    )}
-                    {cardsDestaColuna.map(op => {
-                      let statusConfig = { border: '#cbd5e1', bg: '#ffffff' };
-                      if (op.status === 'naofunciona') statusConfig = { border: '#f1c40f', bg: '#fff9db' };
-                      if (op.status === 'naoatendeu') statusConfig = { border: '#e67e22', bg: '#fff4e6' };
-                      if (op.status === 'tarefa') statusConfig = { border: '#6f42c1', bg: '#f3e8ff' };
-                      if (op.status === 'ganho' ) statusConfig = { border: '#0e3115', bg: '#e7f3ff' };
-                      if (op.status === 'interessada') statusConfig = { border: '#36ad52', bg: '#e7f3ff' };
-                      if (op.status === 'avaliar') statusConfig = { border: '#9fe069', bg: '#e9f7ef' };
-                      if (op.status === 'perdido') statusConfig = { border: '#dc3545', bg: '#fdecea' };
-                      
-                      const idsModsCard = parseJSONSeguro(op.modulos_ids, []).map(Number);
-                      const nomesModsCard = idsModsCard.map(id => { 
-                        const m = modulosCampanha.find(mod => Number(mod.id) === id); 
-                        return m ? m.nome : null; 
-                      }).filter(Boolean);
+          {filtroCampanha && (
+            <PrimaryButton onClick={abrirModalNovo} className="btn-novo">
+              <i className="fa-solid fa-plus-circle"></i> Nova Oportunidade
+            </PrimaryButton>
+          )}
+        </ActionsContainer>
+      </TopSection>
 
-                      return (
-                        <KanbanCard key={op.id} className="kanban-card" $status={statusConfig} onClick={() => abrirModalEdicao(op)}>
-                          
-                          <div className="card-header">
-                            <div className="card-title">{op.titulo}</div>
-                            {op.estrelas > 0 && (
-                              <div className="stars" title={`Temperatura: ${op.estrelas} Estrelas`}>
-                                {[1,2,3,4,5].map(n => <i key={n} className={`fa-solid fa-star ${n <= op.estrelas ? 'active' : ''}`}></i>)}
-                              </div>
-                            )}
-                          </div>
+      {!filtroCampanha ? (
+        <EmptyState>
+          <i className="fa-solid fa-filter-circle-xmark"></i>
+          <h2>Nenhum Funil Selecionado</h2>
+          <p>Selecione uma campanha no topo da tela para carregar as etapas e negócios.</p>
+        </EmptyState>
+      ) : carregando ? (
+        <LoadingContainer>
+          <i className="fa-solid fa-spinner fa-spin"></i><br />Carregando seu Funil...
+        </LoadingContainer>
+      ) : (
+        <KanbanBoard ref={boardRef} onMouseDown={onBoardMouseDown} onMouseLeave={onBoardMouseLeave} onMouseUp={onBoardMouseUp} onMouseMove={onBoardMouseMove}>
+          {etapas.map((etapa) => {
+            const cardsDestaColuna = oportunidadesPorEtapa[etapa.id] || [];
+            
+            return (
+              <KanbanColumn key={etapa.id}>
+                <ColumnHeader>
+                  <span className="title">{etapa.nome}</span>
+                  <span className="badge">{cardsDestaColuna.length}</span>
+                </ColumnHeader>
+                
+                <CardsContainer>
+                  {cardsDestaColuna.length === 0 && buscaGeral && (
+                     <div style={{textAlign: 'center', color: '#a0aec0', fontSize: '0.85rem', marginTop: '20px'}}>Nenhum resultado</div>
+                  )}
+                  {cardsDestaColuna.map(op => {
+                    let statusConfig = { border: '#cbd5e1', bg: '#ffffff' };
+                    if (op.status === 'naofunciona') statusConfig = { border: '#f1c40f', bg: '#fff9db' };
+                    if (op.status === 'naoatendeu') statusConfig = { border: '#e67e22', bg: '#fff4e6' };
+                    if (op.status === 'tarefa') statusConfig = { border: '#6f42c1', bg: '#f3e8ff' };
+                    if (op.status === 'ganho' ) statusConfig = { border: '#0e3115', bg: '#e7f3ff' };
+                    if (op.status === 'interessada') statusConfig = { border: '#36ad52', bg: '#e7f3ff' };
+                    if (op.status === 'avaliar') statusConfig = { border: '#9fe069', bg: '#e9f7ef' };
+                    if (op.status === 'perdido') statusConfig = { border: '#dc3545', bg: '#fdecea' };
+                    
+                    const idsModsCard = parseJSONSeguro(op.modulos_ids, []).map(Number);
+                    const nomesModsCard = idsModsCard.map(id => { 
+                      const m = modulosCampanha.find(mod => Number(mod.id) === id); 
+                      return m ? m.nome : null; 
+                    }).filter(Boolean);
 
-                          <div className="card-value">{formatarMoeda(op.valor)}</div>
-
-                          {nomesModsCard.length > 0 && (
-                            <CardModules>
-                              {nomesModsCard.map((nome, idx) => (
-                                <span key={idx}><i className="fa-solid fa-calendar-check"></i> {nome}</span>
-                              ))}
-                            </CardModules>
-                          )}
-
-                          {op.empresa_nome && (
-                            <div className="card-company">
-                              <i className="fa-solid fa-building"></i> {op.empresa_nome}
-                              {op.classificacao === 'assessorada' && <span className="badge-vip" title="Prefeitura Assessorada VIP"><i className="fa-solid fa-crown"></i> VIP</span>}
-                              {op.classificacao === 'lead_quente' && <span className="badge-hot" title="Lead Quente e Engajado"><i className="fa-solid fa-fire"></i> Hot</span>}
-                              {(op.classificacao === 'nao_assessorada' || !op.classificacao) && <span className="badge-cold" title="Lead Frio"><i className="fa-solid fa-snowflake text-blue"></i> Frio</span>}
+                    return (
+                      <KanbanCard key={op.id} className="kanban-card" $status={statusConfig} onClick={() => abrirModalEdicao(op)}>
+                        
+                        <div className="card-header">
+                          <div className="card-title">{op.titulo}</div>
+                          {op.estrelas > 0 && (
+                            <div className="stars" title={`Temperatura: ${op.estrelas} Estrelas`}>
+                              {[1,2,3,4,5].map(n => <i key={n} className={`fa-solid fa-star ${n <= op.estrelas ? 'active' : ''}`}></i>)}
                             </div>
                           )}
-                          
-                          <SellerBadge>
-                            <i className="fa-solid fa-user-tie"></i> {op.vendedor_nome || 'Sem dono'}
-                          </SellerBadge>
-                        </KanbanCard>
-                      );
-                    })}
-                  </CardsContainer>
-                </KanbanColumn>
-              )
-            })}
-          </KanbanBoard>
-        )}
+                        </div>
 
-        {/* MODAL DE EDIÇÃO DE OPORTUNIDADE E SUB-MODAIS */}
-        {mostrarModal && (
-          <ModalOverlay onClick={() => setMostrarModal(false)}>
-            <ModalContent onClick={e => e.stopPropagation()}>
-              <ModalHeader>
-                <div>
-                  <h3>{editandoId ? 'Editar Negócio' : 'Criar Novo Negócio'}</h3>
-                  <div className="subtitle" title={campanhaSelecionadaObj?.nome}>
-                    <i className="fa-solid fa-bullhorn"></i> Vinculado à campanha: {campanhaSelecionadaObj?.nome}
-                  </div>
+                        <div className="card-value">{formatarMoeda(op.valor)}</div>
+
+                        {nomesModsCard.length > 0 && (
+                          <CardModules>
+                            {nomesModsCard.map((nome, idx) => (
+                              <span key={idx}><i className="fa-solid fa-calendar-check"></i> {nome}</span>
+                            ))}
+                          </CardModules>
+                        )}
+
+                        {op.empresa_nome && (
+                          <div className="card-company">
+                            <i className="fa-solid fa-building"></i> {op.empresa_nome}
+                            {op.classificacao === 'assessorada' && <span className="badge-vip" title="Prefeitura Assessorada VIP"><i className="fa-solid fa-crown"></i> VIP</span>}
+                            {op.classificacao === 'lead_quente' && <span className="badge-hot" title="Lead Quente e Engajado"><i className="fa-solid fa-fire"></i> Hot</span>}
+                            {(op.classificacao === 'nao_assessorada' || !op.classificacao) && <span className="badge-cold" title="Lead Frio"><i className="fa-solid fa-snowflake text-blue"></i> Frio</span>}
+                          </div>
+                        )}
+                        
+                        <SellerBadge>
+                          <i className="fa-solid fa-user-tie"></i> {op.vendedor_nome || 'Sem dono'}
+                        </SellerBadge>
+                      </KanbanCard>
+                    );
+                  })}
+                </CardsContainer>
+              </KanbanColumn>
+            )
+          })}
+        </KanbanBoard>
+      )}
+
+      {/* MODAL DE EDIÇÃO DE OPORTUNIDADE E SUB-MODAIS */}
+      {mostrarModal && (
+        <ModalOverlay onClick={() => setMostrarModal(false)}>
+          <ModalContent onClick={e => e.stopPropagation()}>
+            <ModalHeader>
+              <div>
+                <h3>{editandoId ? 'Editar Negócio' : 'Criar Novo Negócio'}</h3>
+                <div className="subtitle" title={campanhaSelecionadaObj?.nome}>
+                  <i className="fa-solid fa-bullhorn"></i> Vinculado à campanha: {campanhaSelecionadaObj?.nome}
                 </div>
-                <CloseButton onClick={() => setMostrarModal(false)}>&times;</CloseButton>
-              </ModalHeader>
+              </div>
+              <CloseButton onClick={() => setMostrarModal(false)}>&times;</CloseButton>
+            </ModalHeader>
 
-              <form onSubmit={salvarOportunidade} style={{ padding: '20px', overflowY: 'auto' }}>
-                
+            <form onSubmit={salvarOportunidade} style={{ padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              
+              <FormGrid $columns="1fr 1fr">
+                <FormGroup className="span-2">
+                  <label>Título da Negociação *</label>
+                  <Input type="text" value={titulo} onChange={(e) => setTitulo(e.target.value)} required />
+                </FormGroup>
+
+                <FormGroup>
+                  <label>Etapa no Funil *</label>
+                  <Select value={etapaId} onChange={(e) => setEtapaId(e.target.value)} required className="highlight">
+                    {etapas.map(etp => <option key={etp.id} value={etp.id}>{etp.nome}</option>)}
+                  </Select>
+                </FormGroup>
+
+                <FormGroup>
+                  <label>Status da Negociação</label>
+                  <Select value={statusOp} onChange={(e) => setStatusOp(e.target.value)} $status={statusOp}>
+                    <option value="aberto">⚪ Em Aberto</option>
+                    <option value="avaliar">🟢 Avaliar</option>
+                    <option value="interessada">🟢 Interessada</option>
+                    <option value="ganho">🏆 Vendido </option>
+                    <option value="tarefa">🟣 Tarefa</option>
+                    <option value="naoatendeu">🟠 Não Atendeu</option>
+                    <option value="naofunciona">🟡 Não Funciona</option>
+                    <option value="perdido">🔴 Perdido</option>
+                  </Select>
+                </FormGroup>
+              </FormGrid>
+
+              <SectionCard>
                 <FormGrid $columns="1fr 1fr">
-                  <FormGroup className="span-2">
-                    <label>Título da Negociação *</label>
-                    <Input type="text" value={titulo} onChange={(e) => setTitulo(e.target.value)} required />
+                  <FormGroup>
+                    <label><i className="fa-solid fa-building text-blue"></i> Empresa/Prefeitura Alvo</label>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <AutocompleteContainer ref={dropdownEmpresaRef} style={{ flex: 1 }}>
+                        <Input 
+                          type="text" 
+                          placeholder="🔍 Buscar..." 
+                          value={buscaEmpresaNoModal} 
+                          onFocus={() => { setBuscaEmpresaNoModal(''); setMostrarDropdownEmpresa(true); }} 
+                          onChange={(e) => {
+                            setBuscaEmpresaNoModal(e.target.value); setMostrarDropdownEmpresa(true);
+                            if (e.target.value === '') { setEmpresaId(''); setContatoId(''); setBuscaContatoNoModal(''); }
+                          }} 
+                        />
+                        {mostrarDropdownEmpresa && (
+                          <AutocompleteList>
+                            <AutocompleteOption className="danger" onClick={() => { setEmpresaId(''); setBuscaEmpresaNoModal(''); setContatoId(''); setBuscaContatoNoModal(''); setMostrarDropdownEmpresa(false); }}>
+                              <i className="fa-solid fa-eraser"></i> Limpar Seleção
+                            </AutocompleteOption>
+                            {empresasFiltradasParaSelect.map(emp => (
+                              <AutocompleteOption key={emp.id} onClick={() => { setEmpresaId(emp.id); setBuscaEmpresaNoModal(emp.nome); setMostrarDropdownEmpresa(false); }}>
+                                {emp.nome}
+                              </AutocompleteOption>
+                            ))}
+                          </AutocompleteList>
+                        )}
+                      </AutocompleteContainer>
+
+                      {empresaId && (
+                        <IconButton type="button" onClick={abrirDetalheEmpresa} title="Visualizar ou Editar Empresa">
+                          <i className="fa-solid fa-building-user"></i>
+                        </IconButton>
+                      )}
+                    </div>
                   </FormGroup>
 
                   <FormGroup>
-                    <label>Etapa no Funil *</label>
-                    <Select value={etapaId} onChange={(e) => setEtapaId(e.target.value)} required className="highlight">
-                      {etapas.map(etp => <option key={etp.id} value={etp.id}>{etp.nome}</option>)}
-                    </Select>
-                  </FormGroup>
-
-                  <FormGroup>
-                    <label>Status da Negociação</label>
-                    <Select value={statusOp} onChange={(e) => setStatusOp(e.target.value)} $status={statusOp}>
-                      <option value="aberto">⚪ Em Aberto</option>
-                      <option value="avaliar">🟢 Avaliar</option>
-                      <option value="interessada">🟢 Interessada</option>
-                      <option value="ganho">🏆 Vendido </option>
-                      <option value="tarefa">🟣 Tarefa</option>
-                      <option value="naoatendeu">🟠 Não Atendeu</option>
-                      <option value="naofunciona">🟡 Não Funciona</option>
-                      <option value="perdido">🔴 Perdido</option>
-                    </Select>
+                    <label><i className="fa-solid fa-address-book text-green"></i> Contato Principal</label>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <AutocompleteContainer ref={dropdownContatoRef} style={{ flex: 1 }}>
+                        <Input 
+                          type="text" 
+                          placeholder={empresaId ? "🔍 Buscar contato desta empresa..." : "🔍 Buscar contato..."} 
+                          value={buscaContatoNoModal} 
+                          onFocus={() => { setBuscaContatoNoModal(''); setMostrarDropdownContato(true); }} 
+                          onChange={(e) => { setBuscaContatoNoModal(e.target.value); setMostrarDropdownContato(true); }} 
+                        />
+                        {mostrarDropdownContato && (
+                          <AutocompleteList>
+                            <AutocompleteOption className="danger" onClick={() => { setContatoId(''); setBuscaContatoNoModal(''); setMostrarDropdownContato(false); }}>
+                              <i className="fa-solid fa-eraser"></i> Limpar Seleção
+                            </AutocompleteOption>
+                            {contatosFiltradosParaSelect.length > 0 ? (
+                              contatosFiltradosParaSelect.map(cont => (
+                                <AutocompleteOption key={cont.id} onClick={() => { setContatoId(cont.id); setBuscaContatoNoModal(cont.nome); setMostrarDropdownContato(false); }}>
+                                  <strong>{cont.nome}</strong>
+                                </AutocompleteOption>
+                              ))
+                            ) : (
+                              <AutocompleteOption className="no-results">Nenhum contato encontrado.</AutocompleteOption>
+                            )}
+                          </AutocompleteList>
+                        )}
+                      </AutocompleteContainer>
+                      
+                      {contatoId && (
+                        <IconButton type="button" onClick={abrirDetalheContato} title="Visualizar ou Editar Contato">
+                          <i className="fa-solid fa-user-pen"></i>
+                        </IconButton>
+                      )}
+                    </div>
                   </FormGroup>
                 </FormGrid>
+              </SectionCard>
+
+              <SectionCard $bgColor="#f4fbf5" $borderColor="#c3e6cb">
+                <label style={{ display: 'block', marginBottom: '15px', color: '#28a745', fontSize: '0.95rem', fontWeight: 'bold' }}>
+                  <i className="fa-solid fa-cart-shopping"></i> Composição do Pacote (Turmas / Módulos)
+                </label>
+
+                {modulosCampanha.length === 0 ? (
+                  <div style={{ fontSize: '0.85rem', color: '#666', fontStyle: 'italic' }}>Este curso não possui módulos. O valor deverá ser inserido manualmente abaixo.</div>
+                ) : (
+                  <ModulesGrid>
+                    {modulosCampanha.map(mod => {
+                      const isSelected = modulosSelecionados.includes(Number(mod.id));
+                      return (
+                        <ModuleCard key={mod.id} $active={isSelected} onClick={() => toggleModulo(mod.id)}>
+                          <div className={`custom-checkbox ${isSelected ? 'active' : ''}`}>
+                             {isSelected && <i className="fa-solid fa-check"></i>}
+                          </div>
+                          <div className="mod-info">
+                            <span className="mod-name">{mod.nome}</span>
+                            <span className="mod-price">{formatarMoeda(mod.valor)}</span>
+                          </div>
+                        </ModuleCard>
+                      )
+                    })}
+                  </ModulesGrid>
+                )}
+
+                {modulosSelecionados.length > 0 && (
+                  <TotalsBox>
+                    <div>
+                      <label>Subtotal</label>
+                      <div className="val bg-gray">{formatarMoeda(subtotalModulos)}</div>
+                    </div>
+                    <div>
+                      <label className="text-blue">Desconto (%)</label>
+                      <Input type="number" min="0" max="100" value={desconto} onChange={e => setDesconto(e.target.value)} className="highlight-blue" style={{width: '100px'}} />
+                    </div>
+                    <div>
+                      <label className="text-green">Valor a Cobrar</label>
+                      <div className="val bg-green">{formatarMoeda(valorFinalCalculado)}</div>
+                    </div>
+                  </TotalsBox>
+                )}
+
+                <FormGroup style={{marginTop: '15px'}}>
+                  <label>Valor Final da Negociação (R$)</label>
+                  <Input
+                    type="number" step="0.01"
+                    value={modulosSelecionados.length > 0 ? valorFinalCalculado : valor}
+                    onChange={(e) => setValor(e.target.value)}
+                    disabled={modulosSelecionados.length > 0}
+                    placeholder={modulosSelecionados.length > 0 ? "Calculado pelos módulos" : "Digite o valor..."}
+                    className={modulosSelecionados.length > 0 ? 'disabled' : ''}
+                  />
+                </FormGroup>
+              </SectionCard>
+
+              <FormGrid $columns="1fr">
+                <FormGroup>
+                  <label><i className="fa-solid fa-user-tie text-purple"></i> Vendedor Responsável</label>
+                  <Select value={vendedorId} onChange={(e) => setVendedorId(e.target.value)}>
+                    <option value="">-- Sem dono definido --</option>
+                    {equipe
+                      .filter(user => user.ativo !== false || String(user.id) === String(vendedorOriginal))
+                      .map(user => (
+                        <option key={user.id} value={user.id}>
+                          {user.nome} {user.ativo === false ? '(Inativo)' : `(${user.perfil})`}
+                        </option>
+                      ))
+                    }
+                  </Select>
+                </FormGroup>
+
+                <FormGroup>
+                  <label>Resumo Geral do Negócio</label>
+                  <TextArea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows="2" />
+                </FormGroup>
 
                 <SectionCard>
-                  <FormGrid $columns="1fr 1fr">
-                    <FormGroup>
-                      <label><i className="fa-solid fa-building text-blue"></i> Empresa/Prefeitura Alvo</label>
-                      <div style={{ display: 'flex', gap: '10px' }}>
-                        <AutocompleteContainer ref={dropdownEmpresaRef} style={{ flex: 1 }}>
-                          <Input 
-                            type="text" 
-                            placeholder="🔍 Buscar..." 
-                            value={buscaEmpresaNoModal} 
-                            onFocus={() => { setBuscaEmpresaNoModal(''); setMostrarDropdownEmpresa(true); }} 
-                            onChange={(e) => {
-                              setBuscaEmpresaNoModal(e.target.value); setMostrarDropdownEmpresa(true);
-                              if (e.target.value === '') { setEmpresaId(''); setContatoId(''); setBuscaContatoNoModal(''); }
-                            }} 
-                          />
-                          {mostrarDropdownEmpresa && (
-                            <AutocompleteList>
-                              <AutocompleteOption className="danger" onClick={() => { setEmpresaId(''); setBuscaEmpresaNoModal(''); setContatoId(''); setBuscaContatoNoModal(''); setMostrarDropdownEmpresa(false); }}>
-                                <i className="fa-solid fa-eraser"></i> Limpar Seleção
-                              </AutocompleteOption>
-                              {empresasFiltradasParaSelect.map(emp => (
-                                <AutocompleteOption key={emp.id} onClick={() => { setEmpresaId(emp.id); setBuscaEmpresaNoModal(emp.nome); setMostrarDropdownEmpresa(false); }}>
-                                  {emp.nome}
-                                </AutocompleteOption>
-                              ))}
-                            </AutocompleteList>
-                          )}
-                        </AutocompleteContainer>
-
-                        {empresaId && (
-                          <IconButton type="button" onClick={abrirDetalheEmpresa} title="Visualizar ou Editar Empresa">
-                            <i className="fa-solid fa-building-user"></i>
-                          </IconButton>
-                        )}
-                      </div>
-                    </FormGroup>
-
-                    <FormGroup>
-                      <label><i className="fa-solid fa-address-book text-green"></i> Contato Principal</label>
-                      <div style={{ display: 'flex', gap: '10px' }}>
-                        <AutocompleteContainer ref={dropdownContatoRef} style={{ flex: 1 }}>
-                          <Input 
-                            type="text" 
-                            placeholder={empresaId ? "🔍 Buscar contato desta empresa..." : "🔍 Buscar contato..."} 
-                            value={buscaContatoNoModal} 
-                            onFocus={() => { setBuscaContatoNoModal(''); setMostrarDropdownContato(true); }} 
-                            onChange={(e) => { setBuscaContatoNoModal(e.target.value); setMostrarDropdownContato(true); }} 
-                          />
-                          {mostrarDropdownContato && (
-                            <AutocompleteList>
-                              <AutocompleteOption className="danger" onClick={() => { setContatoId(''); setBuscaContatoNoModal(''); setMostrarDropdownContato(false); }}>
-                                <i className="fa-solid fa-eraser"></i> Limpar Seleção
-                              </AutocompleteOption>
-                              {contatosFiltradosParaSelect.length > 0 ? (
-                                contatosFiltradosParaSelect.map(cont => (
-                                  <AutocompleteOption key={cont.id} onClick={() => { setContatoId(cont.id); setBuscaContatoNoModal(cont.nome); setMostrarDropdownContato(false); }}>
-                                    <strong>{cont.nome}</strong>
-                                  </AutocompleteOption>
-                                ))
-                              ) : (
-                                <AutocompleteOption className="no-results">Nenhum contato encontrado.</AutocompleteOption>
-                              )}
-                            </AutocompleteList>
-                          )}
-                        </AutocompleteContainer>
-                        
-                        {contatoId && (
-                          <IconButton type="button" onClick={abrirDetalheContato} title="Visualizar ou Editar Contato">
-                            <i className="fa-solid fa-user-pen"></i>
-                          </IconButton>
-                        )}
-                      </div>
-                    </FormGroup>
-                  </FormGrid>
-                </SectionCard>
-
-                <SectionCard $bgColor="#f4fbf5" $borderColor="#c3e6cb">
-                  <label style={{ display: 'block', marginBottom: '15px', color: '#28a745', fontSize: '0.95rem', fontWeight: 'bold' }}>
-                    <i className="fa-solid fa-cart-shopping"></i> Composição do Pacote (Turmas / Módulos)
+                  <label style={{ display: 'block', marginBottom: '15px', color: '#333', fontSize: '0.95rem', fontWeight: 'bold' }}>
+                    <i className="fa-solid fa-comments text-blue"></i> Histórico de Interações (Notas)
                   </label>
 
-                  {modulosCampanha.length === 0 ? (
-                    <div style={{ fontSize: '0.85rem', color: '#666', fontStyle: 'italic' }}>Este curso não possui módulos. O valor deverá ser inserido manualmente abaixo.</div>
-                  ) : (
-                    <ModulesGrid>
-                      {modulosCampanha.map(mod => {
-                        const isSelected = modulosSelecionados.includes(Number(mod.id));
-                        return (
-                          <ModuleCard key={mod.id} $active={isSelected} onClick={() => toggleModulo(mod.id)}>
-                            <div className={`custom-checkbox ${isSelected ? 'active' : ''}`}>
-                               {isSelected && <i className="fa-solid fa-check"></i>}
-                            </div>
-                            <div className="mod-info">
-                              <span className="mod-name">{mod.nome}</span>
-                              <span className="mod-price">{formatarMoeda(mod.valor)}</span>
-                            </div>
-                          </ModuleCard>
-                        )
-                      })}
-                    </ModulesGrid>
-                  )}
-
-                  {modulosSelecionados.length > 0 && (
-                    <TotalsBox>
-                      <div>
-                        <label>Subtotal</label>
-                        <div className="val bg-gray">{formatarMoeda(subtotalModulos)}</div>
-                      </div>
-                      <div>
-                        <label className="text-blue">Desconto (%)</label>
-                        <Input type="number" min="0" max="100" value={desconto} onChange={e => setDesconto(e.target.value)} className="highlight-blue" style={{width: '100px'}} />
-                      </div>
-                      <div>
-                        <label className="text-green">Valor a Cobrar</label>
-                        <div className="val bg-green">{formatarMoeda(valorFinalCalculado)}</div>
-                      </div>
-                    </TotalsBox>
-                  )}
-
-                  <FormGroup style={{marginTop: '15px'}}>
-                    <label>Valor Final da Negociação (R$)</label>
-                    <Input
-                      type="number" step="0.01"
-                      value={modulosSelecionados.length > 0 ? valorFinalCalculado : valor}
-                      onChange={(e) => setValor(e.target.value)}
-                      disabled={modulosSelecionados.length > 0}
-                      placeholder={modulosSelecionados.length > 0 ? "Calculado pelos módulos" : "Digite o valor..."}
-                      className={modulosSelecionados.length > 0 ? 'disabled' : ''}
-                    />
-                  </FormGroup>
-                </SectionCard>
-
-                <FormGrid $columns="1fr">
-                  <FormGroup>
-                    <label><i className="fa-solid fa-user-tie text-purple"></i> Vendedor Responsável</label>
-                    <Select value={vendedorId} onChange={(e) => setVendedorId(e.target.value)}>
-                      <option value="">-- Sem dono definido --</option>
-                      {equipe
-                        .filter(user => user.ativo !== false || String(user.id) === String(vendedorOriginal))
-                        .map(user => (
-                          <option key={user.id} value={user.id}>
-                            {user.nome} {user.ativo === false ? '(Inativo)' : `(${user.perfil})`}
-                          </option>
-                        ))
-                      }
-                    </Select>
-                  </FormGroup>
-
-                  <FormGroup>
-                    <label>Resumo Geral do Negócio</label>
-                    <TextArea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows="2" />
-                  </FormGroup>
-
-                  <SectionCard>
-                    <label style={{ display: 'block', marginBottom: '15px', color: '#333', fontSize: '0.95rem', fontWeight: 'bold' }}>
-                      <i className="fa-solid fa-comments text-blue"></i> Histórico de Interações (Notas)
-                    </label>
-
-                    <NotesFeed>
-                      {notas.length === 0 ? (
-                        <div className="empty-notes">Nenhuma nota registada nesta negociação.</div>
-                      ) : (
-                        notas.map(n => (
-                          <NoteItem key={n.id}>
-                            {editandoNotaId === n.id ? (
-                              <>
-                                <TextArea value={textoNotaEditada} onChange={e => setTextoNotaEditada(e.target.value)} rows="2" className="highlight-blue" />
-                                <div className="note-actions">
-                                  <button type="button" className="btn-cancel" onClick={cancelarEdicaoNota}>Cancelar</button>
-                                  <button type="button" className="btn-save" onClick={() => salvarNotaEditada(n.id)}>Salvar</button>
+                  <NotesFeed>
+                    {notas.length === 0 ? (
+                      <div className="empty-notes">Nenhuma nota registrada nesta negociação.</div>
+                    ) : (
+                      notas.map(n => (
+                        <NoteItem key={n.id}>
+                          {editandoNotaId === n.id ? (
+                            <>
+                              <TextArea value={textoNotaEditada} onChange={e => setTextoNotaEditada(e.target.value)} rows="2" className="highlight-blue" />
+                              <div className="note-actions">
+                                <button type="button" className="btn-cancel" onClick={cancelarEdicaoNota}>Cancelar</button>
+                                <button type="button" className="btn-save" onClick={() => salvarNotaEditada(n.id)}>Salvar</button>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <NoteHeader>
+                                <strong className="user"><i className="fa-solid fa-user-circle"></i> {n.usuario_nome}</strong>
+                                <div className="meta">
+                                  <span>{new Date(n.criado_em).toLocaleString('pt-BR')}</span>
+                                  <button type="button" className="btn-edit" onClick={() => iniciarEdicaoNota(n)}><i className="fa-solid fa-pen"></i></button>
                                 </div>
-                              </>
-                            ) : (
-                              <>
-                                <NoteHeader>
-                                  <strong className="user"><i className="fa-solid fa-user-circle"></i> {n.usuario_nome}</strong>
-                                  <div className="meta">
-                                    <span>{new Date(n.criado_em).toLocaleString('pt-BR')}</span>
-                                    <button type="button" className="btn-edit" onClick={() => iniciarEdicaoNota(n)}><i className="fa-solid fa-pen"></i></button>
-                                  </div>
-                                </NoteHeader>
-                                <NoteBody>{n.nota}</NoteBody>
-                              </>
-                            )}
-                          </NoteItem>
-                        ))
-                      )}
-                    </NotesFeed>
-
-                    {editandoId && (
-                      <AddNoteBox>
-                        <Input type="text" value={novaNota} onChange={e => setNovaNota(e.target.value)} placeholder="Escreva o que conversou hoje..." onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); adicionarNota(); } }} />
-                        <button type="button" onClick={adicionarNota} className="btn-send"><i className="fa-solid fa-paper-plane"></i></button>
-                      </AddNoteBox>
+                              </NoteHeader>
+                              <NoteBody>{n.nota}</NoteBody>
+                            </>
+                          )}
+                        </NoteItem>
+                      ))
                     )}
-                  </SectionCard>
-                </FormGrid>
+                  </NotesFeed>
 
-                <ModalFooter>
-                  {editandoId ? <DangerButton type="button" onClick={deletarOportunidade}><i className="fa-solid fa-trash-can"></i> Excluir</DangerButton> : <div></div>}
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    <SecondaryButton type="button" onClick={() => setMostrarModal(false)}>Cancelar</SecondaryButton>
-                    <PrimaryButton type="submit"><i className="fa-solid fa-save"></i> Salvar Negócio</PrimaryButton>
-                  </div>
-                </ModalFooter>
+                  {editandoId && (
+                    <AddNoteBox>
+                      <Input type="text" value={novaNota} onChange={e => setNovaNota(e.target.value)} placeholder="Escreva o que conversou hoje..." onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); adicionarNota(); } }} />
+                      <button type="button" onClick={adicionarNota} className="btn-send"><i className="fa-solid fa-paper-plane"></i></button>
+                    </AddNoteBox>
+                  )}
+                </SectionCard>
+              </FormGrid>
 
-              </form>
-            </ModalContent>
-          </ModalOverlay>
-        )}
-
-        {/* SUB-MODAL DE CONTATO RÁPIDO */}
-        {mostrarModalContato && contatoSelecionado && (
-          <ModalOverlay onClick={() => setMostrarModalContato(false)} style={{zIndex: 9999}}>
-            <ModalContent $small onClick={e => e.stopPropagation()}>
-              <ModalHeader $bg="#1F4E79" $color="#fff">
-                <div>
-                  <h3 style={{color: '#fff'}}><i className="fa-solid fa-user-pen"></i> Detalhes do Contato</h3>
+              <ModalFooter>
+                {editandoId ? <DangerButton type="button" onClick={deletarOportunidade}><i className="fa-solid fa-trash-can"></i> Excluir</DangerButton> : <div></div>}
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <SecondaryButton type="button" onClick={() => setMostrarModal(false)}>Cancelar</SecondaryButton>
+                  <PrimaryButton type="submit"><i className="fa-solid fa-save"></i> Salvar Negócio</PrimaryButton>
                 </div>
-                <CloseButton $color="#fff" onClick={() => setMostrarModalContato(false)}>&times;</CloseButton>
-              </ModalHeader>
+              </ModalFooter>
 
-              <div style={{ padding: '20px' }}>
-                {!editandoContatoRapido ? (
-                  <>
-                    <FormGrid $columns="1fr 1fr" style={{marginBottom: '20px'}}>
-                      <InfoBox>
-                        <label>NOME COMPLETO</label>
-                        <div>{contatoNome}</div>
-                      </InfoBox>
-                      <InfoBox>
-                        <label>CARGO</label>
-                        <div>{contatoCargo || '-'}</div>
-                      </InfoBox>
-                      <InfoBox className="span-2">
-                        <label><i className="fa-regular fa-envelope"></i> E-MAILS (Lista de Disparo)</label>
-                        <div className="text-blue">{contatoEmails || '-'}</div>
-                      </InfoBox>
-                      <InfoBox className="span-2">
-                        <label><i className="fa-solid fa-phone"></i> TELEFONES (WhatsApp)</label>
-                        <div className="phones">
-                          {contatoTelefones ? contatoTelefones.split(',').map((tel, idx) => (
-                            <a key={idx} href={`tel:${formatarTelefoneParaLink(tel)}`} title="Clique para ligar" className="phone-pill">
-                              <i className="fa-solid fa-phone text-green"></i> {tel.trim()}
-                            </a>
-                          )) : '-'}
-                        </div>
-                      </InfoBox>
-                    </FormGrid>
-                    <ModalFooter $justify="flex-end">
-                      <SecondaryButton onClick={() => setMostrarModalContato(false)}>Voltar</SecondaryButton>
-                      <WarningButton onClick={() => setEditandoContatoRapido(true)}>
-                        <i className="fa-solid fa-pen"></i> Editar Contato
-                      </WarningButton>
-                    </ModalFooter>
-                  </>
-                ) : (
-                  <form onSubmit={salvarContatoRapido}>
-                    <FormGrid $columns="1fr" style={{marginBottom: '20px'}}>
-                      <FormGroup>
-                        <label>Nome *</label>
-                        <Input type="text" required value={contatoNome} onChange={e => setContatoNome(e.target.value)} />
-                      </FormGroup>
-                      <FormGroup>
-                        <label>Cargo</label>
-                        <Input type="text" value={contatoCargo} onChange={e => setContatoCargo(e.target.value)} placeholder="Ex: Secretário da Fazenda" />
-                      </FormGroup>
-                      <FormGroup>
-                        <label><i className="fa-regular fa-envelope"></i> E-mails (Separe por vírgula)</label>
-                        <Input type="text" value={contatoEmails} onChange={e => setContatoEmails(e.target.value)} placeholder="email1@teste.com, email2@teste.com" className="highlight-blue" />
-                      </FormGroup>
-                      <FormGroup>
-                        <label><i className="fa-solid fa-phone"></i> Telefones (Separe por vírgula)</label>
-                        <Input type="text" value={contatoTelefones} onChange={e => setContatoTelefones(e.target.value)} placeholder="51999999999, 5133333333" className="highlight-green" />
-                      </FormGroup>
-                    </FormGrid>
+            </form>
+          </ModalContent>
+        </ModalOverlay>
+      )}
 
-                    <ModalFooter $justify="flex-end">
-                      <SecondaryButton type="button" onClick={() => setEditandoContatoRapido(false)}>Cancelar</SecondaryButton>
-                      <PrimaryButton type="submit"><i className="fa-solid fa-save"></i> Salvar Alterações</PrimaryButton>
-                    </ModalFooter>
-                  </form>
-                )}
+      {/* SUB-MODAL DE CONTATO RÁPIDO */}
+      {mostrarModalContato && contatoSelecionado && (
+        <ModalOverlay onClick={() => setMostrarModalContato(false)} style={{zIndex: 9999}}>
+          <ModalContent $small onClick={e => e.stopPropagation()}>
+            <ModalHeader $bg="#1F4E79" $color="#fff">
+              <div>
+                <h3 style={{color: '#fff'}}><i className="fa-solid fa-user-pen"></i> Detalhes do Contato</h3>
               </div>
-            </ModalContent>
-          </ModalOverlay>
-        )}
+              <CloseButton $color="#fff" onClick={() => setMostrarModalContato(false)}>&times;</CloseButton>
+            </ModalHeader>
 
-        {/* SUB-MODAL DE EMPRESA RÁPIDO */}
-        {mostrarModalEmpresa && empresaSelecionada && (
-          <ModalOverlay onClick={() => setMostrarModalEmpresa(false)} style={{zIndex: 9999}}>
-            <ModalContent $small onClick={e => e.stopPropagation()}>
-              <ModalHeader $bg="#1F4E79" $color="#fff">
-                <div>
-                  <h3 style={{color: '#fff'}}><i className="fa-solid fa-building-user"></i> Detalhes da Empresa</h3>
-                </div>
-                <CloseButton $color="#fff" onClick={() => setMostrarModalEmpresa(false)}>&times;</CloseButton>
-              </ModalHeader>
-
-              <div style={{ padding: '20px' }}>
-                {!editandoEmpresaRapida ? (
-                  <>
-                    <FormGrid $columns="1fr 1fr" style={{marginBottom: '20px'}}>
-                      <InfoBox className="span-2">
-                        <label>NOME DA EMPRESA / PREFEITURA</label>
-                        <div>{empresaNome}</div>
-                      </InfoBox>
-                      <InfoBox>
-                        <label>ESTADO (UF)</label>
-                        <div>{empresaEstado || '-'}</div>
-                      </InfoBox>
-                      <InfoBox>
-                        <label>CIDADE</label>
-                        <div>{empresaCidade || '-'}</div>
-                      </InfoBox>
-                      <InfoBox className="span-2">
-                        <label><i className="fa-solid fa-phone"></i> TELEFONES GERAIS</label>
-                        <div className="phones">
-                          {empresaTelefones ? empresaTelefones.split(',').map((tel, idx) => (
-                            <a key={idx} href={`tel:${formatarTelefoneParaLink(tel)}`} className="phone-pill">
-                              <i className="fa-solid fa-phone text-green"></i> {tel.trim()}
-                            </a>
-                          )) : '-'}
-                        </div>
-                      </InfoBox>
-                      <InfoBox>
-                        <label><i className="fa-solid fa-fire"></i> CLASSIFICAÇÃO</label>
-                        <div style={{marginTop: '5px'}}>
-                          {empresaClassificacao === 'assessorada' ? <span style={{color: '#856404', fontWeight: 'bold'}}>👑 VIP (Assessorada)</span> : 
-                           empresaClassificacao === 'lead_quente' ? <span style={{color: '#dc3545', fontWeight: 'bold'}}>🔥 Lead Quente</span> : 
-                           <span style={{color: '#475569', fontWeight: 'bold'}}>❄️ Frio Padrão</span>}
-                        </div>
-                      </InfoBox>
-                      <InfoBox>
-                        <label><i className="fa-solid fa-star"></i> TEMPERATURA</label>
-                        <div style={{marginTop: '5px'}}>
-                          {renderStarsLocal(empresaEstrelas, true)}
-                        </div>
-                      </InfoBox>
-                    </FormGrid>
-                    <ModalFooter $justify="flex-end">
-                      <SecondaryButton onClick={() => setMostrarModalEmpresa(false)}>Voltar</SecondaryButton>
-                      <WarningButton onClick={() => setEditandoEmpresaRapida(true)}>
-                        <i className="fa-solid fa-pen"></i> Editar Empresa
-                      </WarningButton>
-                    </ModalFooter>
-                  </>
-                ) : (
-                  <form onSubmit={salvarEmpresaRapido}>
-                    <FormGrid $columns="1fr 1fr" style={{marginBottom: '20px'}}>
-                      <FormGroup className="span-2">
-                        <label>Nome da Empresa *</label>
-                        <Input type="text" required value={empresaNome} onChange={e => setEmpresaNome(e.target.value)} />
-                      </FormGroup>
-                      <FormGroup>
-                        <label>Estado (UF)</label>
-                        <Input type="text" value={empresaEstado} onChange={e => setEmpresaEstado(e.target.value.toUpperCase())} maxLength="2" style={{textTransform: 'uppercase'}} />
-                      </FormGroup>
-                      <FormGroup>
-                        <label>Cidade</label>
-                        <Input type="text" value={empresaCidade} onChange={e => setEmpresaCidade(e.target.value)} />
-                      </FormGroup>
-                      <FormGroup className="span-2">
-                        <label><i className="fa-solid fa-phone text-green"></i> Telefones</label>
-                        <Input type="text" value={empresaTelefones} onChange={e => setEmpresaTelefones(e.target.value)} />
-                      </FormGroup>
-
-                      {/* LEAD SCORING DENTRO DO QUICK EDIT */}
-                      <div className="span-2" style={{background: '#f8fafc', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0', marginTop: '10px'}}>
-                        <label style={{ display: 'block', marginBottom: '15px', color: '#1F4E79', fontSize: '0.95rem', fontWeight: 'bold' }}>
-                          <i className="fa-solid fa-fire"></i> Qualificação e Temperatura
-                        </label>
-                        <FormGrid $columns="1fr 1fr">
-                          <FormGroup>
-                            <label>Classificação no Funil</label>
-                            <Select 
-                              value={empresaClassificacao} 
-                              onChange={e => setEmpresaClassificacao(e.target.value)} 
-                              $status={empresaClassificacao}
-                            >
-                              <option value="nao_assessorada">❄️ Frio (Padrão)</option>
-                              <option value="lead_quente">🔥 Quente</option>
-                              <option value="assessorada">👑 VIP (Assessorada)</option>
-                            </Select>
-                          </FormGroup>
-                          <FormGroup>
-                            <label>Temperatura (Avaliação)</label>
-                            {renderStarsLocal(empresaEstrelas, false)}
-                          </FormGroup>
-                        </FormGrid>
+            <div style={{ padding: '20px' }}>
+              {!editandoContatoRapido ? (
+                <>
+                  <FormGrid $columns="1fr 1fr" style={{marginBottom: '20px'}}>
+                    <InfoBox>
+                      <label>NOME COMPLETO</label>
+                      <div>{contatoNome}</div>
+                    </InfoBox>
+                    <InfoBox>
+                      <label>CARGO</label>
+                      <div>{contatoCargo || '-'}</div>
+                    </InfoBox>
+                    <InfoBox className="span-2">
+                      <label><i className="fa-regular fa-envelope"></i> E-MAILS (Lista de Disparo)</label>
+                      <div className="text-blue">{contatoEmails || '-'}</div>
+                    </InfoBox>
+                    <InfoBox className="span-2">
+                      <label><i className="fa-solid fa-phone"></i> TELEFONES (WhatsApp)</label>
+                      <div className="phones">
+                        {contatoTelefones ? contatoTelefones.split(',').map((tel, idx) => (
+                          <a key={idx} href={`tel:${formatarTelefoneParaLink(tel)}`} title="Clique para ligar" className="phone-pill">
+                            <i className="fa-solid fa-phone text-green"></i> {tel.trim()}
+                          </a>
+                        )) : '-'}
                       </div>
+                    </InfoBox>
+                  </FormGrid>
+                  <ModalFooter $justify="flex-end">
+                    <SecondaryButton onClick={() => setMostrarModalContato(false)}>Voltar</SecondaryButton>
+                    <WarningButton onClick={() => setEditandoContatoRapido(true)}>
+                      <i className="fa-solid fa-pen"></i> Editar Contato
+                    </WarningButton>
+                  </ModalFooter>
+                </>
+              ) : (
+                <form onSubmit={salvarContatoRapido}>
+                  <FormGrid $columns="1fr" style={{marginBottom: '20px'}}>
+                    <FormGroup>
+                      <label>Nome *</label>
+                      <Input type="text" required value={contatoNome} onChange={e => setContatoNome(e.target.value)} />
+                    </FormGroup>
+                    <FormGroup>
+                      <label>Cargo</label>
+                      <Input type="text" value={contatoCargo} onChange={e => setContatoCargo(e.target.value)} placeholder="Ex: Secretário da Fazenda" />
+                    </FormGroup>
+                    <FormGroup>
+                      <label><i className="fa-regular fa-envelope"></i> E-mails (Separe por vírgula)</label>
+                      <Input type="text" value={contatoEmails} onChange={e => setContatoEmails(e.target.value)} placeholder="email1@teste.com, email2@teste.com" className="highlight-blue" />
+                    </FormGroup>
+                    <FormGroup>
+                      <label><i className="fa-solid fa-phone"></i> Telefones (Separe por vírgula)</label>
+                      <Input type="text" value={contatoTelefones} onChange={e => setContatoTelefones(e.target.value)} placeholder="51999999999, 5133333333" className="highlight-green" />
+                    </FormGroup>
+                  </FormGrid>
 
-                    </FormGrid>
+                  <ModalFooter $justify="flex-end">
+                    <SecondaryButton type="button" onClick={() => setEditandoContatoRapido(false)}>Cancelar</SecondaryButton>
+                    <PrimaryButton type="submit"><i className="fa-solid fa-save"></i> Salvar Alterações</PrimaryButton>
+                  </ModalFooter>
+                </form>
+              )}
+            </div>
+          </ModalContent>
+        </ModalOverlay>
+      )}
 
-                    <ModalFooter $justify="flex-end">
-                      <SecondaryButton type="button" onClick={() => setEditandoEmpresaRapida(false)}>Cancelar</SecondaryButton>
-                      <PrimaryButton type="submit"><i className="fa-solid fa-save"></i> Salvar Alterações</PrimaryButton>
-                    </ModalFooter>
-                  </form>
-                )}
+      {/* SUB-MODAL DE EMPRESA RÁPIDO */}
+      {mostrarModalEmpresa && empresaSelecionada && (
+        <ModalOverlay onClick={() => setMostrarModalEmpresa(false)} style={{zIndex: 9999}}>
+          <ModalContent $small onClick={e => e.stopPropagation()}>
+            <ModalHeader $bg="#1F4E79" $color="#fff">
+              <div>
+                <h3 style={{color: '#fff'}}><i className="fa-solid fa-building-user"></i> Detalhes da Empresa</h3>
               </div>
-            </ModalContent>
-          </ModalOverlay>
-        )}
+              <CloseButton $color="#fff" onClick={() => setMostrarModalEmpresa(false)}>&times;</CloseButton>
+            </ModalHeader>
 
-      </PageContainer>
-    </>
+            <div style={{ padding: '20px' }}>
+              {!editandoEmpresaRapida ? (
+                <>
+                  <FormGrid $columns="1fr 1fr" style={{marginBottom: '20px'}}>
+                    <InfoBox className="span-2">
+                      <label>NOME DA EMPRESA / PREFEITURA</label>
+                      <div>{empresaNome}</div>
+                    </InfoBox>
+                    <InfoBox>
+                      <label>ESTADO (UF)</label>
+                      <div>{empresaEstado || '-'}</div>
+                    </InfoBox>
+                    <InfoBox>
+                      <label>CIDADE</label>
+                      <div>{empresaCidade || '-'}</div>
+                    </InfoBox>
+                    <InfoBox className="span-2">
+                      <label><i className="fa-solid fa-phone"></i> TELEFONES GERAIS</label>
+                      <div className="phones">
+                        {empresaTelefones ? empresaTelefones.split(',').map((tel, idx) => (
+                          <a key={idx} href={`tel:${formatarTelefoneParaLink(tel)}`} className="phone-pill">
+                            <i className="fa-solid fa-phone text-green"></i> {tel.trim()}
+                          </a>
+                        )) : '-'}
+                      </div>
+                    </InfoBox>
+                    <InfoBox>
+                      <label><i className="fa-solid fa-fire"></i> CLASSIFICAÇÃO</label>
+                      <div style={{marginTop: '5px'}}>
+                        {empresaClassificacao === 'assessorada' ? <span style={{color: '#856404', fontWeight: 'bold'}}>👑 VIP (Assessorada)</span> : 
+                         empresaClassificacao === 'lead_quente' ? <span style={{color: '#dc3545', fontWeight: 'bold'}}>🔥 Lead Quente</span> : 
+                         <span style={{color: '#475569', fontWeight: 'bold'}}>❄️ Frio Padrão</span>}
+                      </div>
+                    </InfoBox>
+                    <InfoBox>
+                      <label><i className="fa-solid fa-star"></i> TEMPERATURA</label>
+                      <div style={{marginTop: '5px'}}>
+                        {renderStarsLocal(empresaEstrelas, true)}
+                      </div>
+                    </InfoBox>
+                  </FormGrid>
+                  <ModalFooter $justify="flex-end">
+                    <SecondaryButton onClick={() => setMostrarModalEmpresa(false)}>Voltar</SecondaryButton>
+                    <WarningButton onClick={() => setEditandoEmpresaRapida(true)}>
+                      <i className="fa-solid fa-pen"></i> Editar Empresa
+                    </WarningButton>
+                  </ModalFooter>
+                </>
+              ) : (
+                <form onSubmit={salvarEmpresaRapido}>
+                  <FormGrid $columns="1fr 1fr" style={{marginBottom: '20px'}}>
+                    <FormGroup className="span-2">
+                      <label>Nome da Empresa *</label>
+                      <Input type="text" required value={empresaNome} onChange={e => setEmpresaNome(e.target.value)} />
+                    </FormGroup>
+                    <FormGroup>
+                      <label>Estado (UF)</label>
+                      <Input type="text" value={empresaEstado} onChange={e => setEmpresaEstado(e.target.value.toUpperCase())} maxLength="2" style={{textTransform: 'uppercase'}} />
+                    </FormGroup>
+                    <FormGroup>
+                      <label>Cidade</label>
+                      <Input type="text" value={empresaCidade} onChange={e => setEmpresaCidade(e.target.value)} />
+                    </FormGroup>
+                    <FormGroup className="span-2">
+                      <label><i className="fa-solid fa-phone text-green"></i> Telefones</label>
+                      <Input type="text" value={empresaTelefones} onChange={e => setEmpresaTelefones(e.target.value)} />
+                    </FormGroup>
+
+                    <div className="span-2" style={{background: '#f8fafc', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0', marginTop: '10px'}}>
+                      <label style={{ display: 'block', marginBottom: '15px', color: '#1F4E79', fontSize: '0.95rem', fontWeight: 'bold' }}>
+                        <i className="fa-solid fa-fire"></i> Qualificação e Temperatura
+                      </label>
+                      <FormGrid $columns="1fr 1fr">
+                        <FormGroup>
+                          <label>Classificação no Funil</label>
+                          <Select 
+                            value={empresaClassificacao} 
+                            onChange={e => setEmpresaClassificacao(e.target.value)} 
+                            $status={empresaClassificacao}
+                          >
+                            <option value="nao_assessorada">❄️ Frio (Padrão)</option>
+                            <option value="lead_quente">🔥 Quente</option>
+                            <option value="assessorada">👑 VIP (Assessorada)</option>
+                          </Select>
+                        </FormGroup>
+                        <FormGroup>
+                          <label>Temperatura (Avaliação)</label>
+                          {renderStarsLocal(empresaEstrelas, false)}
+                        </FormGroup>
+                      </FormGrid>
+                    </div>
+
+                  </FormGrid>
+
+                  <ModalFooter $justify="flex-end">
+                    <SecondaryButton type="button" onClick={() => setEditandoEmpresaRapida(false)}>Cancelar</SecondaryButton>
+                    <PrimaryButton type="submit"><i className="fa-solid fa-save"></i> Salvar Alterações</PrimaryButton>
+                  </ModalFooter>
+                </form>
+              )}
+            </div>
+          </ModalContent>
+        </ModalOverlay>
+      )}
+
+    </PageContainer>
   );
 }
 
@@ -1124,37 +1112,48 @@ export function Funil() {
 
 const PageContainer = styled.div`
   padding: 30px; background-color: #f4f7f6; min-height: calc(100vh - 70px);
+  @media (max-width: 768px) { padding: 15px; }
 `;
 
 const TopSection = styled.div`
   display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; margin-bottom: 25px;
+  @media (max-width: 768px) { flex-direction: column; align-items: flex-start; }
 `;
+
 const Title = styled.h2`
   margin: 0; color: #2c3e50; font-size: 1.8rem; font-weight: 700;
 `;
+
 const Subtitle = styled.p`
   color: #6c757d; font-size: 0.95rem; margin: 5px 0 0 0;
 `;
 
 const ActionsContainer = styled.div`
   display: flex; align-items: center; gap: 15px; flex-wrap: wrap;
+  @media (max-width: 768px) { 
+    width: 100%; 
+    .btn-novo { width: 100%; justify-content: center; }
+  }
 `;
 
 const SearchInputWrapper = styled.div`
   position: relative;
+  @media (max-width: 768px) { width: 100%; }
   i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #a0aec0; }
   input {
     padding: 10px 15px 10px 38px; border-radius: 20px; border: 1px solid #cbd5e1; font-size: 0.95rem; outline: none; width: 280px; transition: 0.2s;
     &:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.1); }
+    @media (max-width: 768px) { width: 100%; }
   }
 `;
 
-/* === ÁREA DE FILTROS MODERNOS === */
 const FilterPillWrapper = styled.div`
   position: relative; display: inline-block;
+  @media (max-width: 768px) { width: 100%; }
 `;
+
 const FilterButton = styled.button`
-  display: flex; align-items: center; background: ${props => props.$hasValue ? '#ffffff' : '#f8fafc'};
+  display: flex; align-items: center; justify-content: space-between; background: ${props => props.$hasValue ? '#ffffff' : '#f8fafc'};
   border: 1px solid ${props => props.$hasValue ? '#007bff' : '#cbd5e1'}; 
   color: #2c3e50; 
   padding: 10px 18px; border-radius: 50px; font-size: 0.95rem; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 2px 5px rgba(0,0,0,0.02);
@@ -1168,12 +1167,16 @@ const FilterButton = styled.button`
   span { margin: 0 10px; font-weight: 600; strong { color: #007bff; font-weight: 800;} }
   .icon { color: #007bff; font-size: 1.05rem; }
   .arrow { color: #007bff; font-size: 0.8rem; }
+  
+  @media (max-width: 768px) { width: 100%; }
 `;
 
 const CustomDropdownMenu = styled.ul`
   position: absolute; top: calc(100% + 8px); right: 0; background: #ffffff; border: 1px solid #edf2f9; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); min-width: 250px; max-height: 300px; overflow-y: auto; z-index: 1000; padding: 8px 0; list-style: none; margin: 0; animation: fadeInDown 0.2s ease-out;
+  @media (max-width: 768px) { width: 100%; left: 0; }
   @keyframes fadeInDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 `;
+
 const CustomDropdownItem = styled.li`
   padding: 12px 20px; font-size: 0.95rem; color: ${props => props.$active ? '#007bff' : '#495057'}; background: ${props => props.$active ? '#f0f7ff' : 'transparent'}; font-weight: ${props => props.$active ? '700' : '500'}; cursor: pointer; transition: background 0.2s;
   &:hover { background: #f8fafc; color: #007bff; }
@@ -1193,7 +1196,7 @@ const LoadingContainer = styled.div`
 // --- KANBAN BOARD ---
 const KanbanBoard = styled.div`
   display: flex; gap: 20px; overflow-x: auto; padding-bottom: 20px; align-items: flex-start; min-height: 60vh; user-select: none;
-  scrollbar-width: thin;
+  scrollbar-width: thin; scroll-snap-type: x mandatory;
   &::-webkit-scrollbar { height: 8px; }
   &::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 8px; }
   &::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
@@ -1201,6 +1204,12 @@ const KanbanBoard = styled.div`
 
 const KanbanColumn = styled.div`
   min-width: 320px; max-width: 320px; min-height: 350px; background-color: #f4f5f7; border-radius: 10px; display: flex; flex-direction: column; gap: 10px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); padding: 10px;
+  scroll-snap-align: start;
+  
+  @media (max-width: 768px) {
+    min-width: 85vw; /* Ocupa quase a tela toda no celular */
+    max-width: 85vw;
+  }
 `;
 
 const ColumnHeader = styled.div`
@@ -1244,7 +1253,7 @@ const SellerBadge = styled.div`
 
 // --- MODAIS GERAIS ---
 const ModalOverlay = styled.div`
-  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; z-index: 9998; padding: 20px;
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh; background: rgba(0,0,0,0.6); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; z-index: 9998; padding: 20px; padding-bottom: env(safe-area-inset-bottom);
 `;
 
 const ModalContent = styled.div`
@@ -1256,15 +1265,21 @@ const ModalHeader = styled.div`
   display: flex; justify-content: space-between; align-items: center; padding: 20px 25px; border-bottom: 1px solid #edf2f9; background: ${props => props.$bg || '#fff'}; color: ${props => props.$color || '#333'};
   h3 { margin: 0; font-size: 1.3rem; display: flex; align-items: center; gap: 8px;}
   .subtitle { font-size: 0.85rem; color: ${props => props.$color ? 'rgba(255,255,255,0.8)' : '#007bff'}; font-weight: 700; margin-top: 4px; display: flex; align-items: center; gap: 6px; }
+  
+  @media (max-width: 600px) {
+    h3 { font-size: 1.15rem; padding-right: 30px; }
+  }
 `;
 
 const ModalFooter = styled.div`
   display: flex; justify-content: ${props => props.$justify || 'space-between'}; align-items: center; padding: 20px 25px; border-top: 1px solid #edf2f9; background: #fbfbfc;
+  @media (max-width: 600px) { flex-direction: column; gap: 15px; button { width: 100%; justify-content: center; } div { width: 100%; flex-direction: column; } }
 `;
 
 const CloseButton = styled.button`
   background: none; border: none; font-size: 1.8rem; cursor: pointer; color: ${props => props.$color || '#94a3b8'}; transition: 0.2s;
   &:hover { color: #dc3545; }
+  @media (max-width: 600px) { position: absolute; right: 15px; top: 15px; }
 `;
 
 // --- FORMS & INPUTS ---
@@ -1281,7 +1296,7 @@ const FormGroup = styled.div`
 `;
 
 const Input = styled.input`
-  width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #333; outline: none; transition: 0.2s;
+  width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #333; outline: none; transition: 0.2s; box-sizing: border-box;
   &:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); }
   &.highlight-blue { border-color: #007bff; background: #f0f7ff; font-weight: 700;}
   &.highlight-green { border-color: #28a745; background: #f4fbf5; font-weight: 700;}
@@ -1289,7 +1304,7 @@ const Input = styled.input`
 `;
 
 const Select = styled.select`
-  width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #333; outline: none; cursor: pointer; transition: 0.2s;
+  width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #333; outline: none; cursor: pointer; transition: 0.2s; box-sizing: border-box;
   &:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); }
   &.highlight { background: #f8f9fa; border-color: #007bff; font-weight: 600;}
   &.disabled { background: #f8fafc; color: #94a3b8; cursor: not-allowed; }
@@ -1312,13 +1327,14 @@ const Select = styled.select`
 `;
 
 const TextArea = styled.textarea`
-  width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #333; outline: none; resize: vertical; transition: 0.2s;
+  width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #333; outline: none; resize: vertical; transition: 0.2s; box-sizing: border-box;
   &:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); }
   &.highlight-blue { border-color: #007bff; background: #f0f7ff; }
 `;
 
 const SectionCard = styled.div`
   background: ${props => props.$bgColor || '#f8fafc'}; border: 1px solid ${props => props.$borderColor || '#e2e8f0'}; padding: 20px; border-radius: 12px; margin-bottom: 20px;
+  @media (max-width: 600px) { padding: 15px; }
 `;
 
 // --- AUTOCOMPLETE CUSTOMIZADO ---
@@ -1344,7 +1360,7 @@ const ModulesGrid = styled.div`
   display: flex; gap: 10px; flex-wrap: wrap;
 `;
 const ModuleCard = styled.div`
-  display: flex; align-items: center; gap: 12px; padding: 10px 15px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease;
+  display: flex; align-items: center; gap: 12px; padding: 10px 15px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; width: 100%;
   background: ${props => props.$active ? '#e6f4ea' : '#ffffff'};
   border: 1px solid ${props => props.$active ? '#28a745' : '#cbd5e1'};
   
@@ -1369,6 +1385,12 @@ const TotalsBox = styled.div`
   .val { padding: 10px 15px; border-radius: 8px; font-weight: 800; font-size: 1.1rem; border: 1px solid transparent; }
   .bg-gray { background: #f1f5f9; color: #475569; border-color: #e2e8f0; }
   .bg-green { background: #d4edda; color: #155724; border-color: #c3e6cb; }
+
+  @media (max-width: 600px) {
+    div { width: 100%; }
+    .val { text-align: right; }
+    input { width: 100% !important; }
+  }
 `;
 
 // --- FEED DE NOTAS ---
@@ -1428,7 +1450,7 @@ const InfoBox = styled.div`
   .text-green { color: #28a745; }
 `;
 
-// --- NOVO: COMPONENTE DE ESTRELAS NO FUNIL ---
+// --- COMPONENTE DE ESTRELAS NO FUNIL ---
 const StarsContainer = styled.div`
   display: flex; gap: 5px; align-items: center;
   i {

@@ -134,7 +134,7 @@ export function Home() {
   if (erro) {
     return (
       <>
-        <Header titulo="Centro de Comando" />
+        
         <PageContainer>
           <ErrorMessage>
             <i className="fa-solid fa-triangle-exclamation"></i>
@@ -148,7 +148,7 @@ export function Home() {
 
   return (
     <>
-      <Header titulo="Centro de Comando" />
+      
 
       <PageContainer>
         {/* === BOAS VINDAS === */}

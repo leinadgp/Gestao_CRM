@@ -1,4 +1,3 @@
-// src/pages/Campanhas.jsx
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import styled from 'styled-components';
@@ -163,7 +162,7 @@ export function Campanhas() {
 
   function removerModulo(index) { 
     const novos = [...modulos]; 
-    novos.splice(index, 1); 
+    novas.splice(index, 1); 
     setModulos(novos); 
   }
   
@@ -254,7 +253,7 @@ export function Campanhas() {
   // ==========================================
   return (
     <>
-      <Header titulo="Gestão de Cursos / Campanhas" />
+      
       <PageContainer>
         
         <TopSection>
@@ -272,7 +271,7 @@ export function Campanhas() {
             </TabsContainer>
           </div>
 
-          <PrimaryButton onClick={abrirModalNovo}>
+          <PrimaryButton onClick={abrirModalNovo} className="btn-mobile">
             <i className="fa-solid fa-plus"></i> Novo Curso
           </PrimaryButton>
         </TopSection>
@@ -339,25 +338,26 @@ export function Campanhas() {
         {modalExcluir && (
           <ModalOverlay onClick={() => setModalExcluir(false)}>
             <ModalContent $small onClick={e => e.stopPropagation()}>
-              <MathWarningIcon className="fa-solid fa-triangle-exclamation" />
-              <MathTitle>Confirmação de Exclusão</MathTitle>
-              <MathSubtitle>
-                Você está prestes a excluir o curso <strong>{campanhaExcluir?.nome}</strong> e todas as suas etapas e módulos.<br/>Esta ação não pode ser desfeita.
-              </MathSubtitle>
-              
-              <MathBox>
-                <label>Para confirmar, resolva o cálculo abaixo:</label>
-                <div className="equation">
-                  <span>{contaMath.a}</span> + <span>{contaMath.b}</span> = 
-                  <input 
-                    type="number" 
-                    value={respostaMath} 
-                    onChange={e => setRespostaMath(e.target.value)} 
-                    autoFocus
-                  />
-                </div>
-              </MathBox>
-
+              <ModalBody>
+                <MathWarningIcon className="fa-solid fa-triangle-exclamation" />
+                <MathTitle>Confirmação de Exclusão</MathTitle>
+                <MathSubtitle>
+                  Você está prestes a excluir o curso <strong>{campanhaExcluir?.nome}</strong> e todas as suas etapas e módulos.<br/>Esta ação não pode ser desfeita.
+                </MathSubtitle>
+                
+                <MathBox>
+                  <label>Para confirmar, resolva o cálculo abaixo:</label>
+                  <div className="equation">
+                    <span>{contaMath.a}</span> + <span>{contaMath.b}</span> = 
+                    <input 
+                      type="number" 
+                      value={respostaMath} 
+                      onChange={e => setRespostaMath(e.target.value)} 
+                      autoFocus
+                    />
+                  </div>
+                </MathBox>
+              </ModalBody>
               <ModalFooter>
                 <SecondaryButton onClick={() => setModalExcluir(false)}>Cancelar</SecondaryButton>
                 <DangerButton onClick={processarExclusao}>Excluir Curso</DangerButton>
@@ -376,9 +376,9 @@ export function Campanhas() {
                 <CloseButton onClick={() => setMostrarModal(false)}>&times;</CloseButton>
               </ModalHeader>
 
-              <form onSubmit={salvarCampanha}>
-                <div style={{ padding: '0 30px', maxHeight: '70vh', overflowY: 'auto' }} className="custom-scroll">
-                  <FormGroup style={{ marginTop: '20px' }}>
+              <form onSubmit={salvarCampanha} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+                <ModalBody>
+                  <FormGroup style={{ marginTop: '10px' }}>
                     <Label>Nome do Curso/Campanha *</Label>
                     <Input type="text" value={nome} onChange={e => setNome(e.target.value)} required />
                   </FormGroup>
@@ -403,7 +403,7 @@ export function Campanhas() {
                           <input type="checkbox" checked={apenasAdmin} readOnly />
                           <div className="chk-text">
                             <strong><i className="fa-solid fa-lock"></i> Restringir Acesso</strong>
-                            <span>Apenas Administradores verão este Funil de Vendas.</span>
+                            <span>Apenas Administradores verão este Funil.</span>
                           </div>
                         </CheckboxWrapper>
                       </FormGroup>
@@ -500,7 +500,7 @@ export function Campanhas() {
                       </StagesList>
                     </SectionCard>
                   )}
-                </div>
+                </ModalBody>
 
                 <ModalFooter>
                   <SecondaryButton type="button" onClick={() => setMostrarModal(false)}>Cancelar</SecondaryButton>
@@ -517,12 +517,13 @@ export function Campanhas() {
 }
 
 // ==========================================
-// STYLED COMPONENTS
+// STYLED COMPONENTS (Responsivos & Premium)
 // ==========================================
 const PageContainer = styled.div`
   padding: 30px;
   background-color: #f4f7f6;
   min-height: calc(100vh - 70px);
+  @media (max-width: 768px) { padding: 15px; }
 `;
 const LoadingContainer = styled.div`
   text-align: center; padding: 60px; color: #6c757d; font-size: 1.1rem; 
@@ -530,6 +531,7 @@ const LoadingContainer = styled.div`
 `;
 const TopSection = styled.div`
   display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;
+  @media (max-width: 768px) { flex-direction: column; align-items: flex-start; .btn-mobile { width: 100%; justify-content: center; } }
 `;
 const Title = styled.h2`
   margin: 0; color: #2c3e50; font-size: 1.8rem; font-weight: 700;
@@ -539,6 +541,7 @@ const Subtitle = styled.p`
 `;
 const TabsContainer = styled.div`
   display: flex; gap: 10px; margin-top: 15px;
+  @media (max-width: 600px) { width: 100%; flex-wrap: wrap; button { flex: 1; justify-content: center; } }
 `;
 const TabButton = styled.button`
   padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.2s ease; display: flex; align-items: center; gap: 8px;
@@ -550,22 +553,26 @@ const EmptyState = styled.div`
   padding: 50px; text-align: center; background: #ffffff; border: 2px dashed #dce1e6; border-radius: 12px; color: #a0aec0; font-size: 1.1rem; display: flex; flex-direction: column; align-items: center; gap: 10px;
   i { font-size: 2.5rem; color: #cbd5e1; }
 `;
+
+/* CORREÇÃO DO GRID PARA NÃO QUEBRAR O IPHONE */
 const CampaignsGrid = styled.div`
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 20px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px;
+  @media (max-width: 768px) { grid-template-columns: 1fr; }
 `;
+
 const CampaignCard = styled.div`
   background: #ffffff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #edf2f9; transition: transform 0.2s ease, box-shadow 0.2s ease;
   opacity: ${props => props.$arquivada ? 0.7 : 1}; filter: ${props => props.$arquivada ? 'grayscale(20%)' : 'none'};
   &:hover { transform: translateY(-4px); box-shadow: 0 8px 25px rgba(0,0,0,0.08); }
 `;
 const CardHeader = styled.div`
-  display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;
+  display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; gap: 10px;
 `;
 const CardTitle = styled.div`
   margin: 0; color: ${props => props.$arquivada ? '#6c757d' : '#007bff'}; font-size: 1.15rem; font-weight: 700;
 `;
 const CardActions = styled.div`
-  display: flex; gap: 5px;
+  display: flex; gap: 5px; flex-shrink: 0;
 `;
 const IconButton = styled.button`
   background: none; border: none; color: #6c757d; cursor: pointer; padding: 6px; font-size: 1.1rem; border-radius: 4px; transition: all 0.2s ease;
@@ -577,7 +584,7 @@ const CardDescription = styled.p`
   color: #555; font-size: 0.9rem; min-height: 40px; margin: 0 0 15px 0; line-height: 1.4;
 `;
 const CardDates = styled.div`
-  display: flex; justify-content: space-between; font-size: 0.85rem; background: #f8fafc; padding: 10px 12px; border-radius: 6px; font-weight: 500; color: #495057;
+  display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; font-size: 0.85rem; background: #f8fafc; padding: 10px 12px; border-radius: 6px; font-weight: 500; color: #495057;
   .text-green { color: #28a745; margin-right: 5px; }
   .text-red { color: #dc3545; margin-right: 5px; }
 `;
@@ -595,33 +602,45 @@ const ModuleItem = styled.div`
   background: #f8fafc; padding: 8px 12px; border-radius: 6px; font-size: 0.85rem; border-left: 3px solid #28a745; display: flex; justify-content: space-between; align-items: center;
   .module-name { font-weight: 600; color: #333; } .module-price { font-weight: 700; color: #28a745; }
 `;
+
+/* CORREÇÃO DO MODAL PARA IPHONE (100dvh) */
 const ModalOverlay = styled.div`
-  position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(2px); padding: 20px;
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(2px); padding: 20px; padding-bottom: calc(20px + env(safe-area-inset-bottom)); box-sizing: border-box;
 `;
 const ModalContent = styled.div`
-  background: #ffffff; border-radius: 12px; width: 100%; max-width: ${props => props.$small ? '420px' : '800px'}; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 15px 40px rgba(0,0,0,0.2); animation: slideUp 0.3s ease-out;
-  @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-  .custom-scroll {
-    &::-webkit-scrollbar { width: 6px; }
-    &::-webkit-scrollbar-track { background: #f8fafc; border-radius: 12px; margin: 8px 0; }
-    &::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 12px; }
-    &::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-  }
+  background: #ffffff; border-radius: 12px; width: 100%; max-width: ${props => props.$small ? '420px' : '800px'}; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 15px 40px rgba(0,0,0,0.2);
 `;
 const ModalHeader = styled.div`
-  display: flex; justify-content: space-between; align-items: center; padding: 25px 30px; border-bottom: 1px solid #edf2f9;
+  display: flex; justify-content: space-between; align-items: center; padding: 25px 30px; border-bottom: 1px solid #edf2f9; flex-shrink: 0;
   h3 { margin: 0; color: #2c3e50; font-size: 1.4rem; }
+  @media (max-width: 600px) { padding: 15px; h3 { font-size: 1.2rem; padding-right: 30px; } }
 `;
+
+/* CORREÇÃO DE SCROLL INTERNO DO MODAL */
+const ModalBody = styled.div`
+  padding: 25px 30px;
+  overflow-y: auto;
+  flex: 1;
+  &::-webkit-scrollbar { width: 6px; }
+  &::-webkit-scrollbar-track { background: #f8fafc; border-radius: 12px; margin: 8px 0; }
+  &::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 12px; }
+  &::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  @media (max-width: 600px) { padding: 15px; }
+`;
+
 const ModalFooter = styled.div`
-  display: flex; justify-content: ${props => props.$small ? 'space-between' : 'flex-end'}; gap: 12px; padding: 20px 30px; background: #fbfbfc; border-top: 1px solid #edf2f9; border-radius: 0 0 12px 12px;
+  display: flex; justify-content: ${props => props.$small ? 'space-between' : 'flex-end'}; gap: 12px; padding: 20px 30px; background: #fbfbfc; border-top: 1px solid #edf2f9; border-radius: 0 0 12px 12px; flex-shrink: 0;
+  @media (max-width: 600px) { flex-direction: column; button { width: 100%; justify-content: center; } }
 `;
 const CloseButton = styled.button`
   background: none; border: none; font-size: 1.8rem; color: #a0aec0; cursor: pointer; transition: 0.2s; line-height: 1;
   &:hover { color: #dc3545; }
+  @media (max-width: 600px) { position: absolute; right: 15px; top: 15px; }
 `;
 const FormGrid = styled.div`
-  display: grid; grid-template-columns: ${props => props.$columns || '1fr'}; gap: 15px;
+  display: grid; grid-template-columns: ${props => props.$columns || '1fr'}; gap: 15px; margin-bottom: 15px;
   .span-2 { grid-column: span 2; }
+  @media (max-width: 768px) { grid-template-columns: 1fr; .span-2 { grid-column: span 1; } }
 `;
 const FormGroup = styled.div`
   display: flex; flex-direction: column; gap: 6px;
@@ -630,20 +649,21 @@ const Label = styled.label`
   font-weight: 600; font-size: ${props => props.$small ? '0.75rem' : '0.9rem'}; color: ${props => props.$color || '#495057'};
 `;
 const Input = styled.input`
-  width: 100%; padding: 10px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #333; background-color: #ffffff; transition: all 0.2s;
+  width: 100%; padding: 10px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #333; background-color: #ffffff; transition: all 0.2s; box-sizing: border-box;
   &:focus { outline: none; border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); }
   &.highlight { border-color: #007bff; background-color: #f0f7ff; }
 `;
 const Select = styled.select`
-  width: 100%; padding: 10px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #333; background-color: #ffffff; transition: all 0.2s;
+  width: 100%; padding: 10px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #333; background-color: #ffffff; transition: all 0.2s; box-sizing: border-box;
   &:focus { outline: none; border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); }
 `;
 const TextArea = styled.textarea`
-  width: 100%; padding: 10px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #333; background-color: #ffffff; resize: vertical; transition: all 0.2s;
+  width: 100%; padding: 10px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #333; background-color: #ffffff; resize: vertical; transition: all 0.2s; box-sizing: border-box;
   &:focus { outline: none; border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); }
 `;
 const SectionCard = styled.div`
   background: ${props => props.$bgColor || '#f8f9fa'}; border: 1px solid ${props => props.$borderColor || '#e9ecef'}; padding: 20px; border-radius: 8px; margin-bottom: 20px;
+  @media (max-width: 600px) { padding: 15px; }
 `;
 const SectionTitle = styled.h4`
   margin: 0 0 15px 0; color: ${props => props.$color || '#333'}; font-size: 1.05rem; display: flex; align-items: center; gap: 8px;
@@ -688,6 +708,7 @@ const ModuleRow = styled.div`
 `;
 const AddStageRow = styled.div`
   display: flex; gap: 10px; margin-bottom: 15px;
+  @media (max-width: 600px) { flex-direction: column; button { width: 100%; } }
 `;
 const StagesList = styled.div`
   display: flex; flex-direction: column; gap: 8px;
@@ -710,7 +731,7 @@ const MathBox = styled.div`
   background: #fff5f5; padding: 20px; border-radius: 8px; border: 1px solid #f5c6cb;
   label { display: block; font-weight: 600; color: #c82333; margin-bottom: 12px; text-align: center;}
   .equation { display: flex; align-items: center; justify-content: center; gap: 12px; font-size: 1.8rem; font-weight: bold; color: #333;
-    input { width: 80px; padding: 10px; font-size: 1.4rem; text-align: center; border: 2px solid #cbd5e1; border-radius: 8px;
+    input { width: 80px; padding: 10px; font-size: 1.4rem; text-align: center; border: 2px solid #cbd5e1; border-radius: 8px; box-sizing: border-box;
       &:focus { border-color: #dc3545; outline: none; box-shadow: 0 0 0 3px rgba(220,53,69,0.15); }
     }
   }

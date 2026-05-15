@@ -1,10 +1,9 @@
-// src/pages/Disparos.jsx
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import SunEditorModule from 'suneditor-react';
 import 'suneditor/dist/css/suneditor.min.css';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 import { Header } from '../componentes/Header.jsx';
 
 const SunEditor = SunEditorModule.default || SunEditorModule;
@@ -447,7 +446,6 @@ export function Disparos() {
   // ==========================================
   return (
     <>
-      <Header titulo="Construtor de Funis e Automação" />
       <PageContainer>
         
         <TopSection>
@@ -495,7 +493,7 @@ export function Disparos() {
               <h3><i className="fa-solid fa-robot"></i> Motor de Disparos: {campanhaSelecionada.nome}</h3>
               <p>
                 Remetente: <strong style={{color: '#1F4E79', textTransform: 'capitalize'}}>{campanhaSelecionada.email_remetente || 'Camila'}</strong> 
-                {campanhaSelecionada.apenas_admin && <strong style={{color: '#dc3545', marginLeft: '15px'}}>🔒 Funil Restrito a Administradores</strong>}
+                {campanhaSelecionada.apenas_admin && <strong style={{color: '#dc3545', marginLeft: '15px'}}>🔒 Funil Restrito</strong>}
               </p>
             </div>
             <div className="motor-actions">
@@ -539,7 +537,7 @@ export function Disparos() {
                     <ActionButton onClick={() => carregarParaEdicao(email)}>{editandoEmailId === email.id ? 'Editando' : 'Editar'}</ActionButton>
                     <ActionButton className={email.ativo === false ? "success" : "warning"} onClick={() => alternarStatusEmail(email)}>
                       <i className={`fa-solid ${email.ativo === false ? 'fa-play' : 'fa-ban'}`}></i>
-                      {email.ativo === false ? 'Ativar' : 'Desabilitar'}
+                      <span className="action-text">{email.ativo === false ? 'Ativar' : 'Desabilitar'}</span>
                     </ActionButton>
                   </div>
                   <div className="card-actions-bottom">
@@ -569,7 +567,7 @@ export function Disparos() {
                     <ActionButton onClick={() => carregarParaEdicao(email)}>{editandoEmailId === email.id ? 'Editando' : 'Editar'}</ActionButton>
                     <ActionButton className={email.ativo === false ? "success" : "warning"} onClick={() => alternarStatusEmail(email)}>
                       <i className={`fa-solid ${email.ativo === false ? 'fa-play' : 'fa-ban'}`}></i>
-                      {email.ativo === false ? 'Ativar' : 'Desabilitar'}
+                      <span className="action-text">{email.ativo === false ? 'Ativar' : 'Desabilitar'}</span>
                     </ActionButton>
                   </div>
                   <div className="card-actions-bottom">
@@ -590,7 +588,7 @@ export function Disparos() {
                 <EmailCard key={email.id} $active={editandoEmailId === email.id} $borderColor="#fd7e14" $inativo={email.ativo === false}>
                   <div className="card-header">
                     <span className="step-badge">Etapa {email.ordem_etapa}</span>
-                    <div style={{display:'flex', gap:'5px'}}>
+                    <div style={{display:'flex', gap:'5px', flexWrap: 'wrap'}}>
                       {email.dias_expiracao ? (
                          <span className="expire-badge danger">Expira: Dia {email.dias_expiracao}</span>
                       ) : (
@@ -606,7 +604,7 @@ export function Disparos() {
                     <ActionButton onClick={() => carregarParaEdicao(email)}>{editandoEmailId === email.id ? 'Editando' : 'Editar'}</ActionButton>
                     <ActionButton className={email.ativo === false ? "success" : "warning"} onClick={() => alternarStatusEmail(email)}>
                       <i className={`fa-solid ${email.ativo === false ? 'fa-play' : 'fa-ban'}`}></i>
-                      {email.ativo === false ? 'Ativar' : 'Desabilitar'}
+                      <span className="action-text">{email.ativo === false ? 'Ativar' : 'Desabilitar'}</span>
                     </ActionButton>
                   </div>
                   <div className="card-actions-bottom">
@@ -703,11 +701,11 @@ export function Disparos() {
                   <SunEditor setOptions={editorOptions} setContents={emailCru} onChange={setEmailCru} />
                 </div>
               ) : (
-                <textarea required value={emailCru} onChange={e => setEmailCru(e.target.value)} style={{ width: '100%', minHeight: '300px', padding: '15px', borderRadius: '8px', border: '1px solid #ccc', fontFamily: 'monospace', backgroundColor: '#2d2d2d', color: '#f8f8f2' }} />
+                <textarea required value={emailCru} onChange={e => setEmailCru(e.target.value)} style={{ width: '100%', minHeight: '300px', padding: '15px', borderRadius: '8px', border: '1px solid #ccc', fontFamily: 'monospace', backgroundColor: '#2d2d2d', color: '#f8f8f2', boxSizing: 'border-box' }} />
               )}
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '15px', flexWrap: 'wrap' }}>
+            <div className="editor-actions">
               <ActionButton className="secondary" type="button" onClick={handleEnviarTeste} disabled={enviandoTeste}>
                 <i className="fa-solid fa-paper-plane"></i> Disparo de Teste
               </ActionButton>
@@ -726,7 +724,7 @@ export function Disparos() {
                 <h3>Visualização Final do E-mail</h3>
                 <CloseButton onClick={() => setMostrarPreview(false)}>&times;</CloseButton>
               </ModalHeader>
-              <div style={{ padding: '0', flex: 1, backgroundColor: '#f4f6f8' }}>
+              <div style={{ padding: '0', flex: 1, backgroundColor: '#f4f6f8', overflowY: 'auto' }}>
                 <iframe srcDoc={htmlPreviewFinal} style={{ width: '100%', height: '100%', minHeight: '500px', border: 'none' }} title="Preview" />
               </div>
             </ModalContent>
@@ -745,7 +743,7 @@ export function Disparos() {
                 <CloseButton onClick={() => setMostrarModalCliques(false)}>&times;</CloseButton>
               </ModalHeader>
               
-              <div style={{ padding: '20px', maxHeight: '60vh', overflowY: 'auto' }}>
+              <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
                 {carregandoCliques ? (
                   <LoadingContainer><i className="fa-solid fa-spinner fa-spin"></i><br/>Buscando detalhes...</LoadingContainer>
                 ) : leadsAgrupados.length === 0 ? (
@@ -764,11 +762,11 @@ export function Disparos() {
 
                          return (
                           <tr key={lead.id}>
-                            <td style={{ verticalAlign: 'top', width: '40%' }}>
+                            <td data-label="Contato (Lead)" style={{ verticalAlign: 'top', width: '40%' }}>
                               <strong>{lead.nome}</strong>
                               <div className="contact-subtext">{lead.email}</div>
                             </td>
-                            <td style={{ verticalAlign: 'top' }}>
+                            <td data-label="Links Clicados" style={{ verticalAlign: 'top' }}>
                               <ClickBadge>
                                 <span className="link-name">{ultimaInteracao.link}</span>
                                 <span className="link-time">{formatarDataHora(ultimaInteracao.data)}</span>
@@ -884,10 +882,12 @@ export function Disparos() {
 
 const PageContainer = styled.div`
   padding: 30px; background-color: #f4f7f6; min-height: calc(100vh - 70px);
+  @media (max-width: 768px) { padding: 15px; }
 `;
 
 const TopSection = styled.div`
   display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; margin-bottom: 25px;
+  @media (max-width: 768px) { flex-direction: column; align-items: stretch; }
 `;
 const Title = styled.h2`
   margin: 0; color: #2c3e50; font-size: 1.8rem; font-weight: 700;
@@ -898,11 +898,13 @@ const Subtitle = styled.p`
 
 const FilterPillWrapper = styled.div`
   position: relative; display: inline-block;
+  @media (max-width: 768px) { width: 100%; }
 `;
 const FilterButton = styled.button`
   display: flex; align-items: center; background: ${props => props.$hasValue ? '#ffffff' : '#f8fafc'};
   border: 1px solid ${props => props.$hasValue ? '#007bff' : '#cbd5e1'}; color: #2c3e50; padding: 10px 18px; border-radius: 50px; font-size: 0.95rem; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 2px 5px rgba(0,0,0,0.02);
-
+  @media (max-width: 768px) { width: 100%; justify-content: space-between; }
+  
   &:hover { background: #e7f3ff; border-color: #007bff; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,123,255,0.1); }
   span { margin: 0 10px; strong { color: #007bff; } }
   .icon { color: #007bff; font-size: 1.05rem; }
@@ -911,6 +913,7 @@ const FilterButton = styled.button`
 
 const CustomDropdownMenu = styled.ul`
   position: absolute; top: calc(100% + 8px); right: 0; background: #ffffff; border: 1px solid #edf2f9; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); min-width: 250px; max-height: 300px; overflow-y: auto; z-index: 1000; padding: 8px 0; list-style: none; margin: 0; animation: fadeInDown 0.2s ease-out;
+  @media (max-width: 768px) { left: 0; width: 100%; }
   @keyframes fadeInDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 `;
 const CustomDropdownItem = styled.li`
@@ -920,19 +923,24 @@ const CustomDropdownItem = styled.li`
 
 const MotorControlPanel = styled.div`
   background: #ffffff; padding: 20px 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #edf2f9; display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; flex-wrap: wrap; gap: 15px;
+  @media (max-width: 768px) { flex-direction: column; align-items: stretch; }
 
   .motor-info {
     h3 { margin: 0 0 5px 0; color: #2c3e50; display: flex; align-items: center; gap: 8px; font-size: 1.2rem;}
     p { margin: 0; font-size: 0.9rem; color: #6c757d; }
   }
-  .motor-actions { display: flex; align-items: center; gap: 15px; }
+  .motor-actions { 
+    display: flex; align-items: center; gap: 15px; 
+    @media (max-width: 768px) { flex-direction: column; button { width: 100%; justify-content: center; } }
+  }
 `;
 
 const StatusBadge = styled.div`
-  padding: 10px 15px; border-radius: 8px; font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; gap: 8px;
+  padding: 10px 15px; border-radius: 8px; font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; gap: 8px; justify-content: center;
   background: ${props => props.$color === 'green' ? '#e6f4ea' : '#fff3cd'};
   color: ${props => props.$color === 'green' ? '#155724' : '#856404'};
   border: 1px solid ${props => props.$color === 'green' ? '#c3e6cb' : '#ffeeba'};
+  @media (max-width: 768px) { width: 100%; }
 `;
 
 const MotorButton = styled.button`
@@ -943,7 +951,7 @@ const MotorButton = styled.button`
 `;
 
 const FunnelsGrid = styled.div`
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 30px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 30px;
 `;
 
 const FunnelColumn = styled.div`
@@ -975,17 +983,27 @@ const EmailCard = styled.div`
   .email-title { font-weight: 700; color: #2c3e50; font-size: 0.95rem; margin-bottom: 5px; text-decoration: ${props => props.$inativo ? 'line-through' : 'none'}; }
   .email-meta { font-size: 0.8rem; color: #6c757d; margin-bottom: 12px; display: flex; align-items: center; gap: 5px;}
 
-  .card-actions-top, .card-actions-bottom { display: flex; gap: 5px; }
-  .card-actions-top { border-top: 1px dashed #e2e8f0; padding-top: 12px; margin-bottom: 5px;}
+  .card-actions-top, .card-actions-bottom { display: flex; gap: 5px; flex-wrap: wrap; }
+  .card-actions-top { border-top: 1px dashed #e2e8f0; padding-top: 12px; margin-bottom: 5px; }
+  
+  @media (max-width: 600px) {
+    .card-actions-top button, .card-actions-bottom button { flex: 1 1 100%; }
+  }
 `;
 
 const EditorPanel = styled.div`
   background: #ffffff; border-top: 5px solid #6f42c1; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); margin-bottom: 30px;
   opacity: ${props => props.$visible ? 1 : 0.5}; pointer-events: ${props => props.$visible ? 'auto' : 'none'};
+  @media (max-width: 768px) { padding: 15px; }
 
-  .editor-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+  .editor-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 10px; }
   h2 { margin: 0; color: #2c3e50; font-size: 1.4rem; }
   .cancel-btn { background: #e9ecef; color: #495057; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; &:hover{background:#dde2e6;} }
+  
+  .editor-actions {
+    display: flex; justify-content: flex-end; gap: 15px; flex-wrap: wrap;
+    @media (max-width: 600px) { flex-direction: column; button { width: 100%; justify-content: center; } }
+  }
 `;
 
 const FormGrid = styled.div`
@@ -993,7 +1011,7 @@ const FormGrid = styled.div`
   grid-template-columns: ${props => props.$isPosClique ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)'};
   .span-2 { grid-column: span 2; }
   .span-full { grid-column: 1 / -1; }
-  @media (max-width: 768px) { grid-template-columns: 1fr !important; .span-2, .span-full { grid-column: span 1 !important; } }
+  @media (max-width: 768px) { padding: 15px; grid-template-columns: 1fr !important; .span-2, .span-full { grid-column: span 1 !important; } }
 `;
 
 const FormGroup = styled.div`
@@ -1001,7 +1019,7 @@ const FormGroup = styled.div`
   label { font-weight: 600; font-size: 0.9rem; color: #495057; display: flex; align-items: center; gap: 6px;}
   .text-blue { color: #007bff; } .text-orange { color: #fd7e14; } .text-red { color: #dc3545; } .text-dark-blue { color: #1F4E79; }
   input, select {
-    width: 100%; padding: 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #333; outline: none; transition: 0.2s;
+    width: 100%; padding: 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #333; outline: none; transition: 0.2s; box-sizing: border-box;
     &:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); }
     &.bg-light-blue { background: #eef4fa; border-color: #b8cde1; }
   }
@@ -1013,7 +1031,7 @@ const FormGroup = styled.div`
 `;
 
 const ActionButton = styled.button`
-  flex: 1; padding: 8px 12px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; border: none; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px;
+  flex: 1; padding: 10px 12px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; border: none; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px;
   background: #e2e8f0; color: #475569;
   &:hover { background: #cbd5e1; }
   &.primary { background: #007bff; color: #fff; &:hover { background: #0056b3; } }
@@ -1031,37 +1049,62 @@ const SmallButton = styled.button`
   &.text-green { color: #155724; background: #d4edda; border-color: #c3e6cb; }
   &.text-cyan { color: #0c5460; background: #d1ecf1; border-color: #bee5eb; }
   &.text-red { color: #721c24; background: #f8d7da; border-color: #f5c6cb; }
+  @media (max-width: 600px) { flex: 1 1 calc(50% - 10px); }
 `;
 
+/* CORREÇÃO DO MODAL PARA IPHONE */
 const ModalOverlay = styled.div`
-  position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(2px); padding: 20px;
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(2px); padding: 20px; padding-bottom: calc(20px + env(safe-area-inset-bottom)); box-sizing: border-box;
 `;
 const ModalContent = styled.div`
-  background: #ffffff; border-radius: 12px; width: 100%; max-width: ${props => props.$large ? '1100px' : '800px'}; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 15px 40px rgba(0,0,0,0.2); animation: slideUp 0.3s ease-out;
+  background: #ffffff; border-radius: 12px; width: 100%; max-width: ${props => props.$large ? '1100px' : '800px'}; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 15px 40px rgba(0,0,0,0.2); animation: slideUp 0.3s ease-out;
   @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 `;
 const ModalHeader = styled.div`
-  display: flex; justify-content: space-between; align-items: center; padding: 20px; background: ${props => props.$bg || '#fbfbfc'}; border-bottom: 1px solid #edf2f9;
+  display: flex; justify-content: space-between; align-items: center; padding: 20px; background: ${props => props.$bg || '#fbfbfc'}; border-bottom: 1px solid #edf2f9; flex-shrink: 0;
   h3 { margin: 0; font-size: 1.2rem; display: flex; align-items: center; gap: 8px; color: ${props => props.$color || '#333'}; }
   .subtitle { font-size: 0.85rem; margin-top: 4px; font-weight: 600; color: ${props => props.$color ? 'rgba(255,255,255,0.8)' : '#6c757d'}; }
+  @media (max-width: 600px) { h3 { font-size: 1.1rem; padding-right: 30px; } }
 `;
 const CloseButton = styled.button`
   background: none; border: none; font-size: 1.8rem; cursor: pointer; color: ${props => props.$color || '#a0aec0'};
   &:hover { color: #dc3545; }
+  @media (max-width: 600px) { position: absolute; right: 15px; top: 15px; }
 `;
 
+/* CORREÇÃO DO LAYOUT DA TABELA (MODAL CLIQUES) PARA MOBILE */
 const Table = styled.table`
-  width: 100%; border-collapse: collapse;
+  width: 100%; border-collapse: collapse; min-width: 600px;
   th { text-align: left; padding: 15px 20px; background: #f8fafc; color: #6c757d; font-size: 0.85rem; text-transform: uppercase; border-bottom: 2px solid #edf2f9; }
   td { padding: 15px 20px; border-bottom: 1px solid #edf2f9; color: #2c3e50; }
   .sticky-head th { position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 2px -1px rgba(0,0,0,0.1); }
   .contact-subtext { font-size: 0.8rem; color: #6c757d; margin-top: 3px; }
+  
+  @media (max-width: 768px) {
+    min-width: unset; display: block;
+    thead, tbody, th, td, tr { display: block; }
+    thead tr { position: absolute; top: -9999px; left: -9999px; }
+    
+    tr {
+      background: #fff; border: 1px solid #edf2f9; border-radius: 12px; margin: 15px 0; padding: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+    }
+    
+    td {
+      border: none; border-bottom: 1px solid #f1f5f9; position: relative; padding: 12px 10px; text-align: left; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; min-height: 40px; width: 100% !important;
+    }
+    
+    td:last-child { border-bottom: none; }
+    
+    td::before {
+      position: relative; padding: 0 0 10px 0; white-space: nowrap; text-align: left; font-weight: 800; color: #94a3b8; font-size: 0.75rem; content: attr(data-label); text-transform: uppercase;
+    }
+  }
 `;
 
 const ClickBadge = styled.div`
-  display: flex; justify-content: space-between; align-items: center; background: #f0f7ff; border: 1px solid #cce5ff; border-radius: 6px; padding: 8px 12px; margin-bottom: 6px;
-  .link-name { font-size: 0.85rem; font-weight: 700; color: #007bff; }
-  .link-time { font-size: 0.75rem; color: #6c757d; }
+  display: flex; justify-content: space-between; align-items: center; background: #f0f7ff; border: 1px solid #cce5ff; border-radius: 6px; padding: 8px 12px; margin-bottom: 6px; width: 100%; box-sizing: border-box;
+  .link-name { font-size: 0.85rem; font-weight: 700; color: #007bff; word-break: break-all;}
+  .link-time { font-size: 0.75rem; color: #6c757d; white-space: nowrap; margin-left: 10px; }
   &.faded { background: #f8f9fa; border-color: #e2e8f0; .link-name { color: #6c757d; } }
 `;
 
@@ -1081,18 +1124,22 @@ const LoadingContainer = styled.div`
 const Grid3Col = styled.div`
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;
   @media (max-width: 900px) { grid-template-columns: 1fr; }
-  .col-wrapper { background: #fff; border-radius: 8px; border: 1px solid #ddd; overflow: hidden; }
-  .col-header { padding: 12px 15px; font-weight: 700; display: flex; align-items: center; gap: 8px;}
+  .col-wrapper { background: #fff; border-radius: 8px; border: 1px solid #ddd; overflow: hidden; display: flex; flex-direction: column; max-height: 450px;}
+  .col-header { padding: 12px 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; flex-shrink: 0;}
   .col-header.success { background: #e6f4ea; color: #155724; }
   .col-header.warning { background: #fff3cd; color: #856404; }
   .col-header.danger { background: #f8d7da; color: #721c24; }
-  .col-body { padding: 10px; max-height: 450px; overflow-y: auto; }
+  .col-body { padding: 10px; overflow-y: auto; flex: 1; 
+    &::-webkit-scrollbar { width: 4px; }
+    &::-webkit-scrollbar-track { background: transparent; }
+    &::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  }
   .list-item { padding: 10px; border-bottom: 1px solid #edf2f9; }
   .list-item:last-child { border-bottom: none; }
   .list-item.danger-bg { background: #fff5f5; border-radius: 6px; margin-bottom: 5px; border-bottom: none;}
 
   .list-item strong { display: block; color: #2c3e50; font-size: 0.9rem; }
-  .list-item .sub { display: block; color: #6c757d; font-size: 0.8rem; margin-top: 2px;}
+  .list-item .sub { display: block; color: #6c757d; font-size: 0.8rem; margin-top: 2px; word-break: break-all;}
   .list-item .sub.danger-text { color: #dc3545; font-weight: 600; }
   .list-item .date { display: block; font-size: 0.75rem; margin-top: 4px; font-weight: 600;}
   .list-item .date.success { color: #28a745; }

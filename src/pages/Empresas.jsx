@@ -1,7 +1,6 @@
-// src/pages/Empresas.jsx
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import axios from 'axios';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 import { Header } from '../componentes/Header.jsx';
 
 // --- UTILITÁRIO DE SEGURANÇA PARA JSON ---
@@ -322,19 +321,17 @@ export function Empresas() {
   // ==========================================
   return (
     <>
-      <Header titulo="Gestão de Empresas"/>
       <PageContainer>
-        
         <TopSection>
           <div>
             <Title>Base de Prefeituras / Empresas</Title>
             <Subtitle>Controle de temperatura, assessoria e cadastro de clientes.</Subtitle>
           </div>
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-            <InfoButton onClick={popularEstado}>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', width: '100%' }}>
+            <InfoButton onClick={popularEstado} className="btn-mobile">
               <i className="fa-solid fa-file-import"></i> Importar IBGE
             </InfoButton>
-            <PrimaryButton onClick={abrirModalNovo}>
+            <PrimaryButton onClick={abrirModalNovo} className="btn-mobile">
               <i className="fa-solid fa-plus-circle"></i> Nova Empresa
             </PrimaryButton>
           </div>
@@ -390,7 +387,7 @@ export function Empresas() {
         </FilterBar>
 
         <Panel>
-          <TableContainer>
+          <TabelaResponsiva>
             <Table>
               <thead className="sticky-head">
                 <tr>
@@ -407,9 +404,9 @@ export function Empresas() {
                 ) : itensAtuais.length === 0 ? (
                   <tr><td colSpan={perfilUsuario === 'admin' ? 5 : 4} className="text-center text-muted">Nenhuma empresa encontrada com estes filtros.</td></tr>
                 ) : (
-                  itensAtuais.map(empresa => (
-                    <ClickableRow key={empresa.id}>
-                      <td onClick={() => abrirModalDetalhes(empresa)} title="Clique para ver o perfil">
+                  itensAtuais.map((empresa, index) => (
+                    <ClickableRow key={empresa.id} style={{ animationDelay: `${index * 0.05}s` }}>
+                      <td data-label="Prefeitura / Empresa" onClick={() => abrirModalDetalhes(empresa)} title="Clique para ver o perfil">
                         <div className="main-name">
                           {empresa.nome}
                         </div>
@@ -417,19 +414,19 @@ export function Empresas() {
                           <span><i className="fa-solid fa-location-dot"></i> {empresa.cidade || '-'} {empresa.estado ? `(${empresa.estado})` : ''}</span>
                         </div>
                       </td>
-                      <td onClick={() => abrirModalDetalhes(empresa)}>
+                      <td data-label="Classificação" onClick={() => abrirModalDetalhes(empresa)}>
                         <StatusBadge className={empresa.classificacao || 'nao_assessorada'}>
                           {empresa.classificacao === 'assessorada' ? '👑 Assessorada' : empresa.classificacao === 'lead_quente' ? '🔥 Lead Quente' : '❄️ Frio'}
                         </StatusBadge>
                       </td>
-                      <td onClick={() => abrirModalDetalhes(empresa)}>
+                      <td data-label="Temperatura" onClick={() => abrirModalDetalhes(empresa)}>
                         {renderStars(empresa.estrelas || 0, true)}
                       </td>
-                      <td onClick={() => abrirModalDetalhes(empresa)} className="text-center text-muted font-bold">
+                      <td data-label="Últ. Contato" onClick={() => abrirModalDetalhes(empresa)} className="text-center text-muted font-bold">
                         {formatarData(empresa.ultimo_contato)}
                       </td>
                       {perfilUsuario === 'admin' && (
-                        <td className="text-center">
+                        <td data-label="Ações" className="text-center">
                           <IconButton className="danger" onClick={() => deletarEmpresa(empresa.id)} title="Excluir"><i className="fa-solid fa-trash-can"></i></IconButton>
                         </td>
                       )}
@@ -438,7 +435,7 @@ export function Empresas() {
                 )}
               </tbody>
             </Table>
-          </TableContainer>
+          </TabelaResponsiva>
 
           {!carregando && empresasOrdenadas.length > 0 && (
             <PaginationContainer>
@@ -477,10 +474,10 @@ export function Empresas() {
                 </div>
                 <div className="actions">
                   {perfilUsuario === 'admin' && editandoId && !modoEdicaoEmpresa && (
-                    <DangerButton onClick={() => deletarEmpresa(editandoId)}><i className="fa-solid fa-trash-can"></i> Excluir</DangerButton>
+                    <DangerButton onClick={() => deletarEmpresa(editandoId)}><i className="fa-solid fa-trash-can"></i> <span className="hide-mobile">Excluir</span></DangerButton>
                   )}
                   {!modoEdicaoEmpresa && (
-                    <WarningButton onClick={() => setModoEdicaoEmpresa(true)}><i className="fa-solid fa-pen"></i> Editar</WarningButton>
+                    <WarningButton onClick={() => setModoEdicaoEmpresa(true)}><i className="fa-solid fa-pen"></i> <span className="hide-mobile">Editar</span></WarningButton>
                   )}
                   <CloseButton $color={modoEdicaoEmpresa ? '#fff' : '#a0aec0'} onClick={() => setMostrarModalEmpresa(false)}>&times;</CloseButton>
                 </div>
@@ -510,7 +507,7 @@ export function Empresas() {
                       <ProfileGrid>
                         <InfoCard $borderTop="#e2e8f0">
                           <h4><i className="fa-solid fa-circle-info text-blue"></i> Informações Cadastrais</h4>
-                          <div className="info-line" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div className="info-line" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                             <strong>Status no Funil:</strong> 
                             {detalhesEmpresa.empresa.classificacao === 'assessorada' ? <span className="text-yellow font-bold">👑 Assessorada VIP</span> : 
                              detalhesEmpresa.empresa.classificacao === 'lead_quente' ? <span className="text-red font-bold">🔥 Lead Quente</span> : 
@@ -759,15 +756,23 @@ export function Empresas() {
   );
 }
 
+// === ANIMAÇÕES ===
+const fadeInUp = keyframes`
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
+`;
+
 // ==========================================
 // STYLED COMPONENTS
 // ==========================================
 
 const PageContainer = styled.div`
   padding: 30px; background-color: #f4f7f6; min-height: calc(100vh - 70px);
+  @media (max-width: 768px) { padding: 15px; }
 `;
 const TopSection = styled.div`
   display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; margin-bottom: 25px;
+  @media (max-width: 768px) { flex-direction: column; align-items: flex-start; .btn-mobile { width: 100%; justify-content: center; } }
 `;
 const Title = styled.h2`
   margin: 0; color: #2c3e50; font-size: 1.8rem; font-weight: 700;
@@ -796,28 +801,27 @@ const SectionCard = styled.div`
 
 // --- FILTROS ---
 const FilterBar = styled.div`
-  display: flex; gap: 15px; align-items: center; flex-wrap: wrap; margin-bottom: 25px; background: #fff; padding: 15px 20px; border-radius: 12px; border: 1px solid #edf2f9;
+  display: flex; gap: 15px; align-items: center; flex-wrap: wrap; margin-bottom: 25px; background: #fff; padding: 15px 20px; border-radius: 12px; border: 1px solid #edf2f9; box-shadow: 0 4px 10px rgba(0,0,0,0.02);
+  @media (max-width: 768px) { flex-direction: column; }
 `;
 const SearchWrapper = styled.div`
   position: relative; flex: 1; min-width: 250px;
   .icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #94a3b8; }
-  input { width: 100%; padding: 12px 12px 12px 40px; border-radius: 50px; border: 1px solid #cbd5e1; font-size: 0.95rem; outline: none; transition: 0.2s; &:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.1); } }
+  input { width: 100%; padding: 12px 12px 12px 40px; border-radius: 50px; border: 1px solid #cbd5e1; font-size: 0.95rem; outline: none; transition: 0.2s; box-sizing: border-box; &:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.1); } }
+  @media (max-width: 768px) { width: 100%; }
 `;
-const FilterPillWrapper = styled.div`position: relative;`;
+const FilterPillWrapper = styled.div`position: relative; @media (max-width: 768px) { width: 100%; }`;
 const FilterButton = styled.button`
-  display: flex; align-items: center; background: ${props => props.$hasValue ? '#eef4fa' : '#f8fafc'}; border: 1px solid ${props => props.$hasValue ? '#b8cde1' : '#cbd5e1'}; padding: 12px 18px; border-radius: 50px; font-size: 0.95rem; cursor: pointer; color: #2c3e50;
+  display: flex; align-items: center; background: ${props => props.$hasValue ? '#eef4fa' : '#f8fafc'}; border: 1px solid ${props => props.$hasValue ? '#b8cde1' : '#cbd5e1'}; padding: 12px 18px; border-radius: 50px; font-size: 0.95rem; cursor: pointer; color: #2c3e50; transition: 0.2s;
+  width: 100%; justify-content: space-between;
   span { margin: 0 10px; color: #64748b; strong { color: #007bff; font-weight: 700; } }
   .icon { color: #6c757d; } .arrow { color: #007bff; font-size: 0.8rem; }
   &:hover { background: #e7f3ff; border-color: #007bff; }
 `;
 const CustomDropdownMenu = styled.ul`
   position: absolute; top: calc(100% + 8px); right: 0; background: #fff; border: 1px solid #edf2f9; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); min-width: 230px; 
-  
-  max-height: 250px; 
-  overflow-y: auto; 
-  overflow-x: hidden;
-  
-  z-index: 100; list-style: none; padding: 8px 0; margin: 0; animation: fadeInDown 0.2s ease-out;
+  max-height: 250px; overflow-y: auto; overflow-x: hidden; z-index: 100; list-style: none; padding: 8px 0; margin: 0; animation: fadeInDown 0.2s ease-out;
+  @media (max-width: 768px) { left: 0; width: 100%; }
   
   &::-webkit-scrollbar { width: 6px; }
   &::-webkit-scrollbar-track { background: #f8fafc; border-radius: 12px; margin: 8px 0; }
@@ -835,19 +839,53 @@ const CustomDropdownItem = styled.li`
 const Panel = styled.div`
   background: #fff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border: 1px solid #edf2f9; overflow: hidden; margin-bottom: 20px;
 `;
-const TableContainer = styled.div`overflow-x: auto;`;
+
+const TabelaResponsiva = styled.div`
+  overflow-x: auto; 
+  &::-webkit-scrollbar { height: 6px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+`;
+
 const Table = styled.table`
   width: 100%; border-collapse: collapse; min-width: 600px;
   th { text-align: left; padding: 15px 20px; background: #fbfbfc; color: #6c757d; font-size: 0.8rem; text-transform: uppercase; border-bottom: 2px solid #edf2f9; }
   td { padding: 15px 20px; border-bottom: 1px solid #edf2f9; color: #2c3e50; }
   .sticky-head th { position: sticky; top: 0; z-index: 10; }
   .text-center { text-align: center; } .text-muted { color: #a0aec0; } .font-bold { font-weight: 700;}
+
+  @media (max-width: 768px) {
+    min-width: unset; display: block;
+    thead, tbody, th, td, tr { display: block; }
+    thead tr { position: absolute; top: -9999px; left: -9999px; }
+    
+    tr {
+      background: #fff; border: 1px solid #edf2f9; border-radius: 12px; margin: 15px; padding: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+    }
+    
+    td {
+      border: none; border-bottom: 1px solid #f1f5f9; position: relative; padding: 12px 15px; text-align: left; display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+    }
+    
+    td:last-child { border-bottom: none; }
+    
+    td::before {
+      position: relative; top: auto; left: auto; transform: none; width: 100%; padding: 0; white-space: nowrap; text-align: left; font-weight: 800; color: #94a3b8; font-size: 0.7rem; content: attr(data-label); text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    
+    .text-center { text-align: left; }
+  }
 `;
+
 const ClickableRow = styled.tr`
-  cursor: pointer; transition: 0.2s;
+  cursor: pointer; transition: 0.2s; animation: ${fadeInUp} 0.4s ease forwards; opacity: 0;
   &:hover { background-color: #f8fafc; }
   .main-name { font-size: 1.05rem; font-weight: 700; color: #007bff; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;}
   .meta { display: flex; gap: 15px; font-size: 0.85rem; color: #64748b; span { display: flex; align-items: center; gap: 5px; } }
+  
+  @media (max-width: 768px) {
+    .meta { flex-direction: column; gap: 4px; }
+  }
 `;
 
 const StatusBadge = styled.span`
@@ -866,6 +904,7 @@ const PaginationContainer = styled.div`
   display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: #fbfbfc;
   .info { color: #64748b; font-size: 0.9rem; strong { color: #2c3e50; } }
   .controls { display: flex; align-items: center; gap: 8px; .current { font-weight: 700; color: #007bff; padding: 0 10px;} }
+  @media (max-width: 600px) { flex-direction: column; gap: 15px; }
 `;
 const PageButton = styled.button`
   padding: 6px 12px; border: 1px solid #cbd5e1; background: #fff; border-radius: 6px; cursor: pointer; color: #333; font-weight: 600;
@@ -875,7 +914,7 @@ const PageButton = styled.button`
 
 // --- MODAIS ---
 const ModalOverlay = styled.div`
-  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; z-index: 9998; padding: 20px;
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 9998; padding: 20px; padding-bottom: calc(20px + env(safe-area-inset-bottom)); box-sizing: border-box;
 `;
 const ModalContent = styled.div`
   background: #fff; border-radius: 12px; width: 100%; max-width: ${props => props.$large ? '1000px' : (props.$small ? '600px' : '800px')}; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.2); animation: slideIn 0.3s ease-out;
@@ -885,13 +924,15 @@ const ModalHeader = styled.div`
   display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; border-bottom: 1px solid #edf2f9; background: ${props => props.$bg || '#fff'}; color: ${props => props.$color || '#333'};
   h3 { margin: 0; font-size: 1.4rem; display: flex; align-items: center; gap: 10px; }
   .text-blue { color: #007bff; }
-  .subtitle { display: flex; gap: 12px; align-items: center; margin-top: 8px; font-size: 0.9rem; color: #64748b; }
+  .subtitle { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 8px; font-size: 0.9rem; color: #64748b; }
   .vip-badge { font-size: 0.75rem; background: #fff3cd; color: #856404; padding: 2px 8px; border-radius: 12px; border: 1px solid #ffeeba; font-weight: bold;}
   .vip-badge.text-red { background: #fdf2f2; color: #dc3545; border-color: #f8d7da; }
   .actions { display: flex; gap: 10px; align-items: center; }
+  .hide-mobile { @media (max-width: 600px) { display: none; } }
+  @media (max-width: 600px) { h3 { padding-right: 30px; } }
 `;
-const ModalBody = styled.div`padding: 30px; overflow-y: auto; flex: 1; background: #fbfbfc;`;
-const CloseButton = styled.button`background: none; border: none; font-size: 2rem; cursor: pointer; color: ${props => props.$color || '#a0aec0'}; &:hover { color: #dc3545; opacity: 1; }`;
+const ModalBody = styled.div`padding: 30px; overflow-y: auto; flex: 1; background: #fbfbfc; @media (max-width: 600px) { padding: 15px; }`;
+const CloseButton = styled.button`background: none; border: none; font-size: 2rem; cursor: pointer; color: ${props => props.$color || '#a0aec0'}; &:hover { color: #dc3545; opacity: 1; } @media (max-width: 600px) { position: absolute; right: 15px; top: 15px; }`;
 
 // --- VISÃO 360 EMPRESA ---
 const KpiGrid = styled.div`display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; @media (max-width: 600px) { grid-template-columns: 1fr; }`;
@@ -929,7 +970,7 @@ const HistoryCard = styled.div`
   &:hover { background: #f0f7ff; border-color: #cbd5e1; transform: translateX(5px); }
   
   .h-main { display: flex; flex-direction: column; gap: 8px; }
-  .h-title { font-weight: 700; font-size: 1.05rem; color: #2c3e50; display: flex; align-items: center; gap: 10px; .status { font-size: 0.7rem; padding: 2px 8px; }}
+  .h-title { font-weight: 700; font-size: 1.05rem; color: #2c3e50; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; .status { font-size: 0.7rem; padding: 2px 8px; }}
   .h-meta { display: flex; gap: 15px; font-size: 0.85rem; color: #64748b; flex-wrap: wrap; span { display: flex; align-items: center; gap: 6px; strong { color: #475569; } } }
   
   .h-side { display: flex; align-items: center; gap: 20px; }
@@ -943,12 +984,12 @@ const HistoryCard = styled.div`
 const FormGrid = styled.div`display: grid; grid-template-columns: ${props => props.$columns}; gap: 15px; .span-2 { grid-column: span 2; } @media (max-width: 768px) { grid-template-columns: 1fr; .span-2 { grid-column: span 1; } }`;
 const FormGroup = styled.div`display: flex; flex-direction: column; gap: 6px; label { font-weight: 700; font-size: 0.85rem; color: #4a5568; }`;
 const Input = styled.input`
-  padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; transition: 0.2s; font-size: 0.95rem;
+  padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; transition: 0.2s; font-size: 0.95rem; box-sizing: border-box;
   &:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.1); }
   &.highlight-blue { border-color: #b8daff; background: #e7f3ff; } &.highlight-green { border-color: #c3e6cb; background: #d4edda; }
 `;
 const Select = styled.select`
-  padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; transition: 0.2s; font-size: 0.95rem; cursor: pointer;
+  padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; transition: 0.2s; font-size: 0.95rem; cursor: pointer; box-sizing: border-box;
   background-color: ${props => props.$status === 'assessorada' ? '#fff3cd' : props.$status === 'lead_quente' ? '#fdf2f2' : '#f8fafc'};
   font-weight: 600;
   color: ${props => props.$status === 'assessorada' ? '#856404' : props.$status === 'lead_quente' ? '#dc3545' : '#475569'};
@@ -982,6 +1023,7 @@ const ModalFooter = styled.div`
   padding: 20px 30px;
   background: #fff;
   border-top: 1px solid #edf2f9;
+  @media (max-width: 600px) { flex-direction: column; button { width: 100%; justify-content: center; } }
 `;
 
 const OpDetailCard = styled.div`
@@ -989,6 +1031,7 @@ const OpDetailCard = styled.div`
   h4 { margin: 0 0 15px 0; font-size: 1.1rem; color: #2d3748; }
   .grid-details { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 0.85rem; color: #718096; .val { font-weight: 800; color: #2d3748; font-size: 1rem;}}
   .text-purple { color: #6f42c1; } .text-green { color: #28a745; } .text-blue { color: #007bff; } .text-gray { color: #94a3b8; }
+  @media (max-width: 600px) { .grid-details { grid-template-columns: 1fr; } }
 `;
 const NotesCard = styled.div`
   background: #fff; border: 1px solid #edf2f9; padding: 20px; border-radius: 12px;
@@ -997,7 +1040,7 @@ const NotesCard = styled.div`
 `;
 const NoteBubble = styled.div`
   background: #f8fafc; border-left: 4px solid #007bff; padding: 15px; border-radius: 8px;
-  .n-head { display: flex; justify-content: space-between; font-size: 0.8rem; color: #94a3b8; margin-bottom: 8px; strong { color: #2d3748; display: flex; align-items: center; gap: 6px;}}
+  .n-head { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 5px; font-size: 0.8rem; color: #94a3b8; margin-bottom: 8px; strong { color: #2d3748; display: flex; align-items: center; gap: 6px;}}
   .n-text { font-size: 0.95rem; color: #4a5568; line-height: 1.5; white-space: pre-wrap; }
 `;
 const LoadingMsg = styled.div`text-align: center; padding: 20px; color: #a0aec0; font-style: italic;`;

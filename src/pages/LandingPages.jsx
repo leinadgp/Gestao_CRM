@@ -1,8 +1,6 @@
-// src/pages/LandingPages.jsx
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import axios from 'axios';
-import styled from 'styled-components';
-import { Header } from '../componentes/Header.jsx';
+import styled, { keyframes } from 'styled-components';
 
 // Importações do GrapesJS
 import grapesjs from 'grapesjs';
@@ -319,15 +317,13 @@ export function LandingPages() {
 
   return (
     <>
-      <Header titulo="Construtor de Landing Pages" />
       <PageContainer>
-
         <TopSection>
           <div>
             <Title>Minhas Páginas</Title>
             <Subtitle>Crie, edite e publique páginas de venda integradas ao funil.</Subtitle>
           </div>
-          <PrimaryButton onClick={abrirModalNovo}>
+          <PrimaryButton onClick={abrirModalNovo} className="btn-mobile">
             <i className="fa-solid fa-plus-circle"></i> Criar Página
           </PrimaryButton>
         </TopSection>
@@ -340,7 +336,7 @@ export function LandingPages() {
         </FilterBar>
 
         <Panel>
-          <TableContainer>
+          <TabelaResponsiva>
             <Table>
               <thead className="sticky-head">
                 <tr>
@@ -356,25 +352,25 @@ export function LandingPages() {
                 ) : paginasFiltradas.length === 0 ? (
                   <tr><td colSpan="4" className="text-center text-muted">Nenhuma Landing Page encontrada.</td></tr>
                 ) : (
-                  paginasFiltradas.map(p => (
-                    <ClickableRow key={p.id}>
-                      <td onClick={() => abrirModalEdicao(p)}>
+                  paginasFiltradas.map((p, index) => (
+                    <ClickableRow key={p.id} style={{ animationDelay: `${index * 0.05}s` }}>
+                      <td data-label="Página" onClick={() => abrirModalEdicao(p)}>
                         <div className="main-name"><i className="fa-solid fa-window-maximize"></i> {p.nome}</div>
                         <div className="meta">
                           <span><i className="fa-solid fa-link"></i> /lp/{p.slug}</span>
                         </div>
                       </td>
-                      <td onClick={() => abrirModalEdicao(p)}>
+                      <td data-label="Campanha Vinculada" onClick={() => abrirModalEdicao(p)}>
                         <div className={p.campanha_nome ? "comp-name" : "text-muted"}>
                           {p.campanha_nome ? <><i className="fa-solid fa-graduation-cap"></i> {p.campanha_nome}</> : 'Sem Vínculo (Genérica)'}
                         </div>
                       </td>
-                      <td onClick={() => abrirModalEdicao(p)} className="text-center">
+                      <td data-label="Status" onClick={() => abrirModalEdicao(p)} className="text-center">
                         <StatusBadge className={p.status === 'publicada' ? 'published' : 'draft'}>
                           {p.status === 'publicada' ? '🌐 Publicada' : '📝 Rascunho'}
                         </StatusBadge>
                       </td>
-                      <td className="text-center">
+                      <td data-label="Link Ao Vivo" className="text-center actions-cell">
                         <LinkButton href={`${API_URL}/lp/${p.slug}`} target="_blank" rel="noreferrer" title="Abrir página online">
                           <i className="fa-solid fa-arrow-up-right-from-square"></i> Visitar
                         </LinkButton>
@@ -384,7 +380,7 @@ export function LandingPages() {
                 )}
               </tbody>
             </Table>
-          </TableContainer>
+          </TabelaResponsiva>
         </Panel>
 
       </PageContainer>
@@ -440,10 +436,11 @@ export function LandingPages() {
                   </DangerButton>
                 )}
                 <SecondaryButton type="button" onClick={() => setMostrarModal(false)}>Cancelar</SecondaryButton>
-                <PrimaryButton type="submit" form="lpForm"><i className="fa-solid fa-save"></i> Salvar Layout</PrimaryButton>
+                <PrimaryButton type="submit" form="lpForm"><i className="fa-solid fa-save"></i> Salvar</PrimaryButton>
               </div>
             </BuilderHeader>
 
+            {/* Container do GrapesJS */}
             <div id="gjs" style={{ flex: 1, overflow: 'hidden' }}></div>
 
           </FullScreenContent>
@@ -454,15 +451,22 @@ export function LandingPages() {
 }
 
 // ==========================================
-// STYLED COMPONENTS
+// ANIMAÇÕES E STYLED COMPONENTS
 // ==========================================
+
+const fadeInUp = keyframes`
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
+`;
 
 const PageContainer = styled.div`
   padding: 30px; background-color: #f4f7f6; min-height: calc(100vh - 70px);
+  @media (max-width: 768px) { padding: 15px; }
 `;
 
 const TopSection = styled.div`
   display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; margin-bottom: 25px;
+  @media (max-width: 768px) { flex-direction: column; align-items: flex-start; .btn-mobile { width: 100%; justify-content: center; } }
 `;
 const Title = styled.h2`
   margin: 0; color: #2c3e50; font-size: 1.8rem; font-weight: 700;
@@ -473,29 +477,61 @@ const Subtitle = styled.p`
 
 // --- FILTROS ---
 const FilterBar = styled.div`
-  display: flex; gap: 15px; align-items: center; flex-wrap: wrap; margin-bottom: 25px; background: #fff; padding: 15px 20px; border-radius: 12px; border: 1px solid #edf2f9;
+  display: flex; gap: 15px; align-items: center; flex-wrap: wrap; margin-bottom: 25px; background: #fff; padding: 15px 20px; border-radius: 12px; border: 1px solid #edf2f9; box-shadow: 0 4px 10px rgba(0,0,0,0.02);
+  @media (max-width: 768px) { flex-direction: column; width: 100%; }
 `;
 const SearchWrapper = styled.div`
   position: relative; flex: 1; min-width: 250px;
   .icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #94a3b8; }
-  input { width: 100%; padding: 12px 12px 12px 40px; border-radius: 50px; border: 1px solid #cbd5e1; font-size: 0.95rem; outline: none; transition: 0.2s; &:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.1); } }
+  input { width: 100%; padding: 12px 12px 12px 40px; border-radius: 50px; border: 1px solid #cbd5e1; font-size: 0.95rem; outline: none; transition: 0.2s; box-sizing: border-box; &:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.1); } }
+  @media (max-width: 768px) { width: 100%; }
 `;
 
 // --- TABELA ---
 const Panel = styled.div`
   background: #fff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border: 1px solid #edf2f9; overflow: hidden; margin-bottom: 20px;
 `;
-const TableContainer = styled.div`overflow-x: auto;`;
+const TabelaResponsiva = styled.div`
+  overflow-x: auto; 
+  &::-webkit-scrollbar { height: 6px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+`;
 const Table = styled.table`
   width: 100%; border-collapse: collapse; min-width: 600px;
   th { text-align: left; padding: 15px 20px; background: #fbfbfc; color: #6c757d; font-size: 0.8rem; text-transform: uppercase; border-bottom: 2px solid #edf2f9; font-weight: 700;}
   td { padding: 15px 20px; border-bottom: 1px solid #edf2f9; vertical-align: middle; color: #2c3e50; transition: background 0.2s;}
   tr:last-child td { border-bottom: none; }
-  .sticky-head th { position: sticky; top: 0; z-index: 10; }
+  .sticky-head th { position: sticky; top: 0; z-index: 10; box-shadow: 0 2px 2px -1px rgba(0,0,0,0.1);}
   .text-center { text-align: center; } .text-muted { color: #a0aec0; } .font-bold { font-weight: 700;}
+
+  @media (max-width: 768px) {
+    min-width: unset; display: block;
+    thead, tbody, th, td, tr { display: block; }
+    thead tr { position: absolute; top: -9999px; left: -9999px; }
+    
+    tr {
+      background: #fff; border: 1px solid #edf2f9; border-radius: 12px; margin: 15px 0; padding: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+    }
+    
+    td {
+      border: none; border-bottom: 1px solid #f1f5f9; position: relative; padding: 12px 10px 12px 40%; 
+      text-align: right; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; min-height: 40px; width: 100%; box-sizing: border-box;
+    }
+    
+    td:last-child { border-bottom: none; }
+    
+    td::before {
+      position: absolute; top: 50%; left: 10px; transform: translateY(-50%); width: 35%; padding-right: 10px; 
+      white-space: nowrap; text-align: left; font-weight: 700; color: #6c757d; font-size: 0.75rem; 
+      content: attr(data-label); text-transform: uppercase;
+    }
+    .actions-cell { justify-content: flex-end; }
+  }
 `;
+
 const ClickableRow = styled.tr`
-  cursor: pointer; transition: 0.2s;
+  cursor: pointer; transition: 0.2s; animation: ${fadeInUp} 0.4s ease forwards; opacity: 0;
   &:hover { background-color: #f8fafc; }
   .main-name { font-size: 1.05rem; font-weight: 700; color: #007bff; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;}
   .meta { display: flex; gap: 15px; font-size: 0.85rem; color: #64748b; span { display: flex; align-items: center; gap: 5px; } }
@@ -514,14 +550,14 @@ const LinkButton = styled.a`
 `;
 
 // --- BOTÕES ---
-const ButtonBase = styled.button`padding: 10px 20px; border-radius: 8px; font-weight: 700; font-size: 0.95rem; cursor: pointer; border: none; transition: 0.2s; display: flex; align-items: center; gap: 8px; &:active { transform: scale(0.98); }`;
-const PrimaryButton = styled(ButtonBase)`background: #007bff; color: #fff; &:hover { background: #0056b3; }`;
+const ButtonBase = styled.button`padding: 10px 20px; border-radius: 8px; font-weight: 700; font-size: 0.95rem; cursor: pointer; border: none; transition: 0.2s; display: flex; align-items: center; gap: 8px; justify-content: center; &:active { transform: scale(0.98); }`;
+const PrimaryButton = styled(ButtonBase)`background: #007bff; color: #fff; &:hover { background: #0056b3; box-shadow: 0 4px 10px rgba(0,123,255,0.2); }`;
 const SecondaryButton = styled(ButtonBase)`background: #e2e8f0; color: #475569; &:hover { background: #cbd5e1; }`;
 const DangerButton = styled(ButtonBase)`background: #fdf2f2; color: #dc3545; border: 1px solid #f8d7da; &:hover { background: #dc3545; color: #fff; }`;
 
 // --- EDITOR FULL SCREEN (LOW-CODE) ---
 const FullScreenModalOverlay = styled.div`
-  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; flex-direction: column;
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; flex-direction: column;
 `;
 
 const FullScreenContent = styled.div`
@@ -529,7 +565,7 @@ const FullScreenContent = styled.div`
 `;
 
 const BuilderHeader = styled.div`
-  background: #ffffff; border-bottom: 1px solid #e2e8f0; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); z-index: 100;
+  background: #ffffff; border-bottom: 1px solid #e2e8f0; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); z-index: 100; flex-wrap: wrap; gap: 15px;
 
   .logo-area {
     display: flex; align-items: center; gap: 15px;
@@ -540,9 +576,13 @@ const BuilderHeader = styled.div`
 
   .config-form {
     display: flex; gap: 20px; align-items: flex-end; flex: 1; max-width: 800px; margin: 0 30px;
+    @media (max-width: 900px) { flex-direction: column; align-items: stretch; margin: 0; max-width: 100%; width: 100%; gap: 10px; }
   }
 
-  .actions { display: flex; gap: 10px; align-items: center; }
+  .actions { 
+    display: flex; gap: 10px; align-items: center; 
+    @media (max-width: 600px) { width: 100%; button { flex: 1; justify-content: center;} }
+  }
 `;
 
 const FormGroup = styled.div`
@@ -550,8 +590,8 @@ const FormGroup = styled.div`
   label { font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;}
   
   input, select {
-    padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.9rem; color: #2c3e50; outline: none; background: #f8fafc; transition: 0.2s;
-    &:focus { border-color: #007bff; background: #fff; }
+    padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.9rem; color: #2c3e50; outline: none; background: #f8fafc; transition: 0.2s; box-sizing: border-box; width: 100%;
+    &:focus { border-color: #007bff; background: #fff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); }
     &.published { color: #155724; font-weight: 700; background: #e6f4ea; border-color: #c3e6cb;}
     &.draft { color: #856404; font-weight: 700; background: #fff3cd; border-color: #ffeeba;}
   }

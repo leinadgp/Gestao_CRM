@@ -3,6 +3,7 @@ import { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
+import logoImg from '../assets/Logo.png';
 
 export function Login() {
   const [login, setLogin] = useState('');
@@ -25,15 +26,15 @@ export function Login() {
 
       // Limpa resíduos de sessões anteriores antes de setar a nova
       localStorage.clear();
-      
+
       localStorage.setItem('token', resposta.data.token);
       localStorage.setItem('perfil', resposta.data.perfil || 'usuario');
       if (resposta.data.foto_perfil) localStorage.setItem('foto_perfil', resposta.data.foto_perfil);
-      
+
       if (resposta.data.usuarioId) localStorage.setItem('usuarioId', resposta.data.usuarioId);
       if (resposta.data.nome) localStorage.setItem('nome', resposta.data.nome);
 
-      navigate('/'); 
+      navigate('/');
 
     } catch (error) {
       if (error.response && error.response.status === 401) {
@@ -56,11 +57,10 @@ export function Login() {
   return (
     <PageContainer>
       <LoginCard>
-        
+
         <Header>
-          <h2>
-            <i className="fa-solid fa-right-to-bracket"></i> Acesso ao Sistema
-          </h2>
+          <img src={logoImg} alt="Logo Gestao" />
+          
           <p>Insira suas credenciais para continuar</p>
         </Header>
 
@@ -75,12 +75,12 @@ export function Login() {
             <label>Usuário</label>
             <div className="input-wrapper">
               <i className="fa-solid fa-user icon-left"></i>
-              <Input 
-                type="text" 
-                placeholder="Digite seu usuário..." 
-                value={login} 
-                onChange={handleInputChange(setLogin)} 
-                required 
+              <Input
+                type="text"
+                placeholder="Digite seu usuário..."
+                value={login}
+                onChange={handleInputChange(setLogin)}
+                required
                 disabled={carregando}
               />
             </div>
@@ -90,16 +90,16 @@ export function Login() {
             <label>Senha</label>
             <div className="input-wrapper">
               <i className="fa-solid fa-lock icon-left"></i>
-              <Input 
-                type={mostrarSenha ? "text" : "password"} 
-                placeholder="Sua senha secreta..." 
-                value={senha} 
-                onChange={handleInputChange(setSenha)} 
-                required 
+              <Input
+                type={mostrarSenha ? "text" : "password"}
+                placeholder="Sua senha secreta..."
+                value={senha}
+                onChange={handleInputChange(setSenha)}
+                required
                 disabled={carregando}
               />
-              <ToggleButton 
-                type="button" 
+              <ToggleButton
+                type="button"
                 onClick={() => setMostrarSenha(!mostrarSenha)}
                 title={mostrarSenha ? "Ocultar senha" : "Mostrar senha"}
                 disabled={carregando}
@@ -170,6 +170,13 @@ const Header = styled.div`
     color: #777;
     font-size: 0.95rem;
     margin: 0;
+  }
+    img {
+    max-width: 150px; 
+    height: auto;
+    margin-bottom: 5px;
+    object-fit: contain;
+    filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.4)); /* Destaque na logo */
   }
 `;
 

@@ -1,8 +1,7 @@
-// src/pages/Configuracoes.jsx
 import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import styled from 'styled-components';
-import { Header } from '../componentes/Header.jsx';
+// Não precisaremos mais do Header aqui dentro.
 
 export function Configuracoes() {
   const API_URL = import.meta.env?.VITE_API_URL || 'https://server-js-gestao.onrender.com';
@@ -161,7 +160,6 @@ export function Configuracoes() {
 
   return (
     <>
-      <Header titulo="Configurações da Conta" />
       <PageContainer>
         <TopSection>
           <div>
@@ -224,7 +222,7 @@ export function Configuracoes() {
                     </FormGrid>
                   </div>
                 </ProfileLayout>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px', borderTop: '1px solid #edf2f9', paddingTop: '20px' }}>
+                <div className="form-actions" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px', borderTop: '1px solid #edf2f9', paddingTop: '20px' }}>
                   <PrimaryButton type="submit" disabled={salvandoPerfil}>
                     {salvandoPerfil ? <><i className="fa-solid fa-spinner fa-spin"></i> Salvando...</> : <><i className="fa-solid fa-save"></i> Salvar Perfil</>}
                   </PrimaryButton>
@@ -257,7 +255,7 @@ export function Configuracoes() {
                   {confirmarSenha && novaSenha !== confirmarSenha && <span className="error-text">As senhas não conferem.</span>}
                 </FormGroup>
               </FormGrid>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
+              <div className="form-actions" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
                 <PrimaryButton type="submit" disabled={alterandoSenha}>
                   {alterandoSenha ? <><i className="fa-solid fa-spinner fa-spin"></i> Salvando...</> : <><i className="fa-solid fa-save"></i> Atualizar Senha</>}
                 </PrimaryButton>
@@ -271,11 +269,11 @@ export function Configuracoes() {
           <Panel>
             <PanelHeader>
               <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#2c3e50' }}><i className="fa-solid fa-user-tie text-blue"></i> Colaboradores do CRM</h3>
-              <PrimaryButton onClick={() => setMostrarModalNovoUser(true)}>
+              <PrimaryButton className="btn-mobile" onClick={() => setMostrarModalNovoUser(true)}>
                 <i className="fa-solid fa-user-plus"></i> Novo Usuário
               </PrimaryButton>
             </PanelHeader>
-            <TableContainer>
+            <TabelaResponsiva>
               <Table>
                 <thead>
                   <tr>
@@ -294,19 +292,19 @@ export function Configuracoes() {
                       const isAtivo = user.ativo !== false; // Se for nulo/true, é ativo
                       return (
                         <tr key={user.id} style={{ opacity: isAtivo ? 1 : 0.5, background: isAtivo ? 'transparent' : '#f8fafc' }}>
-                          <td>
+                          <td data-label="Colaborador">
                             <div style={{ display: 'flex', flexDirection: 'column' }}>
                               <strong style={{ textDecoration: isAtivo ? 'none' : 'line-through' }}>{user.nome}</strong>
                               <span className="text-muted" style={{ fontSize: '0.85rem' }}>{user.login}</span>
                             </div>
                           </td>
-                          <td>
+                          <td data-label="Acesso">
                             <Badge className={user.perfil === 'admin' ? 'badge-admin' : 'badge-vendedor'}>
                               {user.perfil === 'admin' ? '⭐ Administrador' : 'Vendedor'}
                             </Badge>
                             {!isAtivo && <Badge className="badge-danger" style={{ marginLeft: '10px' }}>Inativo</Badge>}
                           </td>
-                          <td style={{ textAlign: 'center' }}>
+                          <td data-label="Ações" style={{ textAlign: 'center' }} className="actions-cell">
                             <ActionButton 
                               $isAtivo={isAtivo} 
                               onClick={() => alternarStatusUsuario(user.id, isAtivo)}
@@ -321,7 +319,7 @@ export function Configuracoes() {
                   )}
                 </tbody>
               </Table>
-            </TableContainer>
+            </TabelaResponsiva>
           </Panel>
         )}
 
@@ -334,7 +332,7 @@ export function Configuracoes() {
                 <CloseButton onClick={() => setMostrarModalNovoUser(false)}>&times;</CloseButton>
               </ModalHeader>
               <form onSubmit={handleCriarUsuario}>
-                <div style={{ padding: '25px' }}>
+                <div style={{ padding: '25px', maxHeight: '70vh', overflowY: 'auto' }}>
                   <FormGroup>
                     <label>Nome Completo *</label>
                     <Input type="text" value={novoNome} onChange={e => setNovoNome(e.target.value)} required placeholder="Ex: João da Silva" />
@@ -380,6 +378,7 @@ export function Configuracoes() {
 // ==========================================
 const PageContainer = styled.div`
   padding: 30px; background-color: #f4f7f6; min-height: calc(100vh - 70px);
+  @media (max-width: 768px) { padding: 15px; }
 `;
 const TopSection = styled.div`
   display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px;
@@ -392,6 +391,7 @@ const Subtitle = styled.p`
 `;
 const TabsContainer = styled.div`
   display: flex; gap: 10px; margin-top: 15px;
+  @media (max-width: 600px) { width: 100%; flex-wrap: wrap; button { flex: 1; justify-content: center; } }
 `;
 const TabButton = styled.button`
   padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.2s ease; display: flex; align-items: center; gap: 8px;
@@ -415,8 +415,17 @@ const Panel = styled.div`
 const PanelHeader = styled.div`
   padding: 20px 25px; border-bottom: 1px solid #edf2f9; display: flex; justify-content: space-between; align-items: center; background: #fbfbfc;
   .text-blue { color: #007bff; }
+  @media (max-width: 600px) { flex-direction: column; gap: 15px; align-items: flex-start; .btn-mobile { width: 100%; justify-content: center; } }
 `;
-const TableContainer = styled.div`overflow-x: auto;`;
+
+/* CORREÇÃO DO LAYOUT DA TABELA NO MOBILE */
+const TabelaResponsiva = styled.div`
+  overflow-x: auto; 
+  &::-webkit-scrollbar { height: 6px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+`;
+
 const Table = styled.table`
   width: 100%; border-collapse: collapse; min-width: 600px;
   th { text-align: left; padding: 15px 25px; background: #ffffff; color: #6c757d; font-size: 0.85rem; text-transform: uppercase; border-bottom: 2px solid #edf2f9; }
@@ -424,6 +433,30 @@ const Table = styled.table`
   tr:last-child td { border-bottom: none; }
   tr:hover td { background-color: #fbfbfc; }
   .text-center { text-align: center; } .text-muted { color: #a0aec0; }
+
+  @media (max-width: 768px) {
+    min-width: unset; display: block;
+    thead, tbody, th, td, tr { display: block; }
+    thead tr { position: absolute; top: -9999px; left: -9999px; }
+    
+    tr {
+      border: 1px solid #edf2f9; border-radius: 12px; margin: 15px; padding: 10px; background: #fff;
+    }
+    
+    td {
+      border: none; border-bottom: 1px solid #f1f5f9; position: relative; padding: 12px 10px 12px 40%; 
+      text-align: right; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; min-height: 40px;
+    }
+    
+    td:last-child { border-bottom: none; }
+    
+    td::before {
+      position: absolute; top: 50%; left: 10px; transform: translateY(-50%); width: 35%; padding-right: 10px; 
+      white-space: nowrap; text-align: left; font-weight: 700; color: #6c757d; font-size: 0.75rem; 
+      content: attr(data-label); text-transform: uppercase;
+    }
+    .actions-cell { justify-content: flex-end; }
+  }
 `;
 
 const Badge = styled.span`
@@ -442,6 +475,7 @@ const ActionButton = styled.button`
 const FormPanel = styled.div`
   background: #fff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border: 1px solid #edf2f9; overflow: hidden; max-width: 900px;
   .form-header { padding: 25px; border-bottom: 1px solid #edf2f9; background: #fbfbfc; h3 { margin: 0 0 5px 0; color: #2c3e50; font-size: 1.2rem; display: flex; align-items: center; gap: 8px;} p { margin: 0; color: #6c757d; font-size: 0.9rem; } .text-green { color: #28a745; } .text-blue { color: #007bff; } }
+  .form-actions { @media (max-width: 600px) { flex-direction: column; button { width: 100%; justify-content: center; } } }
 `;
 const FormGrid = styled.div`
   display: grid; grid-template-columns: ${props => props.$columns || '1fr'}; gap: 20px; margin-bottom: 15px;
@@ -453,17 +487,18 @@ const FormGroup = styled.div`
   .error-text { color: #dc3545; font-size: 0.8rem; font-weight: 600; margin-top: 2px;}
 `;
 const Input = styled.input`
-  width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #333; outline: none; transition: 0.2s;
+  width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #333; outline: none; transition: 0.2s; box-sizing: border-box;
   &:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); }
   &.highlight-blue { background: #f8fafc; } &.error { border-color: #dc3545; background: #fdf2f2; }
 `;
 const Select = styled.select`
-  width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #333; outline: none; cursor: pointer; background: #f8fafc;
+  width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #333; outline: none; cursor: pointer; background: #f8fafc; box-sizing: border-box;
   &:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); }
 `;
 
+/* CORREÇÃO DOS MODAIS PARA IPHONE */
 const ModalOverlay = styled.div`
-  position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(2px); padding: 20px;
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(2px); padding: 20px; padding-bottom: calc(20px + env(safe-area-inset-bottom)); box-sizing: border-box;
 `;
 const ModalContent = styled.div`
   background: #ffffff; border-radius: 12px; width: 100%; max-width: 600px; box-shadow: 0 15px 40px rgba(0,0,0,0.2); overflow: hidden; animation: slideUp 0.2s ease-out;
@@ -472,17 +507,20 @@ const ModalContent = styled.div`
 const ModalHeader = styled.div`
   display: flex; justify-content: space-between; align-items: center; padding: 20px 25px; border-bottom: 1px solid #edf2f9; background: #fbfbfc;
   .text-blue { color: #007bff; }
+  @media (max-width: 600px) { h3 { font-size: 1.15rem; padding-right: 30px; } }
 `;
 const ModalFooter = styled.div`
   display: flex; justify-content: flex-end; gap: 10px; padding: 20px 25px; border-top: 1px solid #edf2f9; background: #fbfbfc;
+  @media (max-width: 600px) { flex-direction: column; button { width: 100%; justify-content: center; } }
 `;
 const CloseButton = styled.button`
-  background: none; border: none; font-size: 1.8rem; color: #a0aec0; cursor: pointer; line-height: 1; &:hover { color: #dc3545; }
+  background: none; border: none; font-size: 1.8rem; color: #a0aec0; cursor: pointer; line-height: 1; transition: 0.2s; &:hover { color: #dc3545; }
+  @media (max-width: 600px) { position: absolute; right: 15px; top: 15px; }
 `;
 
 const ButtonBase = styled.button`
   padding: 10px 20px; border-radius: 8px; font-weight: 700; font-size: 0.95rem; cursor: pointer; border: none; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
-  &:disabled { opacity: 0.6; cursor: not-allowed; }
+  &:disabled { opacity: 0.6; cursor: not-allowed; } &:active:not(:disabled) { transform: scale(0.98); }
 `;
 const PrimaryButton = styled(ButtonBase)`
   background: #007bff; color: #fff; &:hover:not(:disabled) { background: #0056b3; }
