@@ -137,6 +137,29 @@ export function Funil() {
     return () => document.removeEventListener('mousedown', handleClickFora);
   }, [empresaId, empresas, contatoId, contatos]);
 
+  useEffect(() => {
+    const lidarComBotaoVoltar = () => {
+      // Se apertar voltar no celular, a gente apenas fecha o modal que estiver aberto
+      if (mostrarModal) {
+        setMostrarModal(false);
+      } else if (mostrarModalContato) {
+        setMostrarModalContato(false);
+      } else if (mostrarModalEmpresa) {
+        setMostrarModalEmpresa(false);
+      }
+    };
+
+    // Só "engana" o histórico se algum modal estiver aberto
+    if (mostrarModal || mostrarModalContato || mostrarModalEmpresa) {
+      window.history.pushState(null, null, window.location.pathname);
+      window.addEventListener('popstate', lidarComBotaoVoltar);
+    }
+
+    return () => {
+      window.removeEventListener('popstate', lidarComBotaoVoltar);
+    };
+  }, [mostrarModal, mostrarModalContato, mostrarModalEmpresa]);
+
   function onBoardMouseDown(e) {
     if (e.target.closest('.kanban-card')) return;
     isDown.current = true;
