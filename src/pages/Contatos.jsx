@@ -106,6 +106,27 @@ export function Contatos() {
     document.addEventListener('mousedown', handleClickFora);
     return () => document.removeEventListener('mousedown', handleClickFora);
   }, [empresaId, empresas]);
+  // ==========================================
+  // PROTEÇÃO DO BOTÃO VOLTAR DO CELULAR
+  // ==========================================
+  useEffect(() => {
+    const lidarComBotaoVoltar = () => {
+      if (mostrarModalContato) {
+        setMostrarModalContato(false);
+      } else if (mostrarModalNovoCargo) {
+        setMostrarModalNovoCargo(false);
+      } else if (mostrarModalOp) {
+        setMostrarModalOp(false);
+      }
+    };
+
+    if (mostrarModalContato || mostrarModalNovoCargo || mostrarModalOp) {
+      window.history.pushState(null, null, window.location.pathname);
+      window.addEventListener('popstate', lidarComBotaoVoltar);
+    }
+
+    return () => window.removeEventListener('popstate', lidarComBotaoVoltar);
+  }, [mostrarModalContato, mostrarModalNovoCargo, mostrarModalOp]);
 
   // Função genérica de manipulação de arrays do formulário
   const gerenciarCampo = (tipo, acao, index, valor) => {

@@ -126,6 +126,27 @@ export function Disparos() {
       }
     }
   }, [tipoFunil, sequenciaAtual, editandoEmailId]);
+  // ==========================================
+  // PROTEÇÃO DO BOTÃO VOLTAR DO CELULAR
+  // ==========================================
+  useEffect(() => {
+    const lidarComBotaoVoltar = () => {
+      if (mostrarPreview) {
+        setMostrarPreview(false);
+      } else if (mostrarModalCliques) {
+        setMostrarModalCliques(false);
+      } else if (mostrarModalEnvios) {
+        setMostrarModalEnvios(false);
+      }
+    };
+
+    if (mostrarPreview || mostrarModalCliques || mostrarModalEnvios) {
+      window.history.pushState(null, null, window.location.pathname);
+      window.addEventListener('popstate', lidarComBotaoVoltar);
+    }
+
+    return () => window.removeEventListener('popstate', lidarComBotaoVoltar);
+  }, [mostrarPreview, mostrarModalCliques, mostrarModalEnvios]);
 
   // --- FUNÇÕES UTILITÁRIAS E CONSTRUTORES DE HTML ---
   function escapeHtml(valor = '') {

@@ -93,6 +93,27 @@ export function Empresas() {
     return () => document.removeEventListener('mousedown', handleClickFora);
   }, []);
 
+  // ==========================================
+  // PROTEÇÃO DO BOTÃO VOLTAR DO CELULAR
+  // ==========================================
+  useEffect(() => {
+    const lidarComBotaoVoltar = () => {
+      if (mostrarModalEmpresa) {
+        setMostrarModalEmpresa(false);
+      } else if (mostrarModalContato) {
+        setMostrarModalContato(false);
+      } else if (mostrarModalOp) {
+        setMostrarModalOp(false);
+      }
+    };
+
+    if (mostrarModalEmpresa || mostrarModalContato || mostrarModalOp) {
+      window.history.pushState(null, null, window.location.pathname);
+      window.addEventListener('popstate', lidarComBotaoVoltar);
+    }
+
+    return () => window.removeEventListener('popstate', lidarComBotaoVoltar);
+  }, [mostrarModalEmpresa, mostrarModalContato, mostrarModalOp]);
 
   // --- FUNÇÕES DE FORMATAÇÃO E UI ---
   function formatarData(dataIso) {
