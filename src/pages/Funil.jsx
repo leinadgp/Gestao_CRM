@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import styled, { keyframes } from 'styled-components';
 
@@ -89,10 +89,6 @@ export function Funil() {
   const startX = useRef(0);
   const scrollLeft = useRef(0);
 
-  // ==========================================
-  // EFEITOS
-  // ==========================================
-  
   function getHeaders() {
     const token = localStorage.getItem('token');
     return { headers: { Authorization: `Bearer ${token}` } };
@@ -141,9 +137,6 @@ export function Funil() {
     return () => document.removeEventListener('mousedown', handleClickFora);
   }, [empresaId, empresas, contatoId, contatos]);
 
-  // ==========================================
-  // LÓGICA DO MOUSE (DRAG BOARD)
-  // ==========================================
   function onBoardMouseDown(e) {
     if (e.target.closest('.kanban-card')) return;
     isDown.current = true;
@@ -163,9 +156,6 @@ export function Funil() {
     if (boardRef.current) { boardRef.current.scrollLeft = scrollLeft.current - walk; }
   }
 
-  // ==========================================
-  // FETCH DE DADOS DA API
-  // ==========================================
   async function carregarDadosBase() {
     setCarregando(true);
     try {
@@ -222,10 +212,6 @@ export function Funil() {
     } catch (e) { console.error('Erro ao buscar módulos', e); }
   }
 
-  // ==========================================
-  // MEMOIZAÇÕES E ORDENAÇÃO
-  // ==========================================
-  
   const oportunidadesPorEtapa = useMemo(() => {
     const mapa = {};
     etapas.forEach(e => mapa[e.id] = []);
@@ -289,10 +275,6 @@ export function Funil() {
     return campanhas.find(c => c.id === parseInt(filtroCampanha));
   }, [campanhas, filtroCampanha]);
 
-
-  // ==========================================
-  // UI HELPERS (ESTRELAS)
-  // ==========================================
   const renderStarsLocal = (rating, readonly = true) => {
     const stars = [];
     for (let i = 1; i <= 5; i++) {
@@ -308,10 +290,6 @@ export function Funil() {
     return <StarsContainer $readonly={readonly}>{stars}</StarsContainer>;
   };
 
-
-  // ==========================================
-  // GERENCIAMENTO DE NOTAS E SUB-MODAIS
-  // ==========================================
   async function carregarNotas(opId) {
     try { 
       const res = await axios.get(`${API_URL}/oportunidades/${opId}/notas`, getHeaders()); 
@@ -414,9 +392,6 @@ export function Funil() {
     }
   }
 
-  // ==========================================
-  // GESTÃO DA OPORTUNIDADE (MODAL PRINCIPAL)
-  // ==========================================
   function toggleModulo(id) {
     const numId = Number(id);
     setModulosSelecionados(prev => {
@@ -503,15 +478,12 @@ export function Funil() {
   const formatarMoeda = (v) => Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const formatarTelefoneParaLink = (t) => t ? t.replace(/[^0-9]/g, '') : '';
 
-  // ==========================================
-  // RENDERIZAÇÃO
-  // ==========================================
   return (
     <PageContainer>
       <TopSection>
         <div>
           <Title>Gestão de Pipeline</Title>
-          <Subtitle>Selecione um Funil / Campanha abaixo para trabalhar.</Subtitle>
+          
         </div>
 
         <ActionsContainer>
@@ -530,16 +502,20 @@ export function Funil() {
               $hasValue={!!filtroCampanha} 
               onClick={() => setDropdownCampanhaAberto(!dropdownCampanhaAberto)}
             >
-              <i className="fa-solid fa-layer-group icon"></i> 
-              <span>Funil: <strong>
-                {campanhaSelecionadaObj ? (
-                  <>
-                    {campanhaSelecionadaObj.nome}
-                    {campanhaSelecionadaObj.apenas_admin && <span style={{marginLeft: '8px', color: '#dc3545', fontSize: '0.8rem'}}><i className="fa-solid fa-lock"></i> Restrito</span>}
-                  </>
-                ) : '-- Selecione --'}
-              </strong></span>
-              <i className={`fa-solid fa-chevron-${dropdownCampanhaAberto ? 'up' : 'down'} arrow`}></i>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <i className="fa-solid fa-layer-group icon"></i> 
+                <span>Funil: <strong>
+                  <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
+                  {campanhaSelecionadaObj ? (
+                    <>
+                      {campanhaSelecionadaObj.nome.split(' ').slice(0,2).join(' ')+' ...'}
+                      {campanhaSelecionadaObj.apenas_admin && <span style={{marginLeft: '8px', color: '#dc3545', fontSize: '0.8rem'}}><i className="fa-solid fa-lock"></i> </span>}
+                    </>
+                  ) : '-- Selecione --'}
+                  </div>
+                </strong></span>
+              </div>
+              <i className="fa-solid fa-chevron-down arrow" style={{ transform: dropdownCampanhaAberto ? 'rotate(180deg)' : 'rotate(0)' }}></i>
             </FilterButton>
             
             {dropdownCampanhaAberto && (
@@ -551,7 +527,7 @@ export function Funil() {
                     onClick={() => { setFiltroCampanha(String(c.id)); setDropdownCampanhaAberto(false); }}
                   >
                     {c.nome} 
-                    {c.apenas_admin && <span style={{marginLeft: '8px', color: '#dc3545', fontSize: '0.75rem', fontWeight: 'bold'}}><i className="fa-solid fa-lock"></i> Restrito</span>}
+                    {c.apenas_admin && <span style={{marginLeft: '8px', color: '#dc3545', fontSize: '0.75rem', fontWeight: 'bold'}}><i className="fa-solid fa-lock"></i> </span>}
                     {c.arquivada && <span style={{marginLeft: '8px', color: '#6c757d', fontSize: '0.75rem'}}>(Arquivada)</span>}
                   </CustomDropdownItem>
                 ))}
@@ -1058,13 +1034,14 @@ export function Funil() {
                     </FormGroup>
                     <FormGroup>
                       <label>Cidade</label>
-                      <Input type="text" value={empresaCidade} onChange={e => setEmpresaCidade(e.target.value)} />
+                      <Input type="text" value={empresaCidade} onChange={e => setCidade(e.target.value)} />
                     </FormGroup>
                     <FormGroup className="span-2">
                       <label><i className="fa-solid fa-phone text-green"></i> Telefones</label>
                       <Input type="text" value={empresaTelefones} onChange={e => setEmpresaTelefones(e.target.value)} />
                     </FormGroup>
 
+                    {/* LEAD SCORING DENTRO DO QUICK EDIT */}
                     <div className="span-2" style={{background: '#f8fafc', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0', marginTop: '10px'}}>
                       <label style={{ display: 'block', marginBottom: '15px', color: '#1F4E79', fontSize: '0.95rem', fontWeight: 'bold' }}>
                         <i className="fa-solid fa-fire"></i> Qualificação e Temperatura
@@ -1107,7 +1084,7 @@ export function Funil() {
 }
 
 // ==========================================
-// STYLED COMPONENTS
+// STYLED COMPONENTS (Design Premium)
 // ==========================================
 
 const PageContainer = styled.div`
@@ -1117,23 +1094,18 @@ const PageContainer = styled.div`
 
 const TopSection = styled.div`
   display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; margin-bottom: 25px;
-  @media (max-width: 768px) { flex-direction: column; align-items: flex-start; }
+  @media (max-width: 768px) { flex-direction: column; align-items: flex-start; .btn-novo { width: 100%; justify-content: center; } }
 `;
-
 const Title = styled.h2`
   margin: 0; color: #2c3e50; font-size: 1.8rem; font-weight: 700;
 `;
-
 const Subtitle = styled.p`
   color: #6c757d; font-size: 0.95rem; margin: 5px 0 0 0;
 `;
 
 const ActionsContainer = styled.div`
   display: flex; align-items: center; gap: 15px; flex-wrap: wrap;
-  @media (max-width: 768px) { 
-    width: 100%; 
-    .btn-novo { width: 100%; justify-content: center; }
-  }
+  @media (max-width: 768px) { width: 100%; }
 `;
 
 const SearchInputWrapper = styled.div`
@@ -1141,45 +1113,56 @@ const SearchInputWrapper = styled.div`
   @media (max-width: 768px) { width: 100%; }
   i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #a0aec0; }
   input {
-    padding: 10px 15px 10px 38px; border-radius: 20px; border: 1px solid #cbd5e1; font-size: 0.95rem; outline: none; width: 280px; transition: 0.2s;
+    padding: 10px 15px 10px 38px; border-radius: 10px; border: 1px solid #cbd5e1; font-size: 0.95rem; outline: none; width: 280px; transition: 0.2s; box-sizing: border-box;
     &:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.1); }
     @media (max-width: 768px) { width: 100%; }
   }
 `;
 
+/* === ÁREA DE FILTROS MODERNIZADA === */
 const FilterPillWrapper = styled.div`
-  position: relative; display: inline-block;
+  position: relative; display: inline-block; max-width: 380px;
   @media (max-width: 768px) { width: 100%; }
 `;
 
 const FilterButton = styled.button`
-  display: flex; align-items: center; justify-content: space-between; background: ${props => props.$hasValue ? '#ffffff' : '#f8fafc'};
-  border: 1px solid ${props => props.$hasValue ? '#007bff' : '#cbd5e1'}; 
-  color: #2c3e50; 
-  padding: 10px 18px; border-radius: 50px; font-size: 0.95rem; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: ${props => props.$hasValue ? '#f0f7ff' : '#ffffff'};
+  border: 1px solid ${props => props.$hasValue ? '#007bff' : '#e2e8f0'};
+  color: #334155; padding: 10px 20px; border-radius: 10px; max-width: 380px; font-size: 0.95rem; font-weight: 500; cursor: pointer; transition: all 0.2s ease-in-out; box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+  @media (max-width: 768px) { width: 100%; }
 
   &:hover { 
-    background: #e7f3ff;
-    border-color: #007bff;
-    transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,123,255,0.1); 
+    background: #f8fafc; border-color: #007bff; box-shadow: 0 4px 12px rgba(0,123,255,0.1); transform: translateY(-1px);
   }
 
-  span { margin: 0 10px; font-weight: 600; strong { color: #007bff; font-weight: 800;} }
-  .icon { color: #007bff; font-size: 1.05rem; }
-  .arrow { color: #007bff; font-size: 0.8rem; }
-  
-  @media (max-width: 768px) { width: 100%; }
+  span { display: flex; align-items: center; gap: 6px; color: #64748b; margin: 0;
+    strong { color: ${props => props.$hasValue ? '#007bff' : '#0f172a'}; font-weight: 700;} 
+  }
+  .icon { color: ${props => props.$hasValue ? '#007bff' : '#94a3b8'}; font-size: 1.1rem; }
+  .arrow { color: #94a3b8; font-size: 0.8rem; transition: transform 0.3s ease; }
 `;
 
 const CustomDropdownMenu = styled.ul`
-  position: absolute; top: calc(100% + 8px); right: 0; background: #ffffff; border: 1px solid #edf2f9; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); min-width: 250px; max-height: 300px; overflow-y: auto; z-index: 1000; padding: 8px 0; list-style: none; margin: 0; animation: fadeInDown 0.2s ease-out;
+  position: absolute; top: calc(100% + 10px); right: 0; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 10px 40px -10px rgba(0,0,0,0.15); min-width: 260px; max-height: 300px; overflow-y: auto; z-index: 1000; padding: 10px; list-style: none; margin: 0; animation: fadeInDown 0.2s ease-out forwards;
   @media (max-width: 768px) { width: 100%; left: 0; }
-  @keyframes fadeInDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-`;
+  
+  &::-webkit-scrollbar { width: 6px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
 
+  @keyframes fadeInDown {
+    from { opacity: 0; transform: translateY(-10px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+`;
 const CustomDropdownItem = styled.li`
-  padding: 12px 20px; font-size: 0.95rem; color: ${props => props.$active ? '#007bff' : '#495057'}; background: ${props => props.$active ? '#f0f7ff' : 'transparent'}; font-weight: ${props => props.$active ? '700' : '500'}; cursor: pointer; transition: background 0.2s;
-  &:hover { background: #f8fafc; color: #007bff; }
+  padding: 12px 16px; font-size: 0.95rem; border-radius: 10px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; margin-bottom: 2px;
+  color: ${props => props.$active ? '#007bff' : '#475569'}; 
+  background: ${props => props.$active ? '#f0f7ff' : 'transparent'}; 
+  font-weight: ${props => props.$active ? '700' : '500'}; 
+
+  &:hover { background: #f8fafc; color: #0f172a; transform: translateX(4px); }
 `;
 
 // --- STATUS E ESTADOS VAZIOS ---
@@ -1196,26 +1179,31 @@ const LoadingContainer = styled.div`
 // --- KANBAN BOARD ---
 const KanbanBoard = styled.div`
   display: flex; gap: 20px; overflow-x: auto; padding-bottom: 20px; align-items: flex-start; min-height: 60vh; user-select: none;
-  scrollbar-width: thin; scroll-snap-type: x mandatory;
+  scrollbar-width: thin; 
   &::-webkit-scrollbar { height: 8px; }
   &::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 8px; }
   &::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+  
+  /* SÓ APLICA O SNAP NO MOBILE PARA FLUIDEZ NO PC */
+  @media (max-width: 768px) {
+    scroll-snap-type: x mandatory;
+  }
 `;
 
 const KanbanColumn = styled.div`
   min-width: 320px; max-width: 320px; min-height: 350px; background-color: #f4f5f7; border-radius: 10px; display: flex; flex-direction: column; gap: 10px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); padding: 10px;
-  scroll-snap-align: start;
   
   @media (max-width: 768px) {
-    min-width: 85vw; /* Ocupa quase a tela toda no celular */
+    min-width: 85vw; 
     max-width: 85vw;
+    scroll-snap-align: start; /* FAZ O SNAP APENAS NO MOBILE */
   }
 `;
 
 const ColumnHeader = styled.div`
   display: flex; justify-content: space-between; align-items: center; padding: 5px 5px 10px 5px;
   .title { font-weight: 700; color: #444; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px; }
-  .badge { background: #e2e4e9; color: #555; padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; }
+  .badge { background: #e2e4e9; color: #555; padding: 4px 10px; border-radius: 10px; font-size: 0.8rem; font-weight: bold; }
 `;
 
 const CardsContainer = styled.div`
@@ -1253,7 +1241,7 @@ const SellerBadge = styled.div`
 
 // --- MODAIS GERAIS ---
 const ModalOverlay = styled.div`
-  position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh; background: rgba(0,0,0,0.6); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; z-index: 9998; padding: 20px; padding-bottom: env(safe-area-inset-bottom);
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh; background: rgba(0,0,0,0.6); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; z-index: 9998; padding: 20px; padding-bottom: calc(20px + env(safe-area-inset-bottom)); box-sizing: border-box;
 `;
 
 const ModalContent = styled.div`
@@ -1342,14 +1330,15 @@ const AutocompleteContainer = styled.div`
   position: relative; width: 100%;
 `;
 const AutocompleteList = styled.ul`
-  position: absolute; top: calc(100% + 5px); left: 0; width: 100%; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); max-height: 200px; overflow-y: auto; z-index: 100; list-style: none; padding: 5px 0; margin: 0;
+  position: absolute; top: calc(100% + 5px); left: 0; width: 100%; background: #fff; border: 1px solid #cbd5e1; border-radius: 16px; box-shadow: 0 10px 40px -10px rgba(0,0,0,0.15); max-height: 300px; overflow-y: auto; z-index: 1000; padding: 10px; list-style: none; margin: 0; animation: fadeInDown 0.2s ease-out forwards;
 `;
 const AutocompleteOption = styled.li`
-  padding: 10px 15px; font-size: 0.9rem; color: #333; cursor: pointer; transition: 0.2s; border-bottom: 1px solid #f1f5f9;
-  &:hover { background: #f0f7ff; color: #007bff; }
-  &.danger { color: #dc3545; font-weight: 700; &:hover { background: #fff5f5; } }
-  &.no-results { color: #94a3b8; font-style: italic; cursor: default; &:hover { background: #fff; } }
+  padding: 12px 16px; font-size: 0.95rem; border-radius: 10px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; margin-bottom: 2px;
+  &:hover { background: #f8fafc; color: #0f172a; transform: translateX(4px); }
+  &.danger { color: #dc3545; font-weight: 700; &:hover { background: #fff5f5; color: #dc3545; } }
+  &.no-results { color: #94a3b8; font-style: italic; cursor: default; &:hover { background: transparent; transform: none; } }
 `;
+
 const IconButton = styled.button`
   background: #e7f3ff; color: #007bff; border: 1px solid #b8daff; border-radius: 8px; padding: 0 15px; cursor: pointer; font-size: 1.1rem; transition: 0.2s;
   &:hover { background: #007bff; color: #fff; }
@@ -1446,7 +1435,7 @@ const InfoBox = styled.div`
   div { font-size: 1rem; color: #2c3e50; font-weight: 600; }
   .text-blue { color: #007bff; }
   .phones { display: flex; gap: 10px; flex-wrap: wrap; }
-  .phone-pill { display: inline-flex; align-items: center; gap: 6px; background: #e6f4ea; color: #155724; padding: 6px 12px; border-radius: 20px; text-decoration: none; font-size: 0.9rem; border: 1px solid #c3e6cb; transition: 0.2s; &:hover{ background: #28a745; color: #fff; .text-green{color: #fff;} } }
+  .phone-pill { display: inline-flex; align-items: center; gap: 6px; background: #e6f4ea; color: #155724; padding: 6px 12px; border-radius: 10px; text-decoration: none; font-size: 0.9rem; border: 1px solid #c3e6cb; transition: 0.2s; &:hover{ background: #28a745; color: #fff; .text-green{color:#fff;} } }
   .text-green { color: #28a745; }
 `;
 
