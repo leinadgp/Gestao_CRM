@@ -43,6 +43,7 @@ export function Funil() {
   const [vendedorId, setVendedorId] = useState('');
   const [vendedorOriginal, setVendedorOriginal] = useState(''); 
   const [desconto, setDesconto] = useState(0);
+  const [descontoReais, setDescontoReais] = useState(0);
 
   // --- ESTADOS DE MÓDULOS ---
   const [modulosCampanha, setModulosCampanha] = useState([]);
@@ -290,9 +291,13 @@ export function Funil() {
       const m = modulosCampanha.find(mod => mod.id === Number(idMod));
       return acc + (m ? Number(m.valor || 0) : 0);
     }, 0);
-    const final = sub * (1 - (Number(desconto) / 100));
+    
+    // Calcula primeiro a porcentagem e depois subtrai o desconto em reais
+    let final = sub * (1 - (Number(desconto) / 100)) - Number(descontoReais);
+    if (final < 0) final = 0; // Trava de segurança para não ficar negativo
+    
     return { subtotalModulos: sub, valorFinalCalculado: final };
-  }, [modulosSelecionados, modulosCampanha, desconto]);
+  }, [modulosSelecionados, modulosCampanha, desconto, descontoReais]);
 
   const campanhaSelecionadaObj = useMemo(() => {
     return campanhas.find(c => c.id === parseInt(filtroCampanha));
@@ -429,7 +434,7 @@ export function Funil() {
     setEditandoId(null); setTitulo(''); setEmpresaId(''); setContatoId(''); setObservacoes('');
     setStatusOp('aberto'); setEtapaId(etapas.length > 0 ? etapas[0].id : '');
     setVendedorId(meuUsuarioId || ''); setVendedorOriginal(meuUsuarioId || ''); 
-    setDesconto(0);
+    setDesconto(0); setDescontoReais(0);
     
     if (modulosCampanha.length > 0) {
       const todosIds = modulosCampanha.map(m => Number(m.id));
@@ -447,9 +452,21 @@ export function Funil() {
     setEmpresaId(op.empresa_id || ''); setContatoId(op.contato_id || '');
     setEtapaId(op.etapa_id); setObservacoes(op.observacoes || '');
     setStatusOp(op.status || 'aberto'); setVendedorId(op.vendedor_id || '');
-    setVendedorOriginal(op.vendedor_id || ''); setDesconto(op.desconto || 0);
+    setVendedorOriginal(op.vendedor_id || ''); 
+    setDesconto(op.desconto || 0);
 
+    // Lógica para resgatar os módulos e descobrir o desconto em Reais
     const mods = parseJSONSeguro(op.modulos_ids, []).map(Number);
+    const sub = mods.reduce((acc, idMod) => {
+      const m = modulosCampanha.find(m => Number(m.id) === idMod);
+      return acc + (m ? Number(m.valor || 0) : 0);
+    }, 0);
+    
+    const descPerc = Number(op.desconto || 0);
+    const valorComDescontoPerc = sub * (1 - (descPerc / 100));
+    const diff = valorComDescontoPerc - Number(op.valor || 0);
+    
+    setDescontoReais(diff > 0.01 ? diff.toFixed(2) : 0);
     setModulosSelecionados(mods);
 
     setBuscaEmpresaNoModal(op.empresa_nome || ''); setBuscaContatoNoModal(op.contato_nome || '');
@@ -807,7 +824,11 @@ export function Funil() {
                     </div>
                     <div>
                       <label className="text-blue">Desconto (%)</label>
-                      <Input type="number" min="0" max="100" value={desconto} onChange={e => setDesconto(e.target.value)} className="highlight-blue" style={{width: '100px'}} />
+                      <Input type="number" min="0" max="100" value={desconto} onChange={e => setDesconto(e.target.value)} className="highlight-blue" style={{width: '90px'}} />
+                    </div>
+                    <div>
+                      <label style={{color: '#fd7e14'}}>Desconto (R$)</label>
+                      <Input type="number" min="0" step="0.01" value={descontoReais} onChange={e => setDescontoReais(e.target.value)} style={{width: '110px', backgroundColor: '#fff4e6', borderColor: '#fd7e14'}} />
                     </div>
                     <div>
                       <label className="text-green">Valor a Cobrar</label>
