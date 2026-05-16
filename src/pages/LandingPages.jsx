@@ -13,7 +13,7 @@ export function LandingPages() {
   const [carregando, setCarregando] = useState(true);
   const [buscaGeral, setBuscaGeral] = useState('');
   
-  // === ESTADOS DO SUPER MODAL ===
+  // === ESTADOS DO SUPER MODAL DO GRAPESJS ===
   const [mostrarModal, setMostrarModal] = useState(false);
   const [editandoId, setEditandoId] = useState(null);
   
@@ -22,6 +22,16 @@ export function LandingPages() {
   const [statusLP, setStatusLP] = useState('rascunho');
   const [campanhaId, setCampanhaId] = useState('');
   
+  // === ESTADOS DO ASSISTENTE MÁGICO (IA) ===
+  const [mostrarWizardIA, setMostrarWizardIA] = useState(false);
+  const [gerandoIA, setGerandoIA] = useState(false);
+  const [iaPrompt, setIaPrompt] = useState({
+    nomeCurso: '',
+    publicoAlvo: '',
+    beneficios: '',
+    chamadaAcao: ''
+  });
+
   const API_URL = import.meta.env?.VITE_API_URL || 'https://server-js-gestao.onrender.com';
   
   const editorRef = useRef(null);
@@ -81,16 +91,11 @@ export function LandingPages() {
 
       editorRef.current = editor;
 
-      // ========================================================
-      // EVENTOS DE BLINDAGEM DO EDITOR PARA CLIENTES LEIGOS
-      // ========================================================
+      // Eventos de blindagem
       editor.on('load', () => {
-        // Esconde o painel de Estilos (Pincel), Engrenagem (Traits) e Camadas
         editor.Panels.removeButton('views', 'open-sm');
         editor.Panels.removeButton('views', 'open-tm');
         editor.Panels.removeButton('views', 'open-layers');
-        
-        // Mantém a aba de blocos ativa por padrão
         editor.Panels.getButton('views', 'open-blocks').set('active', true);
       });
 
@@ -101,9 +106,7 @@ export function LandingPages() {
         }
       });
 
-      // ========================================================
-      // 1. BLOCO: CAPA AUTORIDADE (NOVO ESTILO ESCURO VIP)
-      // ========================================================
+      // BLOCO 1: CAPA AUTORIDADE
       editor.BlockManager.add('autoridade-hero', {
         label: '<i class="fa-solid fa-crown fa-2x"></i><br/>Capa Autoridade',
         category: 'Estilo Premium',
@@ -111,11 +114,10 @@ export function LandingPages() {
           <section style="background: linear-gradient(rgba(11, 25, 44, 0.85), rgba(11, 25, 44, 0.85)), url('https://images.unsplash.com/photo-1589829085413-56de8ae18c73?q=80&w=2000&auto=format&fit=crop') center/cover; padding: 120px 20px; color: #fff; font-family: Arial, sans-serif;">
             <div style="max-width: 1200px; margin: 0 auto; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 40px;">
               <div style="flex: 1; min-width: 300px; max-width: 700px;">
-                <h1 style="font-size: 46px; font-weight: 800; margin-bottom: 20px; line-height: 1.1;">Programa Avançado em <br/><span style="color: #fbbf24;">Licitações e Contratos</span></h1>
-                <p style="font-size: 20px; line-height: 1.6; margin-bottom: 40px; color: #cbd5e1;">Com base na nova Lei 14.133/2021. Avance com prática, segurança jurídica e desburocratização no seu órgão público.</p>
+                <h1 style="font-size: 46px; font-weight: 800; margin-bottom: 20px; line-height: 1.1;">Título do Programa Aqui</h1>
+                <p style="font-size: 20px; line-height: 1.6; margin-bottom: 40px; color: #cbd5e1;">Escreva o subtítulo persuasivo do seu serviço ou curso.</p>
                 <div style="display: flex; gap: 20px; flex-wrap: wrap;">
                   <a href="#form-inscricao" style="background: #fbbf24; color: #000; padding: 18px 35px; border-radius: 6px; font-weight: bold; text-decoration: none; font-size: 18px;">Quero garantir minha vaga!</a>
-                  <a href="#sobre" style="border: 2px solid #ffffff; color: #ffffff; padding: 18px 35px; border-radius: 6px; font-weight: bold; text-decoration: none; font-size: 18px;">Conhecer o Programa</a>
                 </div>
               </div>
               <div style="flex: 1; min-width: 300px; text-align: center;">
@@ -127,36 +129,30 @@ export function LandingPages() {
         `
       });
 
-      // ========================================================
-      // 2. BLOCO: CAPA HERO (ESTILO RD STATION CLÁSSICO)
-      // ========================================================
-      editor.BlockManager.add('rd-hero', {
-        label: '<i class="fa-solid fa-heading fa-2x"></i><br/>Capa Padrão',
+      // BLOCO 2: DORES/SOLUÇÕES
+      editor.BlockManager.add('rd-benefits', {
+        label: '<i class="fa-solid fa-triangle-exclamation fa-2x"></i><br/>Dores/Soluções',
         category: 'Estilo Premium',
         content: `
-          <section style="background-color: #0f172a; padding: 80px 20px; color: #ffffff; font-family: Arial, sans-serif;">
-            <div style="max-width: 1100px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 40px; align-items: center;">
-              <div style="flex: 1; min-width: 300px;">
-                <h1 style="font-size: 2.8rem; margin-bottom: 20px; line-height: 1.2; color: #ffffff;">Contabilidade Pública Para Não Contadores</h1>
-                <p style="font-size: 1.2rem; color: #94a3b8; margin-bottom: 30px;">Curso desenvolvido para Auditores de Controle Interno que atuam no setor público.</p>
-                <ul style="list-style: none; padding: 0; margin-bottom: 30px;">
-                  <li style="margin-bottom: 10px;"><i class="fa-solid fa-check" style="color: #28a745; margin-right: 10px;"></i> 100% online e ao vivo</li>
-                  <li style="margin-bottom: 10px;"><i class="fa-solid fa-check" style="color: #28a745; margin-right: 10px;"></i> Estrutura progressiva</li>
-                  <li style="margin-bottom: 10px;"><i class="fa-solid fa-check" style="color: #28a745; margin-right: 10px;"></i> Foco na realidade municipal</li>
-                </ul>
-                <a href="#form-inscricao" style="display: inline-block; padding: 15px 30px; background-color: #28a745; color: #fff; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 1.1rem;">Garantir minha vaga</a>
-              </div>
-              <div style="flex: 1; min-width: 300px; text-align: center;">
-                <img src="https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=500&auto=format&fit=crop" style="max-width: 100%; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);" alt="Imagem Aula" />
+          <section id="sobre" style="padding: 80px 20px; background-color: #ffffff; font-family: Arial, sans-serif;">
+            <div style="max-width: 1000px; margin: 0 auto;">
+              <h2 style="text-align: center; color: #0f172a; margin-bottom: 50px; font-size: 32px;">Você enfrenta esses desafios?</h2>
+              <div style="display: flex; gap: 30px; justify-content: center; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 280px; background: #fff5f5; padding: 40px 30px; border-radius: 8px; border-top: 4px solid #dc3545; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+                  <h3 style="color: #dc3545; margin-top: 0; font-size: 20px;">Problema 1</h3>
+                  <p style="color: #475569; font-size: 16px; line-height: 1.5;">Descreva a dor principal do seu cliente aqui.</p>
+                </div>
+                <div style="flex: 1; min-width: 280px; background: #f0f7ff; padding: 40px 30px; border-radius: 8px; border-top: 4px solid #007bff; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+                  <h3 style="color: #007bff; margin-top: 0; font-size: 20px;">A Solução</h3>
+                  <p style="color: #475569; font-size: 16px; line-height: 1.5;">Aprenda o passo a passo prático para resolver.</p>
+                </div>
               </div>
             </div>
           </section>
         `,
       });
 
-      // ========================================================
-      // 3. BLOCO: FORMULÁRIO DINÂMICO
-      // ========================================================
+      // BLOCO 3: FORMULÁRIO DE INSCRIÇÃO
       editor.BlockManager.add('rd-form', {
         label: '<i class="fa-solid fa-address-card fa-2x"></i><br/>Form. Inscrição',
         category: 'Estilo Premium',
@@ -167,31 +163,18 @@ export function LandingPages() {
               <p style="text-align: center; color: #64748b; margin-bottom: 30px;">Preencha os dados abaixo para confirmar sua inscrição.</p>
               
               <form id="formInscricaoCRM" style="display: flex; flex-direction: column; gap: 15px;">
-                
                 <div>
                   <label style="font-size: 0.9rem; font-weight: bold; color: #475569; display: block; margin-bottom: 5px;">Nome completo*</label>
                   <input type="text" id="nome" required style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; font-size: 14px;" />
                 </div>
-
                 <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-                  <div style="flex: 1; min-width: 200px;">
-                    <label style="font-size: 0.9rem; font-weight: bold; color: #475569; display: block; margin-bottom: 5px;">Setor/Secretaria*</label>
-                    <input type="text" id="setor" required style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; font-size: 14px;" />
-                  </div>
-                  <div style="flex: 1; min-width: 200px;">
-                    <label style="font-size: 0.9rem; font-weight: bold; color: #475569; display: block; margin-bottom: 5px;">Cargo*</label>
-                    <input type="text" id="cargo" required style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; font-size: 14px;" />
-                  </div>
-                </div>
-
-                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-                  <div style="flex: 1; min-width: 200px;">
-                    <label style="font-size: 0.9rem; font-weight: bold; color: #475569; display: block; margin-bottom: 5px;">Município*</label>
-                    <input type="text" id="cidade" required style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; font-size: 14px;" />
-                  </div>
                   <div style="flex: 1; min-width: 200px;">
                     <label style="font-size: 0.9rem; font-weight: bold; color: #475569; display: block; margin-bottom: 5px;">Email*</label>
                     <input type="email" id="email" required style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; font-size: 14px;" />
+                  </div>
+                  <div style="flex: 1; min-width: 200px;">
+                    <label style="font-size: 0.9rem; font-weight: bold; color: #475569; display: block; margin-bottom: 5px;">Telefone (WhatsApp)*</label>
+                    <input type="text" id="whatsapp" required style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; font-size: 14px;" />
                   </div>
                 </div>
 
@@ -199,44 +182,16 @@ export function LandingPages() {
                   <label style="font-size: 1rem; font-weight: bold; color: #007bff; display: block; margin-bottom: 10px;">Opções de Inscrição</label>
                   <div id="containerModulos">
                      <div style="color: #64748b; font-size: 0.9rem; font-style: italic;">
-                       (Os módulos e combos de desconto definidos na campanha aparecerão automaticamente aqui)
+                       (Os módulos definidos na campanha aparecerão automaticamente aqui)
                      </div>
                   </div>
                 </div>
 
-                <button type="submit" id="btnSubmit" style="margin-top: 20px; width: 100%; padding: 18px; background-color: #0f172a; color: #fff; border: none; border-radius: 5px; font-size: 1.2rem; font-weight: bold; cursor: pointer; transition: background 0.3s;">
+                <button type="submit" id="btnSubmit" style="margin-top: 20px; width: 100%; padding: 18px; background-color: #0f172a; color: #fff; border: none; border-radius: 5px; font-size: 1.2rem; font-weight: bold; cursor: pointer;">
                   CONFIRMAR INSCRIÇÃO
                 </button>
+                <div id="feedback" style="display:none; padding: 15px; border-radius: 5px; text-align: center; margin-top: 15px; font-weight: bold;"></div>
               </form>
-            </div>
-          </section>
-        `,
-      });
-
-      // ========================================================
-      // 4. BLOCO: DORES (PROBLEMA MUNICIPAL)
-      // ========================================================
-      editor.BlockManager.add('rd-benefits', {
-        label: '<i class="fa-solid fa-triangle-exclamation fa-2x"></i><br/>Dores/Soluções',
-        category: 'Estilo Premium',
-        content: `
-          <section id="sobre" style="padding: 80px 20px; background-color: #ffffff; font-family: Arial, sans-serif;">
-            <div style="max-width: 1000px; margin: 0 auto;">
-              <h2 style="text-align: center; color: #0f172a; margin-bottom: 50px; font-size: 32px;">Você enfrenta esses desafios no município?</h2>
-              <div style="display: flex; gap: 30px; justify-content: center; flex-wrap: wrap;">
-                <div style="flex: 1; min-width: 280px; background: #fff5f5; padding: 40px 30px; border-radius: 8px; border-top: 4px solid #dc3545; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
-                  <h3 style="color: #dc3545; margin-top: 0; font-size: 20px;">Apontamentos do TCE</h3>
-                  <p style="color: #475569; font-size: 16px; line-height: 1.5;">Notificações constantes do Tribunal de Contas devido à interpretação incorreta da nova lei.</p>
-                </div>
-                <div style="flex: 1; min-width: 280px; background: #fff5f5; padding: 40px 30px; border-radius: 8px; border-top: 4px solid #dc3545; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
-                  <h3 style="color: #dc3545; margin-top: 0; font-size: 20px;">Insegurança Jurídica</h3>
-                  <p style="color: #475569; font-size: 16px; line-height: 1.5;">Medo de assinar pareceres sem ter certeza da fundamentação técnica e legal.</p>
-                </div>
-                <div style="flex: 1; min-width: 280px; background: #f0f7ff; padding: 40px 30px; border-radius: 8px; border-top: 4px solid #007bff; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
-                  <h3 style="color: #007bff; margin-top: 0; font-size: 20px;">A Solução</h3>
-                  <p style="color: #475569; font-size: 16px; line-height: 1.5;">Aprenda o passo a passo prático para implementar controles eficientes e blindar a gestão.</p>
-                </div>
-              </div>
             </div>
           </section>
         `,
@@ -257,6 +212,196 @@ export function LandingPages() {
       }
     };
   }, [mostrarModal, htmlInicial, cssInicial]); 
+
+ // === A MÁGICA DA IA (GERAR COPY COMPLETA / PÁGINA LONGA) ===
+  async function handleGerarComIA(e) {
+    e.preventDefault();
+    setGerandoIA(true);
+
+    try {
+      // 1. Envia o contexto para o servidor
+      const resposta = await axios.post(`${API_URL}/api/ia/gerar-copy`, iaPrompt, getHeaders());
+      const copy = resposta.data; // Recebe o JSON completo com os 7 blocos
+
+      // ========================================================
+      // 2. CONSTRUÇÃO DOS BLOCOS HTML (ESTILO AUTORIDADE PÚBLICA)
+      // ========================================================
+      
+      // Estilos base repetidos
+      const sectionStyle = "padding: 80px 20px; font-family: sans-serif; box-sizing: border-box;";
+      const containerStyle = "max-width: 1100px; margin: 0 auto;";
+      const titleStyle = "font-size: 36px; font-weight: 800; text-align: center; margin-bottom: 50px;";
+      const ctaStyle = "display: inline-block; background-color: #fbbf24; color: #0f172a; padding: 18px 35px; border-radius: 6px; font-weight: bold; text-decoration: none; font-size: 18px; transition: 0.2s;";
+
+      // BLOCO 1: HERO/GANCHO (AZUL ESCURO)
+      const blocoHero = `
+        <section style="${sectionStyle} background: #0b192c; color: #ffffff;">
+          <div style="${containerStyle} text-align: center; display: flex; flex-direction: column; align-items: center; gap: 30px;">
+             <img src="https://via.placeholder.com/250x60?text=Sua+Logo+Aqui" style="max-width: 250px; filter: brightness(0) invert(1);" alt="Logo" />
+             <h1 style="font-size: 48px; font-weight: 800; line-height: 1.1; color: #ffffff; margin: 0;">${copy.hook.headline}</h1>
+             <p style="font-size: 22px; color: #cbd5e1; max-width: 800px; margin: 0;">${copy.hook.subheadline}</p>
+             <a href="#form-inscricao" style="${ctaStyle}">${copy.hook.cta_texto}</a>
+          </div>
+        </section>
+      `;
+
+      // BLOCO 2: PROBLEMA (VERMELHO SOFT)
+      const blocoProblema = `
+        <section style="${sectionStyle} background: #fef2f2;">
+          <div style="${containerStyle}">
+             <h2 style="${titleStyle} color: #b91c1c;">${copy.problema.titulo}</h2>
+             <div style="display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;">
+               ${(copy.problema.cards || []).map(card => `
+                 <div style="flex: 1; min-width: 260px; max-width: 350px; background: #fff; padding: 30px; border-radius: 8px; border-top: 4px solid #ef4444; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+                    <p style="color: #475569; font-size: 17px; line-height: 1.5; margin: 0; font-weight: 600;">${card}</p>
+                 </div>
+               `).join('')}
+             </div>
+          </div>
+        </section>
+      `;
+
+      // BLOCO 3: AGITAÇÃO (BRANCO)
+      const blocoAgitacao = `
+        <section style="${sectionStyle} background: #ffffff;">
+          <div style="${containerStyle} text-align: center; max-width: 800px;">
+             <p style="font-size: 20px; color: #1e293b; line-height: 1.8; font-weight: 600;">${copy.agitacao.texto_longo}</p>
+          </div>
+        </section>
+      `;
+
+      // BLOCO 4: SOLUÇÃO (AZUL ESCURO)
+      const blocoSolucao = `
+        <section style="${sectionStyle} background: #0b192c; color: #ffffff;">
+          <div style="${containerStyle} display: flex; flex-wrap: wrap; gap: 40px; align-items: center;">
+             <div style="flex: 1; min-width: 300px;">
+                <h2 style="font-size: 36px; font-weight: 800; color: #fbbf24; margin-bottom: 20px;">${copy.solucao.titulo}</h2>
+                <p style="font-size: 19px; color: #ffffff; font-weight: 700; margin-bottom: 30px;">${copy.solucao.texto_destaque}</p>
+                <ul style="list-style: none; padding: 0; margin-bottom: 30px;">
+                  ${(copy.solucao.lista || []).map(item => `
+                    <li style="margin-bottom: 15px; font-size: 17px; display: flex; align-items: center; gap: 10px; color: #cbd5e1;"><i class="fa-solid fa-check-circle" style="color: #fbbf24;"></i> ${item}</li>
+                  `).join('')}
+                </ul>
+                <a href="#form-inscricao" style="${ctaStyle}">Inspecionar Módulos e Preços</a>
+             </div>
+             <div style="flex: 1; min-width: 300px; text-align: center;">
+               <img src="https://images.unsplash.com/photo-1593720213428-28a5b9e94613?q=80&w=600&auto=format&fit=crop" style="max-width: 100%; border-radius: 10px; box-shadow: 0 10px 40px rgba(0,0,0,0.5);" alt="Estrutura do Curso" />
+             </div>
+          </div>
+        </section>
+      `;
+
+      // BLOCO 5: AUTORIDADE (BRANCO)
+      const blocoAutoridade = `
+        <section id="sobre" style="${sectionStyle} background: #ffffff;">
+          <div style="${containerStyle} display: flex; flex-wrap: wrap; gap: 40px; align-items: center; background: #f8fafc; padding: 50px; border-radius: 12px; border: 1px solid #e2e8f0;">
+             <div style="flex: 1; min-width: 250px; text-align: center;">
+               <img src="https://via.placeholder.com/250x250?text=Sua+Foto+Aqui" style="width: 220px; height: 220px; border-radius: 50%; object-fit: cover; border: 6px solid #fbbf24;" alt="Instrutor" />
+               <p style="color: #64748b; font-size: 13px; margin-top: 10px;">(Clique 2x para trocar a foto)</p>
+             </div>
+             <div style="flex: 2; min-width: 300px;">
+                <h2 style="font-size: 28px; font-weight: 800; color: #0b192c; margin-bottom: 5px;">Quem vai te guiar</h2>
+                <h3 style="font-size: 20px; color: #fbbf24; margin-top: 0; margin-bottom: 25px; font-weight: bold;">${copy.autoridade.nome_professor}</h3>
+                <p style="font-size: 17px; color: #475569; line-height: 1.7;">${copy.autoridade.bio_prefixo}</p>
+                <p style="font-size: 16px; color: #64748b; line-height: 1.7;">A IA gerou a introdução. Clique aqui e escreva o currículo completo profissional do professor.</p>
+             </div>
+          </div>
+        </section>
+      `;
+
+      // BLOCO 6: FAQ (CINZA SOFT)
+      const blocoFaq = `
+        <section style="${sectionStyle} background: #f8fafc;">
+          <div style="${containerStyle} max-width: 800px;">
+             <h2 style="${titleStyle} color: #0b192c;">Dúvidas Frequentes</h2>
+             <div style="display: flex; flex-direction: column; gap: 15px;">
+               ${(copy.faq || []).map(item => `
+                 <div style="background: #ffffff; padding: 25px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <h4 style="margin: 0 0 10px 0; font-size: 18px; color: #0b192c; font-weight: bold;">${item.pergunta}</h4>
+                    <p style="margin: 0; color: #64748b; font-size: 16px; line-height: 1.6;">${item.resposta}</p>
+                 </div>
+               `).join('')}
+             </div>
+          </div>
+        </section>
+      `;
+
+      // BLOCO 7: FORMULÁRIO E CHAMADA FINAL (AZUL ESCURO)
+      const blocoFinal = `
+        <section id="form-inscricao" style="${sectionStyle} background: #0b192c; color: #ffffff;">
+          <div style="${containerStyle} text-align: center; max-width: 700px; padding-bottom: 60px;">
+             <p style="font-size: 22px; color: #cbd5e1; font-weight: bold; margin-bottom: 10px;">Últimas Vagas Disponíveis</p>
+             <h2 style="font-size: 32px; font-weight: 800; color: #fbbf24; margin-top: 0; margin-bottom: 20px;">${copy.chamada_final.texto}</h2>
+          </div>
+          
+          <div style="${containerStyle} max-width: 700px; background: #ffffff; padding: 40px; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
+              <h2 style="text-align: center; color: #0f172a; margin-bottom: 10px; font-size: 28px;">Garanta sua Vaga</h2>
+              <p style="text-align: center; color: #64748b; margin-bottom: 30px;">Preencha os dados abaixo para confirmar sua inscrição no curso.</p>
+              
+              <form id="formInscricaoCRM" style="display: flex; flex-direction: column; gap: 15px;">
+                <div>
+                  <label style="font-size: 0.9rem; font-weight: bold; color: #475569; display: block; margin-bottom: 5px;">Nome completo*</label>
+                  <input type="text" id="nome" required style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; font-size: 14px;" />
+                </div>
+                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                  <div style="flex: 1; min-width: 200px;">
+                    <label style="font-size: 0.9rem; font-weight: bold; color: #475569; display: block; margin-bottom: 5px;">Email*</label>
+                    <input type="email" id="email" required style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; font-size: 14px;" />
+                  </div>
+                  <div style="flex: 1; min-width: 200px;">
+                    <label style="font-size: 0.9rem; font-weight: bold; color: #475569; display: block; margin-bottom: 5px;">Telefone (WhatsApp)*</label>
+                    <input type="text" id="whatsapp" required style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; font-size: 14px;" />
+                  </div>
+                </div>
+
+                <div style="margin-top: 10px; padding: 20px; background: #f0f7ff; border-radius: 8px; border: 1px solid #b8daff;">
+                  <label style="font-size: 1rem; font-weight: bold; color: #007bff; display: block; margin-bottom: 10px;">Opções de Inscrição</label>
+                  <div id="containerModulos">
+                     <div style="color: #64748b; font-size: 0.9rem; font-style: italic;">
+                       (Os módulos e combos de desconto definidos na campanha aparecerão automaticamente aqui)
+                     </div>
+                  </div>
+                </div>
+
+                <button type="submit" id="btnSubmit" style="margin-top: 20px; width: 100%; padding: 18px; background-color: #0b192c; color: #fff; border: none; border-radius: 5px; font-size: 1.2rem; font-weight: bold; cursor: pointer; transition: background 0.3s;">
+                  ${copy.chamada_final.cta_texto}
+                </button>
+                <div id="feedback" style="display:none; padding: 15px; border-radius: 5px; text-align: center; margin-top: 15px; font-weight: bold;"></div>
+              </form>
+          </div>
+        </section>
+      `;
+
+      // 3. Monta a página completa empilhando os blocos na ordem correta
+      const htmlFinalGerado = `
+        ${blocoHero}
+        ${blocoProblema}
+        ${blocoAgitacao}
+        ${blocoSolucao}
+        ${blocoAutoridade}
+        ${blocoFaq}
+        ${blocoFinal}
+      `;
+
+      // 4. Injeta tudo no editor e abre o modal principal
+      setHtmlInicial(htmlFinalGerado);
+      setCssInicial(''); // GrapesJS lidará com o CSS embutido
+      setMostrarWizardIA(false); // Fecha a janelinha
+      setMostrarModal(true); // Abre o editor
+
+      // 5. Configurações auxiliares do formulário
+      setNome(iaPrompt.nomeCurso);
+      const slugAutomatizado = iaPrompt.nomeCurso.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      setSlug(slugAutomatizado);
+      setStatusLP('rascunho');
+
+    } catch (error) {
+      console.error(error);
+      alert('Houve uma falha na geração. Verifique os dados ou tente novamente mais tarde.');
+    } finally {
+      setGerandoIA(false);
+    }
+  }
 
   function abrirModalNovo() {
     setEditandoId(null); setNome(''); setSlug(''); setStatusLP('rascunho'); setCampanhaId(''); setHtmlInicial(''); setCssInicial(''); setMostrarModal(true);
@@ -306,9 +451,14 @@ export function LandingPages() {
             <Title>Minhas Páginas</Title>
             <Subtitle>Crie, edite e publique páginas de venda integradas ao funil.</Subtitle>
           </div>
-          <PrimaryButton onClick={abrirModalNovo} className="btn-mobile">
-            <i className="fa-solid fa-plus-circle"></i> Criar Página
-          </PrimaryButton>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <SecondaryButton onClick={abrirModalNovo} className="btn-mobile">
+              <i className="fa-solid fa-code"></i> Criar do Zero
+            </SecondaryButton>
+            <AiButton onClick={() => setMostrarWizardIA(true)} className="btn-mobile">
+              <i className="fa-solid fa-wand-magic-sparkles"></i> Gerar com IA
+            </AiButton>
+          </div>
         </TopSection>
 
         <FilterBar>
@@ -354,7 +504,7 @@ export function LandingPages() {
                         </StatusBadge>
                       </td>
                       <td data-label="Link Ao Vivo" className="text-center actions-cell">
-                        <LinkButton href={`${API_URL}/lp/${p.slug}`} target="_blank" rel="noreferrer" title="Abrir página online">
+                        <LinkButton href={`${API_URL}/lp/${p.slug}`} target="_blank" rel="noreferrer" title="Abrir página online" onClick={(e) => e.stopPropagation()}>
                           <i className="fa-solid fa-arrow-up-right-from-square"></i> Visitar
                         </LinkButton>
                       </td>
@@ -368,10 +518,75 @@ export function LandingPages() {
 
       </PageContainer>
 
+     {/* === MODAL WIZARD IA === */}
+      {mostrarWizardIA && (
+        <ModalOverlay onClick={() => setMostrarWizardIA(false)} style={{zIndex: 10001}}>
+          <WizardContent onClick={e => e.stopPropagation()}>
+            <ModalHeader $bg="#f8fafc">
+              <div>
+                <h3><i className="fa-solid fa-wand-magic-sparkles" style={{color: '#8b5cf6'}}></i> Assistente de Criação (IA)</h3>
+                <span className="subtitle">Responda rapidamente e deixe a inteligência artificial escrever sua página.</span>
+              </div>
+              <CloseButton onClick={() => setMostrarWizardIA(false)}>&times;</CloseButton>
+            </ModalHeader>
+            
+            <form onSubmit={handleGerarComIA} style={{ padding: '25px' }}>
+              
+              {/* === NOVO: PUXANDO DADOS DO CRM DIRETO === */}
+              <FormGroup style={{marginBottom: '15px'}}>
+                <label style={{color: '#007bff'}}>1. Vincular a uma Campanha existente? (Recomendado)</label>
+                <Select 
+                  value={campanhaId} 
+                  onChange={e => {
+                    const idSelecionado = e.target.value;
+                    setCampanhaId(idSelecionado);
+                    
+                    // Se ele selecionar uma campanha, já preenche o nome do curso pra ele!
+                    if (idSelecionado) {
+                      const campSelecionada = campanhas.find(c => c.id === Number(idSelecionado));
+                      if (campSelecionada) {
+                        setIaPrompt({...iaPrompt, nomeCurso: campSelecionada.nome});
+                      }
+                    } else {
+                      setIaPrompt({...iaPrompt, nomeCurso: ''});
+                    }
+                  }}
+                  style={{borderColor: '#007bff', backgroundColor: '#f0f7ff'}}
+                >
+                  <option value="">-- Criar do zero (Sem vínculo) --</option>
+                  {campanhas.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                </Select>
+                <small style={{color: '#64748b'}}>Os módulos e valores dessa campanha serão injetados automaticamente no formulário da página ao vivo.</small>
+              </FormGroup>
+
+              <FormGroup>
+                <label>2. Nome do Curso / Serviço *</label>
+                <Input type="text" required value={iaPrompt.nomeCurso} onChange={e => setIaPrompt({...iaPrompt, nomeCurso: e.target.value})} placeholder="Ex: Formação em Licitações e Contratos" />
+              </FormGroup>
+              <FormGroup>
+                <label>3. Quem é o Público-Alvo? *</label>
+                <Input type="text" required value={iaPrompt.publicoAlvo} onChange={e => setIaPrompt({...iaPrompt, publicoAlvo: e.target.value})} placeholder="Ex: Servidores públicos, Prefeitos, Auditores..." />
+              </FormGroup>
+              <FormGroup>
+                <label>4. Quais as principais dores que você resolve? (Opcional)</label>
+                <Input type="text" value={iaPrompt.beneficios} onChange={e => setIaPrompt({...iaPrompt, beneficios: e.target.value})} placeholder="Ex: Medo de apontamentos do TCE, Insegurança Jurídica..." />
+              </FormGroup>
+
+              <div style={{ marginTop: '25px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <SecondaryButton type="button" onClick={() => setMostrarWizardIA(false)}>Cancelar</SecondaryButton>
+                <AiButton type="submit" disabled={gerandoIA}>
+                  {gerandoIA ? <><i className="fa-solid fa-spinner fa-spin"></i> Escrevendo Copy...</> : <><i className="fa-solid fa-robot"></i> Gerar Página</>}
+                </AiButton>
+              </div>
+            </form>
+          </WizardContent>
+        </ModalOverlay>
+      )}
+
+      {/* === MODAL EDITOR GRAPESJS === */}
       {mostrarModal && (
         <FullScreenModalOverlay>
           <FullScreenContent>
-            
             <BuilderHeader>
               <div className="logo-area">
                 <i className="fa-solid fa-palette text-blue"></i>
@@ -384,31 +599,31 @@ export function LandingPages() {
               <form id="lpForm" onSubmit={salvarPagina} className="config-form">
                 <FormGroup>
                   <label>Nome da Página</label>
-                  <input type="text" value={nome} onChange={(e) => setNome(e.target.value)} required placeholder="Ex: Inscrição Módulo B" />
+                  <Input type="text" value={nome} onChange={(e) => setNome(e.target.value)} required placeholder="Ex: Inscrição Módulo B" />
                 </FormGroup>
                 
                 <FormGroup>
                   <label>URL Amigável</label>
                   <SlugInputGroup>
                     <span className="prefix">/lp/</span>
-                    <input type="text" value={slug} onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'))} required placeholder="modulo-b" />
+                    <Input type="text" value={slug} onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'))} required placeholder="modulo-b" />
                   </SlugInputGroup>
                 </FormGroup>
 
                 <FormGroup>
                   <label>Campanha do Formulário</label>
-                  <select value={campanhaId} onChange={(e) => setCampanhaId(e.target.value)}>
+                  <Select value={campanhaId} onChange={(e) => setCampanhaId(e.target.value)}>
                     <option value="">-- Sem Vínculo --</option>
                     {campanhas.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                  </select>
+                  </Select>
                 </FormGroup>
 
                 <FormGroup>
                   <label>Status</label>
-                  <select value={statusLP} onChange={(e) => setStatusLP(e.target.value)} className={statusLP === 'publicada' ? 'published' : 'draft'}>
+                  <Select value={statusLP} onChange={(e) => setStatusLP(e.target.value)} className={statusLP === 'publicada' ? 'published' : 'draft'}>
                     <option value="rascunho">Rascunho</option>
                     <option value="publicada">Publicada (Online)</option>
-                  </select>
+                  </Select>
                 </FormGroup>
               </form>
 
@@ -533,10 +748,33 @@ const LinkButton = styled.a`
 `;
 
 // --- BOTÕES ---
-const ButtonBase = styled.button`padding: 10px 20px; border-radius: 8px; font-weight: 700; font-size: 0.95rem; cursor: pointer; border: none; transition: 0.2s; display: flex; align-items: center; gap: 8px; justify-content: center; &:active { transform: scale(0.98); }`;
-const PrimaryButton = styled(ButtonBase)`background: #007bff; color: #fff; &:hover { background: #0056b3; box-shadow: 0 4px 10px rgba(0,123,255,0.2); }`;
-const SecondaryButton = styled(ButtonBase)`background: #e2e8f0; color: #475569; &:hover { background: #cbd5e1; }`;
-const DangerButton = styled(ButtonBase)`background: #fdf2f2; color: #dc3545; border: 1px solid #f8d7da; &:hover { background: #dc3545; color: #fff; }`;
+const ButtonBase = styled.button`padding: 10px 20px; border-radius: 8px; font-weight: 700; font-size: 0.95rem; cursor: pointer; border: none; transition: 0.2s; display: flex; align-items: center; gap: 8px; justify-content: center; &:active:not(:disabled) { transform: scale(0.98); } &:disabled{ opacity: 0.6; cursor: not-allowed;}`;
+const PrimaryButton = styled(ButtonBase)`background: #007bff; color: #fff; &:hover:not(:disabled) { background: #0056b3; box-shadow: 0 4px 10px rgba(0,123,255,0.2); }`;
+const SecondaryButton = styled(ButtonBase)`background: #e2e8f0; color: #475569; &:hover:not(:disabled) { background: #cbd5e1; }`;
+const DangerButton = styled(ButtonBase)`background: #fdf2f2; color: #dc3545; border: 1px solid #f8d7da; &:hover:not(:disabled) { background: #dc3545; color: #fff; }`;
+const AiButton = styled(ButtonBase)`background: linear-gradient(135deg, #8b5cf6, #d946ef); color: white; border: none; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3); transition: all 0.2s ease; &:hover:not(:disabled) { background: linear-gradient(135deg, #7c3aed, #c026d3); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4); } `;
+
+// --- MODAIS GERAIS ---
+const ModalOverlay = styled.div`
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh; background: rgba(0,0,0,0.6); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; z-index: 9998; padding: 20px; padding-bottom: calc(20px + env(safe-area-inset-bottom)); box-sizing: border-box;
+`;
+
+const WizardContent = styled.div`
+  background: white; border-radius: 12px; width: 100%; max-width: 600px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.2); animation: ${fadeInUp} 0.3s ease-out;
+`;
+
+const ModalHeader = styled.div`
+  display: flex; justify-content: space-between; align-items: center; padding: 20px 25px; border-bottom: 1px solid #edf2f9; background: ${props => props.$bg || '#fff'}; color: ${props => props.$color || '#333'};
+  h3 { margin: 0; font-size: 1.3rem; display: flex; align-items: center; gap: 8px;}
+  .subtitle { font-size: 0.85rem; color: #64748b; margin-top: 4px; display: block;}
+  @media (max-width: 600px) { h3 { font-size: 1.15rem; padding-right: 30px; } }
+`;
+
+const CloseButton = styled.button`
+  background: none; border: none; font-size: 1.8rem; cursor: pointer; color: ${props => props.$color || '#94a3b8'}; transition: 0.2s;
+  &:hover { color: #dc3545; }
+  @media (max-width: 600px) { position: absolute; right: 15px; top: 15px; }
+`;
 
 // --- EDITOR FULL SCREEN (LOW-CODE) ---
 const FullScreenModalOverlay = styled.div`
@@ -569,19 +807,24 @@ const BuilderHeader = styled.div`
 `;
 
 const FormGroup = styled.div`
-  display: flex; flex-direction: column; gap: 4px; flex: 1;
-  label { font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase;}
-  
-  input, select {
-    padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.9rem; color: #2c3e50; outline: none; background: #f8fafc; transition: 0.2s; box-sizing: border-box; width: 100%;
-    &:focus { border-color: #007bff; background: #fff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); }
-    &.published { color: #155724; font-weight: 700; background: #e6f4ea; border-color: #c3e6cb;}
-    &.draft { color: #856404; font-weight: 700; background: #fff3cd; border-color: #ffeeba;}
-  }
+  display: flex; flex-direction: column; gap: 4px; flex: 1; margin-bottom: 15px;
+  label { font-size: 0.85rem; font-weight: 700; color: #475569;}
+`;
+
+const Input = styled.input`
+  padding: 10px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #2c3e50; outline: none; background: #f8fafc; transition: 0.2s; box-sizing: border-box; width: 100%;
+  &:focus { border-color: #007bff; background: #fff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); }
+`;
+
+const Select = styled.select`
+  padding: 10px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #2c3e50; outline: none; background: #f8fafc; transition: 0.2s; box-sizing: border-box; width: 100%;
+  &:focus { border-color: #007bff; background: #fff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); }
+  &.published { color: #155724; font-weight: 700; background: #e6f4ea; border-color: #c3e6cb;}
+  &.draft { color: #856404; font-weight: 700; background: #fff3cd; border-color: #ffeeba;}
 `;
 
 const SlugInputGroup = styled.div`
   display: flex; align-items: center;
-  .prefix { background: #e2e8f0; color: #64748b; padding: 8px 10px; border: 1px solid #cbd5e1; border-right: none; border-radius: 6px 0 0 6px; font-size: 0.9rem; font-weight: 600;}
+  .prefix { background: #e2e8f0; color: #64748b; padding: 10px; border: 1px solid #cbd5e1; border-right: none; border-radius: 6px 0 0 6px; font-size: 0.9rem; font-weight: 600;}
   input { border-radius: 0 6px 6px 0; flex: 1; }
 `;
