@@ -902,7 +902,7 @@ const FilterPillWrapper = styled.div`
 `;
 const FilterButton = styled.button`
   display: flex; align-items: center; background: ${props => props.$hasValue ? '#ffffff' : '#f8fafc'};
-  border: 1px solid ${props => props.$hasValue ? '#007bff' : '#cbd5e1'}; color: #2c3e50; padding: 10px 18px; border-radius: 50px; font-size: 0.95rem; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+  border: 1px solid ${props => props.$hasValue ? '#007bff' : '#cbd5e1'}; color: #2c3e50; padding: 10px 18px; border-radius: 10px; font-size: 0.95rem; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 2px 5px rgba(0,0,0,0.02);
   @media (max-width: 768px) { width: 100%; justify-content: space-between; }
   
   &:hover { background: #e7f3ff; border-color: #007bff; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,123,255,0.1); }

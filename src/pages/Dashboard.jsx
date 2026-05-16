@@ -337,11 +337,7 @@ export function Dashboard() {
               value={mesFiltro}
               onChange={(e) => setMesFiltro(e.target.value)}
             />
-            {mesFiltro && (
-              <ClearFilterBtn onClick={(e) => { e.preventDefault(); setMesFiltro(''); }} title="Remover filtro de mês">
-                <i className="fa-solid fa-times-circle"></i>
-              </ClearFilterBtn>
-            )}
+            
           </FilterPillWrapper>
 
           {/* BOTÃO CAMPANHA */}
@@ -743,7 +739,7 @@ const FilterPillWrapper = styled.div`
 
 const FilterButton = styled.button`
   display: flex; align-items: center; justify-content: space-between; background: ${props => props.$hasValue ? '#eef4fa' : '#ffffff'};
-  border: 1px solid ${props => props.$hasValue ? '#b8cde1' : '#cbd5e1'}; color: #2c3e50; padding: 10px 18px; border-radius: 50px; font-size: 0.95rem; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 2px 5px rgba(0,0,0,0.02); width: 100%;
+  border: 1px solid ${props => props.$hasValue ? '#b8cde1' : '#cbd5e1'}; color: #2c3e50; padding: 10px 18px; border-radius: 10px; font-size: 0.95rem; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 2px 5px rgba(0,0,0,0.02); width: 100%;
   &:hover { background: #e7f3ff; border-color: #007bff; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,123,255,0.1); }
   span { margin: 0 10px; strong { color: #007bff; } }
   .icon { color: #6c757d; font-size: 1.05rem; } .arrow { color: #007bff; font-size: 0.8rem; }
@@ -754,13 +750,8 @@ const HiddenMonthInput = styled.input`
   &::-webkit-calendar-picker-indicator { position: absolute; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; cursor: pointer; opacity: 0; }
 `;
 
-const ClearFilterBtn = styled.button`
-  position: absolute; right: -8px; top: -8px; background: #ffffff; color: #dc3545; border: 1px solid #f5c6cb; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.8rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.2s;
-  &:hover { background: #dc3545; color: #fff; transform: scale(1.1); }
-`;
-
 const CustomDropdownMenu = styled.ul`
-  position: absolute; top: calc(100% + 8px); right: 0; background: #ffffff; border: 1px solid #edf2f9; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); min-width: 250px; max-height: 300px; overflow-y: auto; z-index: 1000; padding: 8px 0; list-style: none; margin: 0; animation: fadeInDown 0.2s ease-out;
+  position: absolute; top: calc(100% + 8px); right: 0; background: #ffffff; border: 1px solid #edf2f9; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); min-width: 250px; max-height: 300px; overflow-y: auto; z-index: 1000; padding: 8px 0; list-style: none; margin: 0; animation: fadeInDown 0.2s ease-out;
   @media (max-width: 768px) { left: 0; right: auto; width: 100%; }
   @keyframes fadeInDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 `;

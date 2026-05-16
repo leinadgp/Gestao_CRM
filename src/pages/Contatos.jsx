@@ -581,13 +581,13 @@ const Title = styled.h2` margin: 0; color: #2c3e50; font-size: 1.8rem; font-weig
 const Subtitle = styled.p` color: #6c757d; font-size: 0.95rem; margin: 5px 0 0 0; `;
 
 const FilterBar = styled.div` 
-  display: flex; flex-wrap: wrap; gap: 15px; background: #fff; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #edf2f9; box-shadow: 0 4px 10px rgba(0,0,0,0.02);
+  display: flex; flex-wrap: wrap; gap: 15px; background: #fff; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #edf2f9; box-shadow: 0 4px 10px rgba(0,0,0,0.02);
   @media (max-width: 768px) { flex-direction: column; }
 `;
 
 const SearchWrapper = styled.div` 
   flex: 1; position: relative; min-width: 250px;
-  input { width: 100%; padding: 12px 40px; border-radius: 20px; border: 1px solid #cbd5e1; font-size: 0.95rem; outline: none; transition: 0.2s; box-sizing: border-box; } 
+  input { width: 100%; padding: 12px 40px; border-radius: 10px; border: 1px solid #cbd5e1; font-size: 0.95rem; outline: none; transition: 0.2s; box-sizing: border-box; } 
   input:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); }
   .icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #a0aec0; } 
   @media (max-width: 768px) { width: 100%; }
@@ -596,7 +596,7 @@ const SearchWrapper = styled.div`
 const FilterPillWrapper = styled.div` position: relative; @media (max-width: 768px) { width: 100%; } `;
 
 const FilterButton = styled.button` 
-  display: flex; align-items: center; padding: 10px 20px; border-radius: 20px; border: 1px solid #cbd5e1; cursor: pointer; transition: 0.2s;
+  display: flex; align-items: center; padding: 10px 20px; border-radius: 10px; border: 1px solid #cbd5e1; cursor: pointer; transition: 0.2s;
   background: ${props => props.$hasValue ? '#eef4fa' : '#fff'}; color: #2c3e50; font-size: 0.95rem; width: 100%; justify-content: space-between;
   &:hover { background: #e7f3ff; border-color: #007bff; }
   span { margin: 0 10px; }
@@ -604,7 +604,7 @@ const FilterButton = styled.button`
 `;
 
 const CustomDropdownMenu = styled.ul`
-  position: absolute; top: calc(100% + 8px); right: 0; background: #ffffff; border: 1px solid #edf2f9; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); min-width: 200px; 
+  position: absolute; top: calc(100% + 8px); right: 0; background: #ffffff; border: 1px solid #edf2f9; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); min-width: 200px; 
   max-height: 250px; overflow-y: auto; z-index: 1000; padding: 8px 0; list-style: none; margin: 0;
   @media (max-width: 768px) { left: 0; width: 100%; }
 `;
@@ -614,7 +614,7 @@ const CustomDropdownItem = styled.li`
   ${props => props.$active && `color: #007bff; font-weight: 700; background: #f0f7ff;`}
 `;
 
-const Panel = styled.div` background: #fff; border-radius: 12px; overflow: hidden; border: 1px solid #edf2f9; box-shadow: 0 4px 10px rgba(0,0,0,0.02); `;
+const Panel = styled.div` background: #fff; border-radius: 10px; overflow: hidden; border: 1px solid #edf2f9; box-shadow: 0 4px 10px rgba(0,0,0,0.02); `;
 
 const TabelaResponsiva = styled.div`
   overflow-x: auto; 
@@ -635,7 +635,7 @@ const Table = styled.table`
     thead tr { position: absolute; top: -9999px; left: -9999px; }
     
     tr {
-      background: #fff; border: 1px solid #edf2f9; border-radius: 12px; margin: 15px 0; padding: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+      background: #fff; border: 1px solid #edf2f9; border-radius: 10px; margin: 15px 0; padding: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.02);
     }
     
     td {
@@ -661,7 +661,7 @@ const ClickableRow = styled.tr`
   span { display: flex; align-items: center; gap: 5px;}
 `;
 
-const Badge = styled.span` padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 700; &.badge-gray { background: #f1f5f9; color: #475569; } `;
+const Badge = styled.span` padding: 4px 10px; border-radius: 10px; font-size: 0.75rem; font-weight: 700; &.badge-gray { background: #f1f5f9; color: #475569; } `;
 
 const PaginationContainer = styled.div` padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; background: #fbfbfc; border-top: 1px solid #edf2f9; @media (max-width: 600px){ flex-direction: column; gap: 15px; } `;
 const PageButton = styled.button` padding: 8px 15px; cursor: pointer; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; color: #475569; font-weight: 600; transition: 0.2s; &:hover:not(:disabled) { background: #eef4fa; border-color: #007bff; color: #007bff; } &:disabled{ opacity: 0.4; cursor: not-allowed; } `;

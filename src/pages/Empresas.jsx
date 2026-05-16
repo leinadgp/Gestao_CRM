@@ -796,7 +796,7 @@ const StarsContainer = styled.div`
 `;
 
 const SectionCard = styled.div`
-  background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 12px; margin-bottom: 20px;
+  background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 10px; margin-bottom: 20px;
 `;
 
 // --- FILTROS ---
@@ -807,12 +807,12 @@ const FilterBar = styled.div`
 const SearchWrapper = styled.div`
   position: relative; flex: 1; min-width: 250px;
   .icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #94a3b8; }
-  input { width: 100%; padding: 12px 12px 12px 40px; border-radius: 50px; border: 1px solid #cbd5e1; font-size: 0.95rem; outline: none; transition: 0.2s; box-sizing: border-box; &:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.1); } }
+  input { width: 100%; padding: 12px 12px 12px 40px; border-radius: 10px; border: 1px solid #cbd5e1; font-size: 0.95rem; outline: none; transition: 0.2s; box-sizing: border-box; &:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.1); } }
   @media (max-width: 768px) { width: 100%; }
 `;
 const FilterPillWrapper = styled.div`position: relative; @media (max-width: 768px) { width: 100%; }`;
 const FilterButton = styled.button`
-  display: flex; align-items: center; background: ${props => props.$hasValue ? '#eef4fa' : '#f8fafc'}; border: 1px solid ${props => props.$hasValue ? '#b8cde1' : '#cbd5e1'}; padding: 12px 18px; border-radius: 50px; font-size: 0.95rem; cursor: pointer; color: #2c3e50; transition: 0.2s;
+  display: flex; align-items: center; background: ${props => props.$hasValue ? '#eef4fa' : '#f8fafc'}; border: 1px solid ${props => props.$hasValue ? '#b8cde1' : '#cbd5e1'}; padding: 12px 18px; border-radius: 10px; font-size: 0.95rem; cursor: pointer; color: #2c3e50; transition: 0.2s;
   width: 100%; justify-content: space-between;
   span { margin: 0 10px; color: #64748b; strong { color: #007bff; font-weight: 700; } }
   .icon { color: #6c757d; } .arrow { color: #007bff; font-size: 0.8rem; }
@@ -889,14 +889,14 @@ const ClickableRow = styled.tr`
 `;
 
 const StatusBadge = styled.span`
-  padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center;
+  padding: 6px 12px; border-radius: 10px; font-size: 0.8rem; font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center;
   &.assessorada { background: #fff3cd; color: #856404; border: 1px solid #ffeeba;}
   &.lead_quente { background: #fdf2f2; color: #dc3545; border: 1px solid #f8d7da;}
   &.nao_assessorada { background: #e2e8f0; color: #475569; border: 1px solid #cbd5e1;}
 `;
 
 const Badge = styled.span`
-  background: #e2e8f0; color: #475569; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 700;
+  background: #e2e8f0; color: #475569; padding: 4px 12px; border-radius: 10px; font-size: 0.85rem; font-weight: 700;
 `;
 
 // --- PAGINAÇÃO ---
