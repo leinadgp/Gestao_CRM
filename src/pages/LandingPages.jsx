@@ -55,7 +55,7 @@ export function LandingPages() {
     carregarDados();
   }, [carregarDados]);
 
-  // === INICIALIZAÇÃO DO GRAPESJS ===
+  // === INICIALIZAÇÃO DO GRAPESJS (MODO LEIGO / BLINDADO) ===
   useEffect(() => {
     if (mostrarModal && !editorRef.current) {
       const editor = grapesjs.init({
@@ -73,9 +73,7 @@ export function LandingPages() {
           localeFallback: 'en',
           messages: {
             pt: {
-              styleManager: { empty: 'Selecione um elemento antes para usar o Gerenciador de Estilos' },
-              traitManager: { empty: 'Selecione um elemento antes para usar o Gerenciador de Atributos' },
-              assetManager: { modalTitle: 'Selecionar Imagem', uploadTitle: 'Arraste arquivos aqui ou clique para upload' }
+              assetManager: { modalTitle: 'Selecionar Imagem da Empresa', uploadTitle: 'Arraste as imagens aqui ou clique para enviar' }
             }
           }
         }
@@ -84,13 +82,59 @@ export function LandingPages() {
       editorRef.current = editor;
 
       // ========================================================
-      // 1. BLOCO: CAPA HERO (ESTILO RD STATION)
+      // EVENTOS DE BLINDAGEM DO EDITOR PARA CLIENTES LEIGOS
+      // ========================================================
+      editor.on('load', () => {
+        // Esconde o painel de Estilos (Pincel), Engrenagem (Traits) e Camadas
+        editor.Panels.removeButton('views', 'open-sm');
+        editor.Panels.removeButton('views', 'open-tm');
+        editor.Panels.removeButton('views', 'open-layers');
+        
+        // Mantém a aba de blocos ativa por padrão
+        editor.Panels.getButton('views', 'open-blocks').set('active', true);
+      });
+
+      // Abertura automática da galeria ao clicar numa imagem
+      editor.on('component:selected', (component) => {
+        if (component.get('type') === 'image') {
+          editor.runCommand('open-assets', { target: component });
+        }
+      });
+
+      // ========================================================
+      // 1. BLOCO: CAPA AUTORIDADE (NOVO ESTILO ESCURO VIP)
+      // ========================================================
+      editor.BlockManager.add('autoridade-hero', {
+        label: '<i class="fa-solid fa-crown fa-2x"></i><br/>Capa Autoridade',
+        category: 'Estilo Premium',
+        content: `
+          <section style="background: linear-gradient(rgba(11, 25, 44, 0.85), rgba(11, 25, 44, 0.85)), url('https://images.unsplash.com/photo-1589829085413-56de8ae18c73?q=80&w=2000&auto=format&fit=crop') center/cover; padding: 120px 20px; color: #fff; font-family: Arial, sans-serif;">
+            <div style="max-width: 1200px; margin: 0 auto; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 40px;">
+              <div style="flex: 1; min-width: 300px; max-width: 700px;">
+                <h1 style="font-size: 46px; font-weight: 800; margin-bottom: 20px; line-height: 1.1;">Programa Avançado em <br/><span style="color: #fbbf24;">Licitações e Contratos</span></h1>
+                <p style="font-size: 20px; line-height: 1.6; margin-bottom: 40px; color: #cbd5e1;">Com base na nova Lei 14.133/2021. Avance com prática, segurança jurídica e desburocratização no seu órgão público.</p>
+                <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                  <a href="#form-inscricao" style="background: #fbbf24; color: #000; padding: 18px 35px; border-radius: 6px; font-weight: bold; text-decoration: none; font-size: 18px;">Quero garantir minha vaga!</a>
+                  <a href="#sobre" style="border: 2px solid #ffffff; color: #ffffff; padding: 18px 35px; border-radius: 6px; font-weight: bold; text-decoration: none; font-size: 18px;">Conhecer o Programa</a>
+                </div>
+              </div>
+              <div style="flex: 1; min-width: 300px; text-align: center;">
+                 <img src="https://via.placeholder.com/400x150?text=Sua+Logo+Aqui" style="max-width: 100%; border-radius: 10px;" alt="Logo da Empresa" />
+                 <p style="margin-top: 15px; color: #94a3b8; font-size: 14px;">(Clique 2x para trocar a logo)</p>
+              </div>
+            </div>
+          </section>
+        `
+      });
+
+      // ========================================================
+      // 2. BLOCO: CAPA HERO (ESTILO RD STATION CLÁSSICO)
       // ========================================================
       editor.BlockManager.add('rd-hero', {
-        label: '<i class="fa-solid fa-heading fa-2x"></i><br/>Capa (Hero)',
-        category: 'Estilo RD Station',
+        label: '<i class="fa-solid fa-heading fa-2x"></i><br/>Capa Padrão',
+        category: 'Estilo Premium',
         content: `
-          <section style="background-color: #0b192c; padding: 80px 20px; color: #ffffff; font-family: Arial, sans-serif;">
+          <section style="background-color: #0f172a; padding: 80px 20px; color: #ffffff; font-family: Arial, sans-serif;">
             <div style="max-width: 1100px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 40px; align-items: center;">
               <div style="flex: 1; min-width: 300px;">
                 <h1 style="font-size: 2.8rem; margin-bottom: 20px; line-height: 1.2; color: #ffffff;">Contabilidade Pública Para Não Contadores</h1>
@@ -103,7 +147,7 @@ export function LandingPages() {
                 <a href="#form-inscricao" style="display: inline-block; padding: 15px 30px; background-color: #28a745; color: #fff; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 1.1rem;">Garantir minha vaga</a>
               </div>
               <div style="flex: 1; min-width: 300px; text-align: center;">
-                <img src="https://via.placeholder.com/500x400?text=Imagem+do+Curso" style="max-width: 100%; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);" />
+                <img src="https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=500&auto=format&fit=crop" style="max-width: 100%; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);" alt="Imagem Aula" />
               </div>
             </div>
           </section>
@@ -111,15 +155,15 @@ export function LandingPages() {
       });
 
       // ========================================================
-      // 2. BLOCO: FORMULÁRIO COMPLETO E DINÂMICO
+      // 3. BLOCO: FORMULÁRIO DINÂMICO
       // ========================================================
       editor.BlockManager.add('rd-form', {
         label: '<i class="fa-solid fa-address-card fa-2x"></i><br/>Form. Inscrição',
-        category: 'Estilo RD Station',
+        category: 'Estilo Premium',
         content: `
           <section id="form-inscricao" style="padding: 60px 20px; background-color: #f8fafc; font-family: Arial, sans-serif;">
             <div style="max-width: 700px; margin: 0 auto; background: #ffffff; padding: 40px; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
-              <h2 style="text-align: center; color: #0b192c; margin-bottom: 10px; font-size: 28px;">Garanta sua Vaga</h2>
+              <h2 style="text-align: center; color: #0f172a; margin-bottom: 10px; font-size: 28px;">Garanta sua Vaga</h2>
               <p style="text-align: center; color: #64748b; margin-bottom: 30px;">Preencha os dados abaixo para confirmar sua inscrição.</p>
               
               <form id="formInscricaoCRM" style="display: flex; flex-direction: column; gap: 15px;">
@@ -142,47 +186,27 @@ export function LandingPages() {
 
                 <div style="display: flex; gap: 15px; flex-wrap: wrap;">
                   <div style="flex: 1; min-width: 200px;">
-                    <label style="font-size: 0.9rem; font-weight: bold; color: #475569; display: block; margin-bottom: 5px;">Qual sua formação?*</label>
-                    <input type="text" id="formacao" required style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; font-size: 14px;" />
-                  </div>
-                  <div style="flex: 1; min-width: 200px;">
                     <label style="font-size: 0.9rem; font-weight: bold; color: #475569; display: block; margin-bottom: 5px;">Município*</label>
                     <input type="text" id="cidade" required style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; font-size: 14px;" />
                   </div>
-                </div>
-
-                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
                   <div style="flex: 1; min-width: 200px;">
                     <label style="font-size: 0.9rem; font-weight: bold; color: #475569; display: block; margin-bottom: 5px;">Email*</label>
                     <input type="email" id="email" required style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; font-size: 14px;" />
                   </div>
-                  <div style="flex: 1; min-width: 200px;">
-                    <label style="font-size: 0.9rem; font-weight: bold; color: #475569; display: block; margin-bottom: 5px;">Telefone (WhatsApp)*</label>
-                    <input type="text" id="whatsapp" required style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; font-size: 14px;" />
-                  </div>
                 </div>
 
                 <div style="margin-top: 10px; padding: 20px; background: #f0f7ff; border-radius: 8px; border: 1px solid #b8daff;">
-                  <label style="font-size: 1rem; font-weight: bold; color: #1F4E79; display: block; margin-bottom: 10px;">Qual o Módulo deseja se inscrever?*</label>
+                  <label style="font-size: 1rem; font-weight: bold; color: #007bff; display: block; margin-bottom: 10px;">Opções de Inscrição</label>
                   <div id="containerModulos">
                      <div style="color: #64748b; font-size: 0.9rem; font-style: italic;">
-                       (Os módulos/trilhas desta campanha aparecerão automaticamente aqui quando a página estiver no ar)
+                       (Os módulos e combos de desconto definidos na campanha aparecerão automaticamente aqui)
                      </div>
                   </div>
                 </div>
 
-                <div style="margin-top: 10px;">
-                  <label style="font-size: 0.9rem; font-weight: bold; color: #475569; display: block; margin-bottom: 5px;">Quanto é 3 + 4? (Confirmação de segurança)*</label>
-                  <input type="number" id="captchaCalc" required placeholder="Digite a resposta" style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; font-size: 14px;" />
-                </div>
-
-                <button type="submit" id="btnSubmit" style="margin-top: 20px; width: 100%; padding: 18px; background-color: #1F4E79; color: #fff; border: none; border-radius: 5px; font-size: 1.2rem; font-weight: bold; cursor: pointer; transition: background 0.3s;">
-                  ENVIAR INSCRIÇÃO
+                <button type="submit" id="btnSubmit" style="margin-top: 20px; width: 100%; padding: 18px; background-color: #0f172a; color: #fff; border: none; border-radius: 5px; font-size: 1.2rem; font-weight: bold; cursor: pointer; transition: background 0.3s;">
+                  CONFIRMAR INSCRIÇÃO
                 </button>
-
-                <div id="feedback" style="display:none; padding: 15px; border-radius: 5px; text-align: center; margin-top: 15px; font-weight: bold;"></div>
-                
-                <p style="text-align: center; font-size: 0.8rem; color: #94a3b8; margin-top: 15px;">Seus dados estão protegidos conosco. Respeitamos a LGPD.</p>
               </form>
             </div>
           </section>
@@ -190,72 +214,31 @@ export function LandingPages() {
       });
 
       // ========================================================
-      // 3. BLOCO: CARD DE BENEFÍCIOS
+      // 4. BLOCO: DORES (PROBLEMA MUNICIPAL)
       // ========================================================
       editor.BlockManager.add('rd-benefits', {
-        label: '<i class="fa-solid fa-list-check fa-2x"></i><br/>Benefícios',
-        category: 'Estilo RD Station',
+        label: '<i class="fa-solid fa-triangle-exclamation fa-2x"></i><br/>Dores/Soluções',
+        category: 'Estilo Premium',
         content: `
-          <section style="padding: 80px 20px; background-color: #ffffff; font-family: Arial, sans-serif;">
+          <section id="sobre" style="padding: 80px 20px; background-color: #ffffff; font-family: Arial, sans-serif;">
             <div style="max-width: 1000px; margin: 0 auto;">
-              <h2 style="text-align: center; color: #0b192c; margin-bottom: 50px; font-size: 32px;">O que você vai desenvolver</h2>
+              <h2 style="text-align: center; color: #0f172a; margin-bottom: 50px; font-size: 32px;">Você enfrenta esses desafios no município?</h2>
               <div style="display: flex; gap: 30px; justify-content: center; flex-wrap: wrap;">
-                <div style="flex: 1; min-width: 280px; background: #f8fafc; padding: 40px 30px; border-radius: 8px; border-top: 4px solid #1F4E79; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
-                  <h3 style="color: #1F4E79; margin-top: 0; font-size: 20px;">Competência 1</h3>
-                  <p style="color: #475569; font-size: 16px; line-height: 1.5;">Apresente conceitos teóricos aplicados à leitura crítica dos dados.</p>
+                <div style="flex: 1; min-width: 280px; background: #fff5f5; padding: 40px 30px; border-radius: 8px; border-top: 4px solid #dc3545; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+                  <h3 style="color: #dc3545; margin-top: 0; font-size: 20px;">Apontamentos do TCE</h3>
+                  <p style="color: #475569; font-size: 16px; line-height: 1.5;">Notificações constantes do Tribunal de Contas devido à interpretação incorreta da nova lei.</p>
                 </div>
-                <div style="flex: 1; min-width: 280px; background: #f8fafc; padding: 40px 30px; border-radius: 8px; border-top: 4px solid #1F4E79; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
-                  <h3 style="color: #1F4E79; margin-top: 0; font-size: 20px;">Competência 2</h3>
-                  <p style="color: #475569; font-size: 16px; line-height: 1.5;">Direcione o participante à análise contábil e fortalecimento da auditoria.</p>
+                <div style="flex: 1; min-width: 280px; background: #fff5f5; padding: 40px 30px; border-radius: 8px; border-top: 4px solid #dc3545; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+                  <h3 style="color: #dc3545; margin-top: 0; font-size: 20px;">Insegurança Jurídica</h3>
+                  <p style="color: #475569; font-size: 16px; line-height: 1.5;">Medo de assinar pareceres sem ter certeza da fundamentação técnica e legal.</p>
                 </div>
-                <div style="flex: 1; min-width: 280px; background: #f8fafc; padding: 40px 30px; border-radius: 8px; border-top: 4px solid #1F4E79; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
-                  <h3 style="color: #1F4E79; margin-top: 0; font-size: 20px;">Competência 3</h3>
-                  <p style="color: #475569; font-size: 16px; line-height: 1.5;">Traduza as informações para resultados visíveis e eficientes.</p>
+                <div style="flex: 1; min-width: 280px; background: #f0f7ff; padding: 40px 30px; border-radius: 8px; border-top: 4px solid #007bff; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+                  <h3 style="color: #007bff; margin-top: 0; font-size: 20px;">A Solução</h3>
+                  <p style="color: #475569; font-size: 16px; line-height: 1.5;">Aprenda o passo a passo prático para implementar controles eficientes e blindar a gestão.</p>
                 </div>
               </div>
             </div>
           </section>
-        `,
-      });
-
-      // ========================================================
-      // 4. BLOCO: SEÇÃO DO INSTRUTOR
-      // ========================================================
-      editor.BlockManager.add('rd-instructor', {
-        label: '<i class="fa-solid fa-chalkboard-user fa-2x"></i><br/>Instrutor',
-        category: 'Estilo RD Station',
-        content: `
-          <section style="padding: 80px 20px; background-color: #f1f5f9; font-family: Arial, sans-serif;">
-            <div style="max-width: 900px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 40px; align-items: center; background: #ffffff; padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.05);">
-              <div style="flex: 1; min-width: 250px; text-align: center;">
-                <img src="https://via.placeholder.com/300x300" style="width: 250px; height: 250px; border-radius: 50%; object-fit: cover; border: 5px solid #1F4E79;" />
-              </div>
-              <div style="flex: 2; min-width: 300px;">
-                <h2 style="color: #0b192c; margin-top: 0; font-size: 28px; margin-bottom: 5px;">Quem vai te guiar</h2>
-                <h4 style="color: #28a745; margin-top: 0; margin-bottom: 20px; font-size: 18px;">Nome do Instrutor</h4>
-                <p style="color: #475569; font-size: 16px; line-height: 1.6;">Especialista em Gestão Pública, com mais de 15 anos de atuação no setor público. Mestre em Controladoria e Contabilidade.</p>
-                <p style="color: #475569; font-size: 16px; line-height: 1.6;">Seu trabalho é dedicado a traduzir a linguagem técnica para uma abordagem acessível, prática e aplicável à realidade dos profissionais.</p>
-              </div>
-            </div>
-          </section>
-        `,
-      });
-
-      // ========================================================
-      // 5. BLOCO: RODAPÉ
-      // ========================================================
-      editor.BlockManager.add('rd-footer', {
-        label: '<i class="fa-solid fa-shoe-prints fa-2x"></i><br/>Rodapé',
-        category: 'Estilo RD Station',
-        content: `
-          <footer style="background-color: #0b192c; padding: 50px 20px; text-align: center; color: #cbd5e1; font-family: Arial, sans-serif; border-top: 4px solid #28a745;">
-            <h3 style="margin-top: 0; margin-bottom: 15px; color: #ffffff; font-size: 24px;">Ficou com alguma dúvida?</h3>
-            <p style="margin-bottom: 10px; font-size: 16px;">Nossa equipe está preparada para esclarecer todas as suas dúvidas sobre o curso.</p>
-            <p style="font-weight: bold; color: #28a745; font-size: 18px; margin-bottom: 20px;">(51) 99999-9999 | gestao@gestao.srv.br</p>
-            <div style="max-width: 400px; margin: 30px auto 0 auto; border-top: 1px solid #1e293b; padding-top: 20px;">
-              <p style="font-size: 13px;">Gestão A+ Desenvolvimento<br/>Taquara/RS</p>
-            </div>
-          </footer>
         `,
       });
 
@@ -263,7 +246,7 @@ export function LandingPages() {
         editor.setComponents(htmlInicial);
         if (cssInicial) editor.setStyle(cssInicial);
       } else {
-        editor.setComponents('<div style="padding: 50px; text-align: center; font-family: sans-serif; color: #999;"><h1>Arraste os blocos da direita para cá</h1><p>Comece puxando a "Capa (Hero)" e o "Form. Inscrição" da categoria <strong>Estilo RD Station</strong>.</p></div>');
+        editor.setComponents('<div style="padding: 50px; text-align: center; font-family: sans-serif; color: #999;"><h1>Seu Editor de Páginas Profissional</h1><p>Arraste a "Capa Autoridade" e o "Form. Inscrição" do menu lateral.</p></div>');
       }
     }
 
@@ -393,7 +376,7 @@ export function LandingPages() {
               <div className="logo-area">
                 <i className="fa-solid fa-palette text-blue"></i>
                 <div>
-                  <h3>Editor Visual</h3>
+                  <h3>Editor Visual Otimizado</h3>
                   <span className="sub">{editandoId ? 'Editando Landing Page' : 'Nova Landing Page'}</span>
                 </div>
               </div>
