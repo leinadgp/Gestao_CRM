@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import styled, { keyframes } from 'styled-components';
+import { TarefasOportunidade } from '../componentes/TarefasOportunidade.jsx';
+import { listarMinhasTarefas, classificarTarefa } from '../utils/tarefasService.js';
 
 // --- UTILITÁRIOS ---
 const parseJSONSeguro = (dadoString, fallback = []) => {
@@ -10,6 +13,9 @@ const parseJSONSeguro = (dadoString, fallback = []) => {
 };
 
 export function Funil() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
   // --- ESTADOS BASE ---
   const [etapas, setEtapas] = useState([]);
   const [oportunidades, setOportunidades] = useState([]);
@@ -55,6 +61,9 @@ export function Funil() {
   const [editandoNotaId, setEditandoNotaId] = useState(null);
   const [textoNotaEditada, setTextoNotaEditada] = useState('');
 
+  // --- ESTADOS DE TAREFAS ---
+  const [tarefasPorOp, setTarefasPorOp] = useState({});
+
   // --- ESTADOS DO SUB-MODAL DE CONTATO ---
   const [mostrarModalContato, setMostrarModalContato] = useState(false);
   const [contatoSelecionado, setContatoSelecionado] = useState(null);
@@ -98,6 +107,40 @@ export function Funil() {
   useEffect(() => { 
     carregarDadosBase(); 
   }, []);
+
+  const carregarResumoTarefas = useCallback(async () => {
+    try {
+      const todas = await listarMinhasTarefas();
+      const mapa = {};
+      todas.filter(t => !t.concluida).forEach(t => {
+        const opId = t.oportunidade_id;
+        if (!mapa[opId]) mapa[opId] = { total: 0, urgente: 0 };
+        mapa[opId].total += 1;
+        const st = classificarTarefa(t);
+        if (st === 'proxima' || st === 'vencida') mapa[opId].urgente += 1;
+      });
+      setTarefasPorOp(mapa);
+    } catch {
+      setTarefasPorOp({});
+    }
+  }, []);
+
+  useEffect(() => {
+    carregarResumoTarefas();
+    const handler = () => carregarResumoTarefas();
+    window.addEventListener('tarefasAtualizadas', handler);
+    return () => window.removeEventListener('tarefasAtualizadas', handler);
+  }, [carregarResumoTarefas, oportunidades]);
+
+  useEffect(() => {
+    const opId = location.state?.abrirOportunidadeId;
+    if (!opId || oportunidades.length === 0) return;
+    const op = oportunidades.find(o => Number(o.id) === Number(opId));
+    if (op) {
+      abrirModalEdicao(op);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [location.state, oportunidades]);
 
   useEffect(() => {
     if (filtroCampanha) {
@@ -659,6 +702,15 @@ export function Funil() {
                         <SellerBadge>
                           <i className="fa-solid fa-user-tie"></i> {op.vendedor_nome || 'Sem dono'}
                         </SellerBadge>
+
+                        {tarefasPorOp[op.id]?.total > 0 && (
+                          <TaskBadge $urgente={tarefasPorOp[op.id].urgente > 0}>
+                            <i className="fa-solid fa-list-check"></i>
+                            {tarefasPorOp[op.id].urgente > 0
+                              ? `${tarefasPorOp[op.id].urgente} tarefa(s) urgente(s)`
+                              : `${tarefasPorOp[op.id].total} tarefa(s)`}
+                          </TaskBadge>
+                        )}
                       </KanbanCard>
                     );
                   })}
@@ -914,6 +966,15 @@ export function Funil() {
                     </AddNoteBox>
                   )}
                 </SectionCard>
+
+                {editandoId && (
+                  <SectionCard $bgColor="#faf5ff" $borderColor="#d6bcfa">
+                    <TarefasOportunidade
+                      oportunidadeId={editandoId}
+                      oportunidadeTitulo={titulo}
+                    />
+                  </SectionCard>
+                )}
               </FormGrid>
 
               <ModalFooter>
@@ -1281,6 +1342,14 @@ const CardModules = styled.div`
 const SellerBadge = styled.div`
   display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; background: #f8f9fa; padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; color: #495057; border: 1px solid #e2e8f0; width: fit-content;
   i { color: #722ed1; }
+`;
+
+const TaskBadge = styled.div`
+  display: inline-flex; align-items: center; gap: 5px; margin-top: 6px; padding: 4px 8px; border-radius: 10px; font-size: 0.72rem; font-weight: 700; width: fit-content;
+  background: ${p => (p.$urgente ? '#fdecea' : '#f3e8ff')};
+  color: ${p => (p.$urgente ? '#dc3545' : '#6f42c1')};
+  border: 1px solid ${p => (p.$urgente ? '#f5c6cb' : '#d6bcfa')};
+  i { font-size: 0.7rem; }
 `;
 
 // --- MODAIS GERAIS ---
