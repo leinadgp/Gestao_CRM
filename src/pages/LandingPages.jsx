@@ -219,9 +219,25 @@ export function LandingPages() {
     setGerandoIA(true);
 
     try {
-      // 1. Envia o contexto para o servidor
-      const resposta = await axios.post(`${API_URL}/api/ia/gerar-copy`, iaPrompt, getHeaders());
-      const copy = resposta.data; // Recebe o JSON completo com os 7 blocos
+      const payloadIA = { ...iaPrompt };
+
+      if (campanhaId) {
+        const campSelecionada = campanhas.find(c => c.id === Number(campanhaId));
+        if (campSelecionada) {
+          payloadIA.nomeCurso = payloadIA.nomeCurso || campSelecionada.nome;
+          payloadIA.descricaoCampanha = campSelecionada.descricao || '';
+          payloadIA.informacaoExtra = campSelecionada.informacao_extra || '';
+          try {
+            const resMods = await axios.get(`${API_URL}/campanhas/${campanhaId}/modulos`, getHeaders());
+            payloadIA.modulosCampanha = resMods.data || [];
+          } catch {
+            payloadIA.modulosCampanha = [];
+          }
+        }
+      }
+
+      const resposta = await axios.post(`${API_URL}/api/ia/gerar-copy`, payloadIA, getHeaders());
+      const copy = resposta.data;
 
       // ========================================================
       // 2. CONSTRUÇÃO DOS BLOCOS HTML (ESTILO AUTORIDADE PÚBLICA)
@@ -545,10 +561,14 @@ export function LandingPages() {
                     if (idSelecionado) {
                       const campSelecionada = campanhas.find(c => c.id === Number(idSelecionado));
                       if (campSelecionada) {
-                        setIaPrompt({...iaPrompt, nomeCurso: campSelecionada.nome});
+                        setIaPrompt({
+                          ...iaPrompt,
+                          nomeCurso: campSelecionada.nome,
+                          beneficios: campSelecionada.descricao || iaPrompt.beneficios
+                        });
                       }
                     } else {
-                      setIaPrompt({...iaPrompt, nomeCurso: ''});
+                      setIaPrompt({...iaPrompt, nomeCurso: '', beneficios: ''});
                     }
                   }}
                   style={{borderColor: '#007bff', backgroundColor: '#f0f7ff'}}

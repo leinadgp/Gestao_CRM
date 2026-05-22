@@ -32,9 +32,14 @@ export function Campanhas() {
   const [apenasAdmin, setApenasAdmin] = useState(false);
   const [emailRemetente, setEmailRemetente] = useState('');
 
-  const etapasPadrao = ['CONTATO 1° E-MAIL', 'CONTATO TEL.', 'IDENTIFICAÇÃO DO INTERESSE', 'NÃO QUER LIGAÇÃO', 'VENDA REALIZADA', 'PERDIDO'];
+  const etapasPadrao = ['CONTATO 1° E-MAIL', 'CONTATO TEL.', 'IDENTIFICAÇÃO DO INTERESSE', 'INSCRITO', 'NÃO QUER LIGAÇÃO', 'VENDA REALIZADA', 'PERDIDO'];
   const [etapas, setEtapas] = useState(etapasPadrao);
   const [novaEtapa, setNovaEtapa] = useState('');
+  const [etapasFunil, setEtapasFunil] = useState([]);
+  const [etapaInscricaoId, setEtapaInscricaoId] = useState('');
+  const [etapaVendaId, setEtapaVendaId] = useState('');
+  const [etapaInscricaoNome, setEtapaInscricaoNome] = useState('INSCRITO');
+  const [etapaVendaNome, setEtapaVendaNome] = useState('VENDA REALIZADA');
 
   const [modulos, setModulos] = useState([]);
   const [modNome, setModNome] = useState('');
@@ -105,12 +110,17 @@ export function Campanhas() {
     setCargosAlvo([]);
     setApenasAdmin(false);
     setEmailRemetente('');
-    setEtapas(etapasPadrao); 
+    setEtapas(etapasPadrao);
+    setEtapasFunil([]);
+    setEtapaInscricaoId('');
+    setEtapaVendaId('');
+    setEtapaInscricaoNome('INSCRITO');
+    setEtapaVendaNome('VENDA REALIZADA');
     setModulos([]); 
     setMostrarModal(true);
   }
 
-  function abrirModalEdicao(camp) {
+  async function abrirModalEdicao(camp) {
     setEditandoId(camp.id); 
     setNome(camp.nome); 
     setDescricao(camp.descricao || '');
@@ -120,6 +130,15 @@ export function Campanhas() {
     setApenasAdmin(camp.apenas_admin || false);
     setEmailRemetente(camp.email_remetente || '');
     setCargosAlvo(parseJSONSeguro(camp.cargos_alvo, []));
+    setEtapaInscricaoId(camp.etapa_inscricao_id ? String(camp.etapa_inscricao_id) : '');
+    setEtapaVendaId(camp.etapa_venda_id ? String(camp.etapa_venda_id) : '');
+
+    try {
+      const resEtapas = await axios.get(`${API_URL}/campanhas/${camp.id}/etapas`, getHeaders());
+      setEtapasFunil(resEtapas.data || []);
+    } catch {
+      setEtapasFunil([]);
+    }
     
     const modsFormatados = (camp.listaModulos || []).map(m => ({
       id: m.id, 
@@ -175,6 +194,8 @@ export function Campanhas() {
   async function salvarCampanha(e) {
     e.preventDefault();
     if (!editandoId && etapas.length === 0) return alert('Adicione pelo menos uma etapa para o funil.');
+    if (editandoId && (!etapaInscricaoId || !etapaVendaId)) return alert('Selecione as etapas de inscrição e venda para a Landing Page.');
+    if (!editandoId && (!etapaInscricaoNome || !etapaVendaNome)) return alert('Selecione as etapas de inscrição e venda para a Landing Page.');
     
     const payload = { 
         nome, 
@@ -185,7 +206,11 @@ export function Campanhas() {
         cargos_alvo: cargosAlvo, 
         apenas_admin: apenasAdmin,
         email_remetente: emailRemetente || null,
-        modulos 
+        modulos,
+        etapa_inscricao_id: etapaInscricaoId ? Number(etapaInscricaoId) : null,
+        etapa_venda_id: etapaVendaId ? Number(etapaVendaId) : null,
+        etapa_inscricao_nome: etapaInscricaoNome || null,
+        etapa_venda_nome: etapaVendaNome || null,
     };
     
     try {
@@ -500,6 +525,51 @@ export function Campanhas() {
                       </StagesList>
                     </SectionCard>
                   )}
+
+                  <SectionCard $bgColor="#eef6ff" $borderColor="#b8daff">
+                    <SectionTitle $color="#007bff"><i className="fa-solid fa-window-maximize"></i> Landing Page — Formulário</SectionTitle>
+                    <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 15px 0' }}>
+                      Define para onde o lead vai no funil ao preencher a página: primeira inscrição → etapa escolhida abaixo; se já existir negociação com o mesmo e-mail → etapa de venda + status vendido.
+                    </p>
+                    <FormGrid $columns="1fr 1fr">
+                      <FormGroup>
+                        <Label>Etapa ao inscrever (novo lead)</Label>
+                        {editandoId ? (
+                          <Select value={etapaInscricaoId} onChange={e => setEtapaInscricaoId(e.target.value)} required>
+                            <option value="">-- Selecione --</option>
+                            {etapasFunil.map(e => (
+                              <option key={e.id} value={e.id}>{e.ordem}. {e.nome}</option>
+                            ))}
+                          </Select>
+                        ) : (
+                          <Select value={etapaInscricaoNome} onChange={e => setEtapaInscricaoNome(e.target.value)} required>
+                            <option value="">-- Selecione --</option>
+                            {etapas.map(e => (
+                              <option key={e} value={e}>{e}</option>
+                            ))}
+                          </Select>
+                        )}
+                      </FormGroup>
+                      <FormGroup>
+                        <Label>Etapa se já tiver negociação (vendido)</Label>
+                        {editandoId ? (
+                          <Select value={etapaVendaId} onChange={e => setEtapaVendaId(e.target.value)} required>
+                            <option value="">-- Selecione --</option>
+                            {etapasFunil.map(e => (
+                              <option key={e.id} value={e.id}>{e.ordem}. {e.nome}</option>
+                            ))}
+                          </Select>
+                        ) : (
+                          <Select value={etapaVendaNome} onChange={e => setEtapaVendaNome(e.target.value)} required>
+                            <option value="">-- Selecione --</option>
+                            {etapas.map(e => (
+                              <option key={e} value={e}>{e}</option>
+                            ))}
+                          </Select>
+                        )}
+                      </FormGroup>
+                    </FormGrid>
+                  </SectionCard>
                 </ModalBody>
 
                 <ModalFooter>

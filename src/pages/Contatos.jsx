@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import styled, { keyframes } from 'styled-components';
-import { Header } from '../componentes/Header.jsx';
 
 // --- UTILITÁRIOS ---
 const parseJSONSeguro = (dadoString, fallback = []) => {
@@ -48,7 +47,7 @@ export function Contatos() {
   const [cargoIndexAtual, setCargoIndexAtual] = useState(null);
   const [cargoAnteriorParaCancelamento, setCargoAnteriorParaCancelamento] = useState('');
 
-  // === FORMULÁRIO (AGORA CARGOS É UM ARRAY) ===
+  // === FORMULÁRIO ===
   const [editandoId, setEditandoId] = useState(null);
   const [nome, setNome] = useState('');
   const [cargos, setCargos] = useState(['']);
@@ -106,6 +105,7 @@ export function Contatos() {
     document.addEventListener('mousedown', handleClickFora);
     return () => document.removeEventListener('mousedown', handleClickFora);
   }, [empresaId, empresas]);
+
   // ==========================================
   // PROTEÇÃO DO BOTÃO VOLTAR DO CELULAR
   // ==========================================
@@ -144,20 +144,24 @@ export function Contatos() {
     }
   };
 
+  // --- FILTRO CORRIGIDO E BLINDADO AQUI ---
   const contatosFiltrados = useMemo(() => {
     const termo = buscaGeral.toLowerCase();
     return contatos.filter(c => {
+      
+      // Cria string segura independente do tipo de dado que vem do banco
+      const emailsTexto = (c.emails || '') + ' ' + (Array.isArray(c.emails_json) ? c.emails_json.join(' ') : '');
+
       const matchBusca = (c.nome || '').toLowerCase().includes(termo) ||
         (c.empresa_nome || '').toLowerCase().includes(termo) ||
-        (c.emails_json || '').toLowerCase().includes(termo);
+        emailsTexto.toLowerCase().includes(termo);
       
       const matchEstado = filtroEstado === '' || (c.estado || '').toUpperCase() === filtroEstado.toUpperCase();
       
-      // Checagem de cargo agora varre o array de cargos do contato
       let matchCargo = true;
       if (filtroCargo !== '') {
         const cargosContato = parseJSONSeguro(c.cargos_json, []);
-        matchCargo = cargosContato.includes(filtroCargo);
+        matchCargo = Array.isArray(cargosContato) && cargosContato.includes(filtroCargo);
       }
 
       return matchBusca && matchEstado && matchCargo;
@@ -455,6 +459,7 @@ export function Contatos() {
                             <DynamicInputRow key={i}>
                               <Select value={cg} onChange={(e) => handleCargoChange(e, i)}>
                                 <option value="">-- Selecione ou digite novo --</option>
+                                <option disabled>──────────</option>
                                 {listaCargos.map(c => <option key={c} value={c}>{c}</option>)}
                                 <option disabled>──────────</option>
                                 <option value="NOVO_CARGO_ACTION" style={{ fontWeight: 'bold', color: '#007bff' }}>+ Adicionar novo...</option>
@@ -644,7 +649,6 @@ const TabelaResponsiva = styled.div`
   &::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 `;
 
-// === AQUI ESTÁ A CORREÇÃO PRINCIPAL DO MOBILE (EMPILHADO) ===
 const Table = styled.table` 
   width: 100%; border-collapse: collapse; min-width: 600px;
   th { text-align: left; padding: 15px 20px; background: #fbfbfc; border-bottom: 2px solid #edf2f9; color: #6c757d; font-size: 0.85rem; text-transform: uppercase; } 
@@ -720,7 +724,6 @@ const DynamicInputRow = styled.div` display: flex; gap: 8px; flex: 1; align-item
 const AddLinkBtn = styled.button` background: rgba(0,123,255,0.1); border: none; color: #007bff; cursor: pointer; font-weight: 700; font-size: 0.8rem; padding: 6px 12px; border-radius: 6px; transition: 0.2s; &:hover { background: #007bff; color: #fff; } `;
 const IconButton = styled.button` padding: 8px 12px; border-radius: 8px; cursor: pointer; background: #f1f5f9; border: 1px solid #cbd5e1; color: #475569; transition: 0.2s; &.danger { color: #dc3545; background: #fff5f5; border-color: #f8d7da; &:hover { background: #dc3545; color: #fff; } } `;
 
-// --- REVISÃO DE ESTILO DOS CARDS DE VISUALIZAÇÃO ---
 const ProfileGrid = styled.div` 
   display: grid; 
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
