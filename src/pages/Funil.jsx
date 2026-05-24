@@ -7,6 +7,10 @@ import { listarMinhasTarefas, classificarTarefa } from '../utils/tarefasService.
 
 import { normalizarCargosJson, normalizarListaJson, cargosParaTexto } from '../utils/jsonHelpers.js';
 
+const inscritoVazio = () => ({
+  nome: '', email: '', telefone: '', formacao: '', cargo: '', contato_id: null,
+});
+
 const parseJSONSeguro = (dado, fallback = []) => {
   if (dado == null || dado === '') return fallback;
   if (typeof dado !== 'string') return dado;
@@ -49,6 +53,9 @@ export function Funil() {
   const [valor, setValor] = useState('');
   const [empresaId, setEmpresaId] = useState('');
   const [contatoId, setContatoId] = useState('');
+  const [contatosVinculadosIds, setContatosVinculadosIds] = useState([]);
+  const [qtdInscritos, setQtdInscritos] = useState(0);
+  const [inscritos, setInscritos] = useState([inscritoVazio()]);
   const [etapaId, setEtapaId] = useState('');
   const [observacoes, setObservacoes] = useState('');
   const [statusOp, setStatusOp] = useState('aberto');
@@ -359,6 +366,31 @@ export function Funil() {
     return campanhas.find(c => c.id === parseInt(filtroCampanha));
   }, [campanhas, filtroCampanha]);
 
+  const cargosAlvoCampanha = useMemo(() => {
+    if (!campanhaSelecionadaObj?.cargos_alvo) return [];
+    const raw = campanhaSelecionadaObj.cargos_alvo;
+    if (Array.isArray(raw)) return raw;
+    try { return JSON.parse(raw); } catch { return []; }
+  }, [campanhaSelecionadaObj]);
+
+  const contatosDaEmpresa = useMemo(() => {
+    if (!empresaId) return [];
+    return contatos.filter((c) => Number(c.empresa_id) === Number(empresaId));
+  }, [contatos, empresaId]);
+
+  useEffect(() => {
+    if (!empresaId || editandoId) return;
+    const idsAuto = contatosDaEmpresa
+      .filter((c) => {
+        if (!cargosAlvoCampanha.length) return true;
+        const cargosCont = normalizarCargosJson(c.cargos_json, []);
+        return cargosCont.some((cg) => cargosAlvoCampanha.includes(cg));
+      })
+      .map((c) => c.id);
+    setContatosVinculadosIds(idsAuto);
+    if (idsAuto.length && !contatoId) setContatoId(String(idsAuto[0]));
+  }, [empresaId, contatosDaEmpresa, cargosAlvoCampanha, editandoId]);
+
   const renderStarsLocal = (rating, readonly = true) => {
     const stars = [];
     for (let i = 1; i <= 5; i++) {
@@ -491,10 +523,53 @@ export function Funil() {
     });
   }
 
+  function toggleContatoVinculado(id) {
+    const numId = Number(id);
+    setContatosVinculadosIds((prev) => {
+      const next = prev.includes(numId) ? prev.filter((x) => x !== numId) : [...prev, numId];
+      if (!next.includes(Number(contatoId))) {
+        setContatoId(next[0] ? String(next[0]) : '');
+        setBuscaContatoNoModal(next[0] ? (contatos.find((c) => c.id === next[0])?.nome || '') : '');
+      }
+      return next;
+    });
+  }
+
+  function ajustarQtdInscritos(qtd) {
+    const n = Math.max(0, Number(qtd) || 0);
+    setQtdInscritos(n);
+    setInscritos((prev) => {
+      const next = [...prev];
+      while (next.length < n) next.push(inscritoVazio());
+      return n > 0 ? next.slice(0, n) : [];
+    });
+  }
+
+  function atualizarInscrito(index, campo, valor) {
+    setInscritos((prev) => prev.map((item, i) => (i === index ? { ...item, [campo]: valor } : item)));
+  }
+
+  function preencherInscritoDoContato(index, contatoRefId) {
+    const c = contatos.find((x) => x.id === Number(contatoRefId));
+    if (!c) return;
+    const emails = normalizarListaJson(c.emails_json, []);
+    const tels = normalizarListaJson(c.telefones_json, []);
+    const cargosLista = normalizarCargosJson(c.cargos_json, []);
+    setInscritos((prev) => prev.map((item, i) => (i === index ? {
+      ...item,
+      nome: c.nome || '',
+      email: emails[0] || '',
+      telefone: tels[0] || '',
+      cargo: cargosLista.join(' | ') || '',
+      contato_id: c.id,
+    } : item)));
+  }
+
   function abrirModalNovo() {
     if (!filtroCampanha) return alert("Selecione uma campanha no topo da tela antes de criar uma negociação!");
     
     setEditandoId(null); setTitulo(''); setEmpresaId(''); setContatoId(''); setObservacoes('');
+    setContatosVinculadosIds([]); setQtdInscritos(0); setInscritos([]);
     setStatusOp('aberto'); setEtapaId(etapas.length > 0 ? etapas[0].id : '');
     setVendedorId(meuUsuarioId || ''); setVendedorOriginal(meuUsuarioId || ''); 
     setDesconto(0); setDescontoReais(0);
@@ -512,7 +587,18 @@ export function Funil() {
 
   function abrirModalEdicao(op) {
     setEditandoId(op.id); setTitulo(op.titulo); setValor(op.valor);
-    setEmpresaId(op.empresa_id || ''); setContatoId(op.contato_id || '');
+    setEmpresaId(op.empresa_id || '');
+    const vinc = op.contatos_vinculados || [];
+    const idsVinc = vinc.length ? vinc.map((c) => c.id) : (op.contato_id ? [op.contato_id] : []);
+    setContatosVinculadosIds(idsVinc);
+    const principal = vinc.find((c) => c.is_principal) || vinc[0];
+    setContatoId(principal?.id || op.contato_id || '');
+    setQtdInscritos(op.qtd_inscritos || 0);
+    setInscritos(
+      (op.inscritos_json && op.inscritos_json.length)
+        ? op.inscritos_json.map((i) => ({ ...inscritoVazio(), ...i }))
+        : (op.qtd_inscritos > 0 ? Array.from({ length: op.qtd_inscritos }, () => inscritoVazio()) : [])
+    );
     setEtapaId(op.etapa_id); setObservacoes(op.observacoes || '');
     setStatusOp(op.status || 'aberto'); setVendedorId(op.vendedor_id || '');
     setVendedorOriginal(op.vendedor_id || ''); 
@@ -543,11 +629,31 @@ export function Funil() {
       ? valorFinalCalculado 
       : (valor ? parseFloat(valor.toString().replace(/\./g, '').replace(',', '.')) : 0);
 
+    if (!empresaId) {
+      alert('Selecione a prefeitura/empresa da negociação.');
+      return;
+    }
+    if (contatosVinculadosIds.length === 0) {
+      alert('Vincule pelo menos um contato da prefeitura.');
+      return;
+    }
+
+    const tituloFinal = titulo.trim() || `Negociação - ${buscaEmpresaNoModal || 'Prefeitura'}`;
     const dados = {
-      titulo, valor: valorEnviar, empresa_id: empresaId || null, contato_id: contatoId || null,
-      etapa_id: etapaId, observacoes, campanha_id: filtroCampanha, status: statusOp,
-      vendedor_id: vendedorId || null, modulos_ids: modulosSelecionados.map(Number), 
-      desconto: modulosSelecionados.length > 0 ? Number(desconto) : 0
+      titulo: tituloFinal,
+      valor: valorEnviar,
+      empresa_id: empresaId || null,
+      contato_id: contatoId || contatosVinculadosIds[0] || null,
+      contatos_ids: contatosVinculadosIds,
+      qtd_inscritos: qtdInscritos,
+      inscritos_json: inscritos.filter((i) => i.nome || i.email),
+      etapa_id: etapaId,
+      observacoes,
+      campanha_id: filtroCampanha,
+      status: statusOp,
+      vendedor_id: vendedorId || null,
+      modulos_ids: modulosSelecionados.map(Number),
+      desconto: modulosSelecionados.length > 0 ? Number(desconto) : 0,
     };
 
     try {
@@ -565,8 +671,8 @@ export function Funil() {
       }
       setMostrarModal(false); 
       carregarFunilDaCampanha(filtroCampanha);
-    } catch (erro) { 
-      alert('Erro ao salvar oportunidade.'); 
+    } catch (erro) {
+      alert(erro.response?.data?.erro || 'Erro ao salvar oportunidade.');
     }
   }
 
@@ -745,6 +851,12 @@ export function Funil() {
                         {op.empresa_nome && (
                           <div className="card-company">
                             <i className="fa-solid fa-building"></i> {op.empresa_nome}
+                            {(op.contatos_vinculados?.length > 0) && (
+                              <span style={{ fontSize: '0.72rem' }}>· {op.contatos_vinculados.length} cont.</span>
+                            )}
+                            {(op.qtd_inscritos > 0) && (
+                              <span style={{ fontSize: '0.72rem', color: '#198754' }}>· {op.qtd_inscritos} insc.</span>
+                            )}
                             {op.classificacao === 'assessorada' && <span className="badge-vip" title="Prefeitura Assessorada VIP"><i className="fa-solid fa-crown"></i> VIP</span>}
                             {op.classificacao === 'lead_quente' && <span className="badge-hot" title="Lead Quente e Engajado"><i className="fa-solid fa-fire"></i> Hot</span>}
                             {(op.classificacao === 'nao_assessorada' || !op.classificacao) && <span className="badge-cold" title="Lead Frio"><i className="fa-solid fa-snowflake text-blue"></i> Frio</span>}
@@ -855,42 +967,124 @@ export function Funil() {
                     </div>
                   </FormGroup>
 
-                  <FormGroup>
-                    <label><i className="fa-solid fa-address-book text-green"></i> Contato Principal</label>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                      <AutocompleteContainer ref={dropdownContatoRef} style={{ flex: 1 }}>
-                        <Input 
-                          type="text" 
-                          placeholder={empresaId ? "🔍 Buscar contato desta empresa..." : "🔍 Buscar contato..."} 
-                          value={buscaContatoNoModal} 
-                          onFocus={() => { setBuscaContatoNoModal(''); setMostrarDropdownContato(true); }} 
-                          onChange={(e) => { setBuscaContatoNoModal(e.target.value); setMostrarDropdownContato(true); }} 
-                        />
-                        {mostrarDropdownContato && (
-                          <AutocompleteList>
-                            <AutocompleteOption className="danger" onClick={() => { setContatoId(''); setBuscaContatoNoModal(''); setMostrarDropdownContato(false); }}>
-                              <i className="fa-solid fa-eraser"></i> Limpar Seleção
-                            </AutocompleteOption>
-                            {contatosFiltradosParaSelect.length > 0 ? (
-                              contatosFiltradosParaSelect.map(cont => (
-                                <AutocompleteOption key={cont.id} onClick={() => { setContatoId(cont.id); setBuscaContatoNoModal(cont.nome); setMostrarDropdownContato(false); }}>
-                                  <strong>{cont.nome}</strong>
-                                </AutocompleteOption>
-                              ))
-                            ) : (
-                              <AutocompleteOption className="no-results">Nenhum contato encontrado.</AutocompleteOption>
-                            )}
-                          </AutocompleteList>
-                        )}
-                      </AutocompleteContainer>
-                      
-                      {contatoId && (
-                        <IconButton type="button" onClick={abrirDetalheContato} title="Visualizar ou Editar Contato">
-                          <i className="fa-solid fa-user-pen"></i>
-                        </IconButton>
-                      )}
-                    </div>
+                  <FormGroup className="span-2">
+                    <label><i className="fa-solid fa-users text-green"></i> Contatos vinculados à negociação</label>
+                    {!empresaId ? (
+                      <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>Selecione a prefeitura para listar os contatos.</p>
+                    ) : contatosDaEmpresa.length === 0 ? (
+                      <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>Nenhum contato cadastrado nesta prefeitura.</p>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 180, overflowY: 'auto', padding: '8px 0' }}>
+                        {contatosDaEmpresa.map((cont) => (
+                          <label key={cont.id} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: '0.9rem' }}>
+                            <input
+                              type="checkbox"
+                              checked={contatosVinculadosIds.includes(cont.id)}
+                              onChange={() => toggleContatoVinculado(cont.id)}
+                            />
+                            <span>
+                              <strong>{cont.nome}</strong>
+                              <span style={{ color: '#64748b', marginLeft: 6 }}>
+                                {cargosParaTexto(cont.cargos_json) || 'Sem cargo'}
+                              </span>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
                   </FormGroup>
+
+                  <FormGroup>
+                    <label><i className="fa-solid fa-user-check text-green"></i> Contato principal</label>
+                    <Select
+                      value={contatoId}
+                      onChange={(e) => {
+                        setContatoId(e.target.value);
+                        const c = contatos.find((x) => String(x.id) === e.target.value);
+                        setBuscaContatoNoModal(c?.nome || '');
+                      }}
+                      disabled={!contatosVinculadosIds.length}
+                    >
+                      <option value="">— Selecione —</option>
+                      {contatosVinculadosIds.map((idV) => {
+                        const c = contatos.find((x) => x.id === idV);
+                        return c ? <option key={c.id} value={c.id}>{c.nome}</option> : null;
+                      })}
+                    </Select>
+                  </FormGroup>
+
+                  <FormGroup>
+                    <label><i className="fa-solid fa-graduation-cap text-purple"></i> Qtd. pessoas inscritas no curso</label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={qtdInscritos}
+                      onChange={(e) => ajustarQtdInscritos(e.target.value)}
+                      placeholder="Ex: 4"
+                    />
+                  </FormGroup>
+                </FormGrid>
+              </SectionCard>
+
+              {qtdInscritos > 0 && (
+                <SectionCard $bgColor="#f8fafc" $borderColor="#cbd5e1">
+                  <label style={{ display: 'block', marginBottom: 12, fontWeight: 'bold', fontSize: '0.95rem' }}>
+                    <i className="fa-solid fa-id-card text-blue"></i> Dados de cada inscrito no curso
+                  </label>
+                  {inscritos.map((ins, idx) => (
+                    <div key={idx} style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, marginBottom: 12, background: '#fff' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <strong>Inscrito {idx + 1}</strong>
+                        {contatosVinculadosIds.length > 0 && (
+                          <Select
+                            style={{ maxWidth: 220, fontSize: '0.8rem' }}
+                            value={ins.contato_id || ''}
+                            onChange={(e) => preencherInscritoDoContato(idx, e.target.value)}
+                          >
+                            <option value="">Preencher da base...</option>
+                            {contatosVinculadosIds.map((idV) => {
+                              const c = contatos.find((x) => x.id === idV);
+                              return c ? <option key={c.id} value={c.id}>{c.nome}</option> : null;
+                            })}
+                          </Select>
+                        )}
+                      </div>
+                      <FormGrid $columns="1fr 1fr">
+                        <FormGroup>
+                          <label>Nome</label>
+                          <Input value={ins.nome} onChange={(e) => atualizarInscrito(idx, 'nome', e.target.value)} />
+                        </FormGroup>
+                        <FormGroup>
+                          <label>E-mail</label>
+                          <Input value={ins.email} onChange={(e) => atualizarInscrito(idx, 'email', e.target.value)} />
+                        </FormGroup>
+                        <FormGroup>
+                          <label>Telefone</label>
+                          <Input value={ins.telefone} onChange={(e) => atualizarInscrito(idx, 'telefone', e.target.value)} />
+                        </FormGroup>
+                        <FormGroup>
+                          <label>Cargo</label>
+                          <Input value={ins.cargo} onChange={(e) => atualizarInscrito(idx, 'cargo', e.target.value)} />
+                        </FormGroup>
+                        <FormGroup className="span-2">
+                          <label>Formação</label>
+                          <Input value={ins.formacao} onChange={(e) => atualizarInscrito(idx, 'formacao', e.target.value)} />
+                        </FormGroup>
+                      </FormGrid>
+                    </div>
+                  ))}
+                </SectionCard>
+              )}
+
+              <SectionCard>
+                <FormGrid $columns="1fr">
+                  {contatoId && (
+                    <FormGroup>
+                      <IconButton type="button" onClick={abrirDetalheContato} title="Editar contato principal">
+                        <i className="fa-solid fa-user-pen"></i> Editar contato principal
+                      </IconButton>
+                    </FormGroup>
+                  )}
                 </FormGrid>
               </SectionCard>
 
