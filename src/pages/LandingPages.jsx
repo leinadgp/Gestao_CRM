@@ -78,6 +78,10 @@ export function LandingPages() {
         pluginsOpts: {
           'gjs-preset-webpage': {}
         },
+        // 👇 ADICIONE ESTE BLOCO PARA O TAILWIND FUNCIONAR DENTRO DO EDITOR
+        canvas: {
+          scripts: ['https://cdn.tailwindcss.com']
+        },
         i18n: {
           locale: 'pt',
           localeFallback: 'en',
@@ -157,43 +161,233 @@ export function LandingPages() {
         label: '<i class="fa-solid fa-address-card fa-2x"></i><br/>Form. Inscrição',
         category: 'Estilo Premium',
         content: `
-          <section id="form-inscricao" style="padding: 60px 20px; background-color: #f8fafc; font-family: Arial, sans-serif;">
-            <div style="max-width: 700px; margin: 0 auto; background: #ffffff; padding: 40px; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
-              <h2 style="text-align: center; color: #0f172a; margin-bottom: 10px; font-size: 28px;">Garanta sua Vaga</h2>
-              <p style="text-align: center; color: #64748b; margin-bottom: 30px;">Preencha os dados abaixo para confirmar sua inscrição.</p>
-              
-              <form id="formInscricaoCRM" style="display: flex; flex-direction: column; gap: 15px;">
-                <div>
-                  <label style="font-size: 0.9rem; font-weight: bold; color: #475569; display: block; margin-bottom: 5px;">Nome completo*</label>
-                  <input type="text" id="nome" required style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; font-size: 14px;" />
-                </div>
-                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-                  <div style="flex: 1; min-width: 200px;">
-                    <label style="font-size: 0.9rem; font-weight: bold; color: #475569; display: block; margin-bottom: 5px;">Email*</label>
-                    <input type="email" id="email" required style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; font-size: 14px;" />
-                  </div>
-                  <div style="flex: 1; min-width: 200px;">
-                    <label style="font-size: 0.9rem; font-weight: bold; color: #475569; display: block; margin-bottom: 5px;">Telefone (WhatsApp)*</label>
-                    <input type="text" id="whatsapp" required style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; font-size: 14px;" />
-                  </div>
+          <section id="inscricao" style="padding: 80px 20px; background-color: #ffffff; font-family: Arial, sans-serif;">
+            <div style="max-width: 1100px; margin: 0 auto;">
+                
+                <div style="text-align: center; margin-bottom: 40px;">
+                    <p style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.2em; color: #F59E0B; margin-bottom: 10px;">Investimento e Inscrição</p>
+                    <h2 style="font-size: 32px; font-weight: bold; color: #0B192C; margin: 0;">Garanta sua Vaga</h2>
                 </div>
 
-                <div style="margin-top: 10px; padding: 20px; background: #f0f7ff; border-radius: 8px; border: 1px solid #b8daff;">
-                  <label style="font-size: 1rem; font-weight: bold; color: #007bff; display: block; margin-bottom: 10px;">Opções de Inscrição</label>
-                  <div id="containerModulos">
-                     <div style="color: #64748b; font-size: 0.9rem; font-style: italic;">
-                       (Os módulos definidos na campanha aparecerão automaticamente aqui)
-                     </div>
-                  </div>
-                </div>
+                <div style="max-width: 800px; margin: 0 auto; background: linear-gradient(135deg, #0B192C, #1E293B); border-radius: 24px; padding: 40px; box-shadow: 0 10px 40px -10px rgba(0,0,0,0.1); border: 1px solid rgba(245, 158, 11, 0.3);">
+                    
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <h3 style="font-size: 24px; font-weight: bold; color: #F59E0B; margin: 0;">Preencha seus dados</h3>
+                        <p style="color: #cbd5e1; font-size: 15px; margin-top: 5px;">Seus dados serão enviados diretamente para nosso sistema seguro.</p>
+                    </div>
+                    
+                    <form id="formInscricaoCRM" style="display: flex; flex-wrap: wrap; gap: 20px;">
+                        
+                        <div style="flex: 1 1 100%;">
+                            <label for="nome" style="display: block; font-size: 14px; font-weight: 500; color: #f8fafc; margin-bottom: 5px;">Nome Completo*</label>
+                            <input type="text" id="nome" name="nome" required style="width: 100%; border-radius: 6px; border: 1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding: 12px 16px; font-size: 14px; color: #ffffff; outline: none;" placeholder="Seu nome completo">
+                        </div>
 
-                <button type="submit" id="btnSubmit" style="margin-top: 20px; width: 100%; padding: 18px; background-color: #0f172a; color: #fff; border: none; border-radius: 5px; font-size: 1.2rem; font-weight: bold; cursor: pointer;">
-                  CONFIRMAR INSCRIÇÃO
-                </button>
-                <div id="feedback" style="display:none; padding: 15px; border-radius: 5px; text-align: center; margin-top: 15px; font-weight: bold;"></div>
-              </form>
+                        <div style="flex: 1 1 calc(50% - 10px); min-width: 250px;">
+                            <label for="email" style="display: block; font-size: 14px; font-weight: 500; color: #f8fafc; margin-bottom: 5px;">Email*</label>
+                            <input type="email" id="email" name="email" required style="width: 100%; border-radius: 6px; border: 1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding: 12px 16px; font-size: 14px; color: #ffffff; outline: none;" placeholder="seu@email.com">
+                        </div>
+
+                        <div style="flex: 1 1 calc(50% - 10px); min-width: 250px;">
+                            <label for="whatsapp" style="display: block; font-size: 14px; font-weight: 500; color: #f8fafc; margin-bottom: 5px;">Telefone*</label>
+                            <input type="tel" id="whatsapp" name="whatsapp" required style="width: 100%; border-radius: 6px; border: 1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding: 12px 16px; font-size: 14px; color: #ffffff; outline: none;" placeholder="(00) 00000-0000">
+                        </div>
+
+                        <div style="flex: 1 1 calc(50% - 10px); min-width: 250px;">
+                            <label for="formacao" style="display: block; font-size: 14px; font-weight: 500; color: #f8fafc; margin-bottom: 5px;">Formação*</label>
+                            <input type="text" id="formacao" name="formacao" required style="width: 100%; border-radius: 6px; border: 1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding: 12px 16px; font-size: 14px; color: #ffffff; outline: none;" placeholder="Sua formação acadêmica">
+                        </div>
+
+                        <div style="flex: 1 1 calc(50% - 10px); min-width: 250px;">
+                            <label for="cargo" style="display: block; font-size: 14px; font-weight: 500; color: #f8fafc; margin-bottom: 5px;">Cargo*</label>
+                            <input type="text" id="cargo" name="cargo" required style="width: 100%; border-radius: 6px; border: 1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding: 12px 16px; font-size: 14px; color: #ffffff; outline: none;" placeholder="Seu cargo atual">
+                        </div>
+
+                        <div style="flex: 1 1 100%;">
+                            <label for="cidade" style="display: block; font-size: 14px; font-weight: 500; color: #f8fafc; margin-bottom: 5px;">Município*</label>
+                            <input type="text" id="cidade" name="cidade" required style="width: 100%; border-radius: 6px; border: 1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding: 12px 16px; font-size: 14px; color: #ffffff; outline: none;" placeholder="Cidade / Estado">
+                        </div>
+
+                        <div style="flex: 1 1 100%;">
+                            <label style="display: block; font-size: 14px; font-weight: 500; color: #f8fafc; margin-bottom: 8px;">Escolha o curso de seu interesse*</label>
+                            
+                            <div id="containerModulos" style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 6px; padding: 16px;">
+                                <div style="color: #F59E0B; font-size: 14px; font-style: italic; text-align: center;">
+                                  (Os módulos definidos na campanha aparecerão automaticamente aqui quando a página for publicada)
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="flex: 1 1 100%;">
+                            <label for="captchaCalc" style="display: block; font-size: 14px; font-weight: 500; color: #f8fafc; margin-bottom: 5px;">4 + 3 = ? *</label>
+                            <input type="number" id="captchaCalc" name="captchaCalc" required style="width: 100%; border-radius: 6px; border: 1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding: 12px 16px; font-size: 14px; color: #ffffff; outline: none;" placeholder="Soma matemática">
+                        </div>
+
+                        <div style="flex: 1 1 100%; text-align: center; margin-top: 10px;">
+                            <button type="submit" id="btnSubmit" style="width: 100%; background: linear-gradient(to right, #FCD34D, #F59E0B); color: #0B192C; padding: 16px 32px; font-size: 16px; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; box-shadow: 0 4px 14px 0 rgba(245, 158, 11, 0.4);">
+                                Enviar meus dados
+                            </button>
+                            <div id="feedback" style="display:none; padding: 15px; border-radius: 5px; text-align: center; margin-top: 15px; font-weight: bold;"></div>
+                            <p style="margin-top: 16px; font-size: 12px; color: rgba(248,250,252,0.6);">Seus dados estão protegidos conosco.</p>
+                        </div>
+
+                    </form>
+                </div>
             </div>
           </section>
+        `,
+      });
+
+      // BLOCO 4: TEMPLATE COMPLETO (TAILWIND)
+      editor.BlockManager.add('template-completo', {
+        label: '<i class="fa-solid fa-layer-group fa-2x"></i><br/>Template Completo',
+        category: 'Páginas Prontas',
+        content: `
+          <script>
+            tailwind.config = {
+              theme: {
+                extend: {
+                  colors: {
+                    background: "#ffffff",
+                    foreground: "#0f172a",
+                    border: "#e2e8f0",
+                    navy: { DEFAULT: "#0B192C", foreground: "#f8fafc" },
+                    gold: { DEFAULT: "#F59E0B", foreground: "#0B192C" },
+                    card: { DEFAULT: "#ffffff", foreground: "#0f172a" },
+                    secondary: { DEFAULT: "#f8fafc", foreground: "#0f172a" },
+                    muted: { DEFAULT: "#f1f5f9", foreground: "#64748b" },
+                    destructive: { DEFAULT: "#ef4444", foreground: "#ffffff" }
+                  },
+                  boxShadow: {
+                    'elegant': '0 10px 40px -10px rgba(0,0,0,0.1)',
+                    'gold': '0 4px 14px 0 rgba(245, 158, 11, 0.4)',
+                  }
+                }
+              }
+            }
+          </script>
+          <style>
+            .bg-gradient-gold { background: linear-gradient(to right, #FCD34D, #F59E0B); }
+            .bg-gradient-navy { background: linear-gradient(to bottom right, #0B192C, #1E293B); }
+          </style>
+
+          <header class="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur">
+              <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 md:px-8">
+                  <a href="#top" aria-label="Gestão — Início" class="flex items-center">
+                      <img src="https://lh3.googleusercontent.com/d/15X1AYe0G-KGxqrqe05n6iTzmH9IUJhY_" alt="Gestão" class="h-9 w-auto object-contain">
+                  </a>
+                  <nav class="flex items-center gap-4 md:gap-6">
+                      <a href="#inscricao" class="inline-flex items-center gap-2 rounded-md bg-gradient-gold px-5 py-2.5 text-sm font-semibold text-navy shadow-gold">
+                          Fazer inscrição
+                      </a>
+                  </nav>
+              </div>
+          </header>
+
+          <main>
+              <section id="top" class="relative overflow-hidden bg-navy text-navy-foreground">
+                  <div class="absolute inset-0 opacity-40" style="background-image: url('https://lh3.googleusercontent.com/d/1y6HPl8eV1tm0kckkYCoKnexFIOJOoeqi'); background-size: cover; background-position: center;"></div>
+                  <div class="absolute inset-0" style="background: linear-gradient(135deg, rgba(11,25,44,0.92) 0%, rgba(15,23,42,0.85) 60%, rgba(11,25,44,0.95) 100%);"></div>
+                  <div class="relative mx-auto grid max-w-7xl gap-12 px-4 py-20 md:grid-cols-[1.3fr_1fr] md:px-8 md:py-28">
+                      <div>
+                          <span class="inline-flex items-center gap-2 rounded-full border border-gold/40 bg-gold/10 px-3 py-1 text-xs font-medium uppercase tracking-wider text-gold">
+                              Curso Online Ao Vivo · Turma 2026
+                          </span>
+                          <h1 class="mt-6 text-4xl font-bold leading-[1.05] md:text-6xl">
+                              Inteligência Artificial na Prática do <span class="text-gold">Controle Interno Municipal</span>
+                          </h1>
+                          <p class="mt-6 max-w-2xl text-lg text-navy-foreground/85 md:text-xl">
+                              Aprenda a utilizar a IA com segurança, método e responsabilidade nas rotinas da UCCI.
+                          </p>
+                          <div class="mt-8 flex flex-wrap items-center gap-3">
+                              <a href="#inscricao" class="inline-flex items-center gap-2 rounded-md bg-gradient-gold px-7 py-3.5 text-base font-semibold text-navy shadow-gold">
+                                  Fazer inscrição
+                              </a>
+                          </div>
+                      </div>
+                      <div class="relative hidden items-center justify-center md:flex">
+                          <div class="relative w-full rounded-2xl border border-gold/30 bg-navy/60 p-8 shadow-elegant backdrop-blur">
+                              <div class="border-b border-gold/20 pb-4">
+                                  <p class="text-xs uppercase tracking-wider text-gold">Capacitação Aplicada</p>
+                                  <p class="text-sm font-semibold">7 horas · 5 etapas</p>
+                              </div>
+                              <ul class="mt-5 space-y-3 text-sm text-navy-foreground/85">
+                                  <li>Segurança, ética e governança de dados</li>
+                                  <li>Engenharia de prompts para a UCCI</li>
+                                  <li>Inteligência documental e análise multimodal</li>
+                              </ul>
+                          </div>
+                      </div>
+                  </div>
+              </section>
+
+              <section class="bg-background py-20 md:py-28">
+                  <div class="mx-auto max-w-7xl px-4 md:px-8 text-center">
+                      <p class="text-xs font-semibold uppercase tracking-[0.2em] text-gold">O contexto</p>
+                      <h2 class="mt-3 text-3xl font-bold leading-tight text-navy md:text-4xl lg:text-5xl">
+                          A IA já chegou à Administração Pública.<br />
+                          <span class="text-gold">A questão é: sua UCCI está preparada para usá-la com segurança?</span>
+                      </h2>
+                      <p class="mx-auto mt-6 max-w-3xl text-lg text-muted-foreground">
+                          A Inteligência Artificial pode apoiar o Controle Interno Municipal na organização de documentos. Porém, seu uso sem método pode gerar riscos relevantes.
+                      </p>
+                  </div>
+              </section>
+
+              <section id="instrutor" class="bg-background py-20 md:py-28">
+                  <div class="mx-auto max-w-7xl px-4 md:px-8">
+                      <p class="text-center text-xs font-semibold uppercase tracking-[0.2em] text-gold">Instrutor</p>
+                      <h2 class="mt-3 text-center text-3xl font-bold leading-tight text-navy md:text-4xl lg:text-5xl">Com quem você vai aprender</h2>
+                      <div class="mt-12 grid items-center gap-10 md:grid-cols-[auto_1fr]">
+                          <div class="relative mx-auto">
+                              <img src="https://lh3.googleusercontent.com/d/1d7pkkU2b7K_hjbz_rARcK4P64aSWAriP" alt="Prof. Paulo Isaac Silveira" class="h-80 w-64 rounded-2xl object-cover object-top shadow-elegant border border-border" />
+                          </div>
+                          <div>
+                              <p class="text-sm font-semibold uppercase tracking-wider text-gold">Prof.</p>
+                              <h3 class="mt-1 text-3xl font-bold text-navy md:text-4xl">Paulo Isaac Silveira</h3>
+                              <p class="mt-6 text-base leading-relaxed text-muted-foreground">Especialista em Revisão de Textos pela PUC Minas e especialista em Direito Público Constitucional.</p>
+                          </div>
+                      </div>
+                  </div>
+              </section>
+
+              <section id="inscricao" class="bg-secondary py-20 md:py-28">
+                  <div class="mx-auto max-w-7xl px-4 md:px-8">
+                      <div class="mx-auto max-w-3xl rounded-3xl border border-gold/30 bg-gradient-navy p-8 shadow-elegant md:p-12 text-navy-foreground">
+                          <div class="mb-8 text-center">
+                              <h3 class="text-2xl font-bold text-gold">Preencha seus dados para inscrição</h3>
+                          </div>
+                          <form id="formInscricaoCRM" style="display: flex; flex-wrap: wrap; gap: 20px;">
+                              <div style="flex: 1 1 100%;">
+                                  <label style="display: block; font-size: 14px; font-weight: 500; color: #f8fafc; margin-bottom: 5px;">Nome Completo*</label>
+                                  <input type="text" id="nome" name="nome" required style="width: 100%; border-radius: 6px; border: 1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding: 12px 16px; color: #ffffff; outline: none;" placeholder="Seu nome completo">
+                              </div>
+                              <div style="flex: 1 1 calc(50% - 10px); min-width: 250px;">
+                                  <label style="display: block; font-size: 14px; font-weight: 500; color: #f8fafc; margin-bottom: 5px;">Email*</label>
+                                  <input type="email" id="email" name="email" required style="width: 100%; border-radius: 6px; border: 1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding: 12px 16px; color: #ffffff; outline: none;" placeholder="seu@email.com">
+                              </div>
+                              <div style="flex: 1 1 calc(50% - 10px); min-width: 250px;">
+                                  <label style="display: block; font-size: 14px; font-weight: 500; color: #f8fafc; margin-bottom: 5px;">Telefone*</label>
+                                  <input type="tel" id="whatsapp" name="whatsapp" required style="width: 100%; border-radius: 6px; border: 1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding: 12px 16px; color: #ffffff; outline: none;" placeholder="(00) 00000-0000">
+                              </div>
+                              <div style="flex: 1 1 100%;">
+                                  <div id="containerModulos" style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 6px; padding: 16px; margin-top: 10px;">
+                                      <div style="color: #F59E0B; font-size: 14px; font-style: italic; text-align: center;">
+                                        (Os módulos definidos na campanha aparecerão automaticamente aqui)
+                                      </div>
+                                  </div>
+                              </div>
+                              <div style="flex: 1 1 100%; text-align: center; margin-top: 10px;">
+                                  <button type="submit" id="btnSubmit" style="width: 100%; background: linear-gradient(to right, #FCD34D, #F59E0B); color: #0B192C; padding: 16px 32px; font-size: 16px; font-weight: bold; border: none; border-radius: 6px; cursor: pointer;">
+                                      Enviar meus dados
+                                  </button>
+                                  <div id="feedback" style="display:none; padding: 15px; border-radius: 5px; text-align: center; margin-top: 15px; font-weight: bold;"></div>
+                              </div>
+                          </form>
+                      </div>
+                  </div>
+              </section>
+          </main>
         `,
       });
 

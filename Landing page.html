@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    <title>IA na Prática do Controle Interno Municipal | Gestão</title>
+    <meta name="description" content="Capacitação online ao vivo: use Inteligência Artificial com segurança, método e responsabilidade na rotina da UCCI. Turma 2026 — 25/06/2026.">
+    <meta name="author" content="Gestão Assessoria e Consultoria">
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        background: "#ffffff",
+                        foreground: "#0f172a",
+                        border: "#e2e8f0",
+                        navy: {
+                            DEFAULT: "#0B192C",
+                            foreground: "#f8fafc",
+                        },
+                        gold: {
+                            DEFAULT: "#F59E0B",
+                            foreground: "#0B192C",
+                        },
+                        card: {
+                            DEFAULT: "#ffffff",
+                            foreground: "#0f172a",
+                        },
+                        secondary: {
+                            DEFAULT: "#f8fafc",
+                            foreground: "#0f172a",
+                        },
+                        muted: {
+                            DEFAULT: "#f1f5f9",
+                            foreground: "#64748b",
+                        },
+                        destructive: {
+                            DEFAULT: "#ef4444",
+                            foreground: "#ffffff",
+                        }
+                    },
+                    boxShadow: {
+                        'elegant': '0 10px 40px -10px rgba(0,0,0,0.1)',
+                        'card': '0 4px 6px -1px rgba(0,0,0,0.05)',
+                        'gold': '0 4px 14px 0 rgba(245, 158, 11, 0.4)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer base {
+            html {
+                scroll-behavior: smooth;
+            }
+            /* Remove as setinhas padrão do input numérico */
+            input[type="number"]::-webkit-inner-spin-button,
+            input[type="number"]::-webkit-outer-spin-button {
+                -webkit-appearance: none;
+                margin: 0;
+            }
+        }
+        @layer utilities {
+            .bg-gradient-gold {
+                @apply bg-gradient-to-r from-[#FCD34D] to-[#F59E0B];
+            }
+            .bg-gradient-navy {
+                @apply bg-gradient-to-br from-[#0B192C] to-[#1E293B];
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-background text-foreground font-sans">
+
+    <header class="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur">
+        <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 md:px-8" >
+            <a href="#top" aria-label="Gestão — Início" class="flex items-center">
+                <img src="https://lh3.googleusercontent.com/d/15X1AYe0G-KGxqrqe05n6iTzmH9IUJhY_" alt="Gestão" class="h-9 w-auto object-contain"  />
+            </a>
+            <nav class="flex items-center gap-4 md:gap-6">
+                <a href="https://wa.me/5551984432097?text=Tenho%20interesse%20no%20curso%20IA%20na%20Pr%C3%A1tica%20do%20Controle%20Interno%20Municipal" target="_blank" rel="noopener noreferrer" class="hidden text-sm font-medium text-navy hover:text-gold md:inline">
+                    Fale com a Gestão
+                </a>
+                <a href="#inscricao" class="inline-flex items-center gap-2 rounded-md bg-gradient-gold px-5 py-2.5 text-sm font-semibold text-navy shadow-gold transition hover:brightness-105">
+                    Fazer inscrição <i data-lucide="arrow-right" class="h-4 w-4"></i>
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <section id="top" class="relative overflow-hidden bg-navy text-navy-foreground">
+            <div class="absolute inset-0 opacity-40" style=" background-size: cover; background-position: center;" aria-hidden="true"></div>
+            <div class="absolute inset-0" style="background: linear-gradient(135deg, rgba(11,25,44,0.92) 0%, rgba(15,23,42,0.85) 60%, rgba(11,25,44,0.95) 100%);" aria-hidden="true"></div>
+            <div class="relative mx-auto grid max-w-7xl gap-12 px-4 py-20 md:grid-cols-[1.3fr_1fr] md:px-8 md:py-28" style="padding-top: 3rem; padding-bottom: 4rem;">
+                <div>
+                    <span class="inline-flex items-center gap-2 rounded-full border border-gold/40 bg-gold/10 px-3 py-1 text-xs font-medium uppercase tracking-wider text-gold">
+                        <i data-lucide="sparkles" class="h-3.5 w-3.5"></i> Curso Online Ao Vivo · Turma 2026
+                    </span>
+                    <h1 class="mt-6 text-4xl font-bold leading-[1.05] md:text-6xl">
+                        Inteligência Artificial na Prática do <span class="text-gold">Controle Interno Municipal</span>
+                    </h1>
+                    <p class="mt-6 max-w-2xl text-lg text-navy-foreground/85 md:text-xl">
+                        Aprenda a utilizar a IA com segurança, método e responsabilidade nas rotinas da UCCI.
+                    </p>
+                    <p class="mt-4 max-w-2xl text-base text-navy-foreground/70">
+                        Uma capacitação online e prática para compreender como aplicar ferramentas como ChatGPT, Gemini e NotebookLM na análise documental, pesquisa normativa, elaboração de relatórios e padronização de rotinas do Controle Interno.
+                    </p>
+                    <div class="mt-8 flex flex-wrap items-center gap-3">
+                        <a href="#inscricao" class="inline-flex items-center gap-2 rounded-md bg-gradient-gold px-7 py-3.5 text-base font-semibold text-navy shadow-gold transition hover:brightness-105">
+                            Fazer inscrição <i data-lucide="arrow-right" class="h-5 w-5"></i>
+                        </a>
+                        <a href="https://wa.me/5551984432097?text=Tenho%20interesse%20no%20curso%20IA%20na%20Pr%C3%A1tica%20do%20Controle%20Interno%20Municipal" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 rounded-md border border-navy-foreground/30 bg-navy-foreground/5 px-7 py-3.5 text-base font-medium text-navy-foreground transition hover:bg-navy-foreground/10">
+                            <i data-lucide="message-circle" class="h-5 w-5"></i> Falar pelo WhatsApp
+                        </a>
+                    </div>
+                    <dl class="mt-10 grid grid-cols-2 gap-4 border-t border-navy-foreground/15 pt-6 text-sm md:grid-cols-4">
+                        <div class="flex items-start gap-2">
+                            <div class="mt-0.5 text-gold"><i data-lucide="calendar" class="h-5 w-5"></i></div>
+                            <div>
+                                <dt class="text-xs uppercase tracking-wider text-navy-foreground/60">Data</dt>
+                                <dd class="font-semibold">25/06/2026</dd>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-2">
+                            <div class="mt-0.5 text-gold"><i data-lucide="clock" class="h-5 w-5"></i></div>
+                            <div>
+                                <dt class="text-xs uppercase tracking-wider text-navy-foreground/60">Horário</dt>
+                                <dd class="font-semibold">08h30–17h</dd>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-2">
+                            <div class="mt-0.5 text-gold"><i data-lucide="video" class="h-5 w-5"></i></div>
+                            <div>
+                                <dt class="text-xs uppercase tracking-wider text-navy-foreground/60">Modalidade</dt>
+                                <dd class="font-semibold">Online · Zoom</dd>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-2">
+                            <div class="mt-0.5 text-gold"><i data-lucide="graduation-cap" class="h-5 w-5"></i></div>
+                            <div>
+                                <dt class="text-xs uppercase tracking-wider text-navy-foreground/60">Carga horária</dt>
+                                <dd class="font-semibold">7 horas</dd>
+                            </div>
+                        </div>
+                    </dl>
+                </div>
+                <div class="relative hidden items-center justify-center md:flex" >
+                    <div class="absolute inset-0 rounded-3xl bg-gold/10 blur-3xl" aria-hidden="true" ></div>
+                    <div class="relative w-full rounded-2xl border border-gold/30 bg-navy/60 p-8 shadow-elegant backdrop-blur" >
+                        <div class="flex items-center gap-3 border-b border-gold/20 pb-4">
+                            <div class="rounded-lg bg-gold/15 p-2 text-gold">
+                                <i data-lucide="brain" class="h-6 w-6"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs uppercase tracking-wider text-gold">Capacitação Aplicada</p>
+                                <p class="text-sm font-semibold">7 horas · 5 etapas</p>
+                            </div>
+                        </div>
+                        <ul class="mt-5 space-y-3 text-sm text-navy-foreground/85">
+                            <li class="flex items-start gap-3"><i data-lucide="check-circle-2" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span>Segurança, ética e governança de dados</span></li>
+                            <li class="flex items-start gap-3"><i data-lucide="check-circle-2" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span>Engenharia de prompts para a UCCI</span></li>
+                            <li class="flex items-start gap-3"><i data-lucide="check-circle-2" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span>Pesquisa de jurisprudência com IA</span></li>
+                            <li class="flex items-start gap-3"><i data-lucide="check-circle-2" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span>Inteligência documental e análise multimodal</span></li>
+                            <li class="flex items-start gap-3"><i data-lucide="check-circle-2" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span>Aplicações práticas na rotina do Controle Interno</span></li>
+                        </ul>
+                        <div class="mt-6 rounded-lg border border-gold/20 bg-gold/5 p-4 text-xs text-navy-foreground/80">
+                            Inclui apostila em PDF, modelos de prompts aplicáveis à UCCI, exercícios práticos e certificado digital.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="border-b border-border bg-secondary">
+            <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-x-8 gap-y-3 px-4 py-4 text-sm text-secondary-foreground md:px-8">
+                <span class="inline-flex items-center gap-2"><span class="text-gold"><i data-lucide="calendar" class="h-4 w-4"></i></span>25/06/2026</span>
+                <span class="inline-flex items-center gap-2"><span class="text-gold"><i data-lucide="clock" class="h-4 w-4"></i></span>08h30–12h e 13h30–17h</span>
+                <span class="inline-flex items-center gap-2"><span class="text-gold"><i data-lucide="video" class="h-4 w-4"></i></span>Zoom — ao vivo</span>
+                <span class="inline-flex items-center gap-2"><span class="text-gold"><i data-lucide="award" class="h-4 w-4"></i></span>Certificado digital</span>
+                <span class="inline-flex items-center gap-2"><span class="text-gold"><i data-lucide="file-text" class="h-4 w-4"></i></span>Apostila em PDF</span>
+            </div>
+        </div>
+
+        <section id="contexto" class="bg-background py-20 md:py-28" style="padding-top: 5rem; padding-bottom: 3rem;">
+            <div class="mx-auto max-w-7xl px-4 md:px-8">
+                <p class="text-center text-xs font-semibold uppercase tracking-[0.2em] text-gold">O contexto</p>
+                <h2 class="mt-3 text-center text-3xl font-bold leading-tight text-navy md:text-4xl lg:text-5xl">
+                    A IA já chegou à Administração Pública.<br />
+                    <span class="text-gold">A questão é: sua UCCI está preparada para usá-la com segurança?</span>
+                </h2>
+                <p class="mx-auto mt-6 max-w-3xl text-center text-lg text-muted-foreground">
+                    A Inteligência Artificial pode apoiar o Controle Interno Municipal na organização de documentos, elaboração de relatórios, pesquisa de jurisprudência, análise de dados e construção de recomendações. Porém, seu uso sem método pode gerar riscos relevantes.
+                </p>
+                <div class="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    <div class="flex items-start gap-4 rounded-xl border border-border bg-card p-6 shadow-card transition hover:-translate-y-0.5 hover:shadow-elegant">
+                        <div class="rounded-lg bg-destructive/10 p-2.5 text-destructive"><i data-lucide="alert-triangle" class="h-5 w-5"></i></div>
+                        <p class="text-base font-medium text-card-foreground">Inserção indevida de dados sensíveis</p>
+                    </div>
+                    <div class="flex items-start gap-4 rounded-xl border border-border bg-card p-6 shadow-card transition hover:-translate-y-0.5 hover:shadow-elegant">
+                        <div class="rounded-lg bg-destructive/10 p-2.5 text-destructive"><i data-lucide="alert-triangle" class="h-5 w-5"></i></div>
+                        <p class="text-base font-medium text-card-foreground">Uso de respostas da IA sem conferência</p>
+                    </div>
+                    <div class="flex items-start gap-4 rounded-xl border border-border bg-card p-6 shadow-card transition hover:-translate-y-0.5 hover:shadow-elegant">
+                        <div class="rounded-lg bg-destructive/10 p-2.5 text-destructive"><i data-lucide="alert-triangle" class="h-5 w-5"></i></div>
+                        <p class="text-base font-medium text-card-foreground">Prompts genéricos com respostas superficiais</p>
+                    </div>
+                    <div class="flex items-start gap-4 rounded-xl border border-border bg-card p-6 shadow-card transition hover:-translate-y-0.5 hover:shadow-elegant">
+                        <div class="rounded-lg bg-destructive/10 p-2.5 text-destructive"><i data-lucide="alert-triangle" class="h-5 w-5"></i></div>
+                        <p class="text-base font-medium text-card-foreground">Risco de fundamentação com fontes inexistentes</p>
+                    </div>
+                    <div class="flex items-start gap-4 rounded-xl border border-border bg-card p-6 shadow-card transition hover:-translate-y-0.5 hover:shadow-elegant">
+                        <div class="rounded-lg bg-destructive/10 p-2.5 text-destructive"><i data-lucide="alert-triangle" class="h-5 w-5"></i></div>
+                        <p class="text-base font-medium text-card-foreground">Relatórios com linguagem artificial e pouca conexão com o caso</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="bg-gradient-navy py-20 text-navy-foreground md:py-28">
+            <div class="mx-auto max-w-7xl px-4 md:px-8">
+                <h2 class="mt-3 text-center text-3xl font-bold leading-tight text-navy-foreground md:text-4xl lg:text-5xl">
+                    O curso mostra como usar a IA como apoio técnico — <span class="text-gold">sem substituir o julgamento humano</span> do Controle Interno.
+                </h2>
+                <p class="mx-auto mt-6 max-w-3xl text-center text-lg text-navy-foreground/80">
+                    A proposta da capacitação é demonstrar, de forma prática, como utilizar ferramentas de IA para ganhar produtividade, organizar informações, apoiar auditorias e qualificar documentos técnicos — sempre com validação humana, responsabilidade institucional e atenção à segurança dos dados.
+                </p>
+                <blockquote class="mx-auto mt-12 max-w-3xl rounded-2xl border-l-4 border-gold bg-navy-foreground/5 p-8 text-center text-xl font-medium italic text-navy-foreground md:text-2xl">
+                    “IA não é resposta pronta. É ferramenta de apoio quando usada com contexto, método e validação.”
+                </blockquote>
+            </div>
+        </section>
+
+        <section id="programa" class="bg-background py-20 md:py-28" style="padding-top: 5rem; padding-bottom: 3rem;">
+            <div class="mx-auto max-w-7xl px-4 md:px-8">
+                <p class="text-center text-xs font-semibold uppercase tracking-[0.2em] text-gold">Programa do curso</p>
+                <h2 class="mt-3 text-center text-3xl font-bold leading-tight text-navy md:text-4xl lg:text-5xl">O que você vai aprender</h2>
+                <div class="mt-14 space-y-6">
+                    <div class="grid gap-6 rounded-2xl border border-border bg-card p-6 shadow-card md:grid-cols-[auto_1fr] md:p-8">
+                        <div class="flex items-start gap-4 md:flex-col md:items-center md:gap-2 md:border-r md:border-border md:pr-8">
+                            <div class="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-navy text-gold shadow-elegant">
+                                <i data-lucide="shield" class="h-6 w-6"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs uppercase tracking-wider text-muted-foreground">Etapa</p>
+                                <p class="text-2xl font-bold text-navy">01</p>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-semibold text-card-foreground md:text-2xl">Segurança, Ética e Governança de Dados</h3>
+                            <ul class="mt-4 grid gap-2 md:grid-cols-2">
+                                <li class="flex items-start gap-2 text-sm text-muted-foreground"><i data-lucide="check-circle-2" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span>Configuração inicial de ferramentas de IA</span></li>
+                                <li class="flex items-start gap-2 text-sm text-muted-foreground"><i data-lucide="check-circle-2" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span>Cuidados com privacidade e dados sensíveis</span></li>
+                                <li class="flex items-start gap-2 text-sm text-muted-foreground"><i data-lucide="check-circle-2" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span>O que pode e o que não deve ser inserido nas plataformas</span></li>
+                                <li class="flex items-start gap-2 text-sm text-muted-foreground"><i data-lucide="check-circle-2" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span>Boas práticas para uso responsável na Administração Pública</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="grid gap-6 rounded-2xl border border-border bg-card p-6 shadow-card md:grid-cols-[auto_1fr] md:p-8">
+                        <div class="flex items-start gap-4 md:flex-col md:items-center md:gap-2 md:border-r md:border-border md:pr-8">
+                            <div class="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-navy text-gold shadow-elegant">
+                                <i data-lucide="lightbulb" class="h-6 w-6"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs uppercase tracking-wider text-muted-foreground">Etapa</p>
+                                <p class="text-2xl font-bold text-navy">02</p>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-semibold text-card-foreground md:text-2xl">Engenharia de Prompts para a UCCI</h3>
+                            <ul class="mt-4 grid gap-2 md:grid-cols-2">
+                                <li class="flex items-start gap-2 text-sm text-muted-foreground"><i data-lucide="check-circle-2" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span>Como dar contexto à IA</span></li>
+                                <li class="flex items-start gap-2 text-sm text-muted-foreground"><i data-lucide="check-circle-2" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span>Como formular comandos úteis para relatórios, ofícios e análises</span></li>
+                                <li class="flex items-start gap-2 text-sm text-muted-foreground"><i data-lucide="check-circle-2" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span>Diferença entre prompt genérico e prompt institucional</span></li>
+                                <li class="flex items-start gap-2 text-sm text-muted-foreground"><i data-lucide="check-circle-2" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span>Construção de respostas alinhadas à realidade do município</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="grid gap-6 rounded-2xl border border-border bg-card p-6 shadow-card md:grid-cols-[auto_1fr] md:p-8">
+                        <div class="flex items-start gap-4 md:flex-col md:items-center md:gap-2 md:border-r md:border-border md:pr-8">
+                            <div class="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-navy text-gold shadow-elegant">
+                                <i data-lucide="search" class="h-6 w-6"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs uppercase tracking-wider text-muted-foreground">Etapa</p>
+                                <p class="text-2xl font-bold text-navy">03</p>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-semibold text-card-foreground md:text-2xl">Pesquisa de Jurisprudência</h3>
+                            <ul class="mt-4 grid gap-2 md:grid-cols-2">
+                                <li class="flex items-start gap-2 text-sm text-muted-foreground"><i data-lucide="check-circle-2" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span>Como utilizar IA para apoiar pesquisas técnicas e jurídicas</span></li>
+                                <li class="flex items-start gap-2 text-sm text-muted-foreground"><i data-lucide="check-circle-2" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span>Cuidados com jurisprudências falsas ou inexistentes</span></li>
+                                <li class="flex items-start gap-2 text-sm text-muted-foreground"><i data-lucide="check-circle-2" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span>Consulta a ferramentas especializadas, como JusIA/JusBrasil</span></li>
+                                <li class="flex items-start gap-2 text-sm text-muted-foreground"><i data-lucide="check-circle-2" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span>Rastreabilidade das fontes e validação das informações</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="grid gap-6 rounded-2xl border border-border bg-card p-6 shadow-card md:grid-cols-[auto_1fr] md:p-8">
+                        <div class="flex items-start gap-4 md:flex-col md:items-center md:gap-2 md:border-r md:border-border md:pr-8">
+                            <div class="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-navy text-gold shadow-elegant">
+                                <i data-lucide="file-plus-2" class="h-6 w-6"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs uppercase tracking-wider text-muted-foreground">Etapa</p>
+                                <p class="text-2xl font-bold text-navy">04</p>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-semibold text-card-foreground md:text-2xl">Inteligência Documental e Análise Multimodal</h3>
+                            <ul class="mt-4 grid gap-2 md:grid-cols-2">
+                                <li class="flex items-start gap-2 text-sm text-muted-foreground"><i data-lucide="check-circle-2" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span>Uso de documentos, PDFs, imagens, vídeos, áudios e links como fonte</span></li>
+                                <li class="flex items-start gap-2 text-sm text-muted-foreground"><i data-lucide="check-circle-2" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span>Aplicações do NotebookLM</span></li>
+                                <li class="flex items-start gap-2 text-sm text-muted-foreground"><i data-lucide="check-circle-2" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span>Análise de documentos extensos</span></li>
+                                <li class="flex items-start gap-2 text-sm text-muted-foreground"><i data-lucide="check-circle-2" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span>Organização em resumos, tabelas, planilhas e guias de apoio</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="grid gap-6 rounded-2xl border border-border bg-card p-6 shadow-card md:grid-cols-[auto_1fr] md:p-8">
+                        <div class="flex items-start gap-4 md:flex-col md:items-center md:gap-2 md:border-r md:border-border md:pr-8">
+                            <div class="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-navy text-gold shadow-elegant">
+                                <i data-lucide="workflow" class="h-6 w-6"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs uppercase tracking-wider text-muted-foreground">Etapa</p>
+                                <p class="text-2xl font-bold text-navy">05</p>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-semibold text-card-foreground md:text-2xl">Aplicações Práticas na Rotina do Controle Interno</h3>
+                            <ul class="mt-4 grid gap-2 md:grid-cols-2">
+                                <li class="flex items-start gap-2 text-sm text-muted-foreground"><i data-lucide="check-circle-2" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span>Revisão gramatical e técnica de documentos oficiais</span></li>
+                                <li class="flex items-start gap-2 text-sm text-muted-foreground"><i data-lucide="check-circle-2" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span>Apoio à composição de cesta de preços de licitação</span></li>
+                                <li class="flex items-start gap-2 text-sm text-muted-foreground"><i data-lucide="check-circle-2" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span>Elaboração de relatório de auditoria de denúncia</span></li>
+                                <li class="flex items-start gap-2 text-sm text-muted-foreground"><i data-lucide="check-circle-2" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span>Apoio a auditorias na área de recursos humanos</span></li>
+                                <li class="flex items-start gap-2 text-sm text-muted-foreground"><i data-lucide="check-circle-2" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span>Estruturação de achados, recomendações e pontos de atenção</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="bg-secondary py-20 md:py-28" style="padding-top: 2rem;">
+            <div class="mx-auto max-w-7xl px-4 md:px-8">
+                <p class="text-center text-xs font-semibold uppercase tracking-[0.2em] text-gold">Benefícios</p>
+                <h2 class="mt-3 text-center text-3xl font-bold leading-tight text-navy md:text-4xl lg:text-5xl">O que sua UCCI ganha com este curso</h2>
+                <div class="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+                    <div class="group rounded-2xl border border-border bg-card p-7 shadow-card transition hover:-translate-y-1 hover:shadow-elegant">
+                        <div class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-gold text-navy shadow-gold"><i data-lucide="shield" class="h-5 w-5"></i></div>
+                        <h3 class="mt-5 text-lg font-semibold text-card-foreground">Uso seguro e responsável da IA no Controle Interno</h3>
+                        <p class="mt-2 text-sm leading-relaxed text-muted-foreground">Aprenda cuidados essenciais para proteger dados, evitar exposição indevida de informações e utilizar IA com responsabilidade institucional.</p>
+                    </div>
+                    <div class="group rounded-2xl border border-border bg-card p-7 shadow-card transition hover:-translate-y-1 hover:shadow-elegant">
+                        <div class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-gold text-navy shadow-gold"><i data-lucide="zap" class="h-5 w-5"></i></div>
+                        <h3 class="mt-5 text-lg font-semibold text-card-foreground">Mais produtividade na elaboração de documentos oficiais</h3>
+                        <p class="mt-2 text-sm leading-relaxed text-muted-foreground">Utilize IA para apoiar a construção e revisão de relatórios, ofícios, recomendações e análises técnicas.</p>
+                    </div>
+                    <div class="group rounded-2xl border border-border bg-card p-7 shadow-card transition hover:-translate-y-1 hover:shadow-elegant">
+                        <div class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-gold text-navy shadow-gold"><i data-lucide="book-open" class="h-5 w-5"></i></div>
+                        <h3 class="mt-5 text-lg font-semibold text-card-foreground">Apoio à pesquisa normativa, técnica e jurisprudencial</h3>
+                        <p class="mt-2 text-sm leading-relaxed text-muted-foreground">Entenda como pesquisar, conferir fontes e evitar fundamentações frágeis ou inexistentes.</p>
+                    </div>
+                    <div class="group rounded-2xl border border-border bg-card p-7 shadow-card transition hover:-translate-y-1 hover:shadow-elegant">
+                        <div class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-gold text-navy shadow-gold"><i data-lucide="trending-up" class="h-5 w-5"></i></div>
+                        <h3 class="mt-5 text-lg font-semibold text-card-foreground">Agilidade na análise de documentos e auditorias</h3>
+                        <p class="mt-2 text-sm leading-relaxed text-muted-foreground">Aprenda a extrair, resumir e organizar informações de documentos extensos e diferentes formatos.</p>
+                    </div>
+                    <div class="group rounded-2xl border border-border bg-card p-7 shadow-card transition hover:-translate-y-1 hover:shadow-elegant">
+                        <div class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-gold text-navy shadow-gold"><i data-lucide="sprout" class="h-5 w-5"></i></div>
+                        <h3 class="mt-5 text-lg font-semibold text-card-foreground">Fortalecimento da atuação preventiva e estratégica da UCCI</h3>
+                        <p class="mt-2 text-sm leading-relaxed text-muted-foreground">Use a IA para organizar rotinas, qualificar análises e apoiar a tomada de decisão técnica.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="bg-background py-20 md:py-28">
+            <div class="mx-auto max-w-7xl px-4 md:px-8">
+                <p class="text-center text-xs font-semibold uppercase tracking-[0.2em] text-gold">Diferencial</p>
+                <h2 class="mt-3 text-center text-3xl font-bold leading-tight text-navy md:text-4xl lg:text-5xl">Por que este curso é diferente?</h2>
+                <div class="mt-12 grid gap-6 md:grid-cols-2">
+                    <div class="rounded-2xl border border-border bg-card p-8 shadow-card">
+                        <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Curso genérico de IA</p>
+                        <h3 class="mt-2 text-xl font-semibold text-muted-foreground">Amplo, superficial, sem contexto</h3>
+                        <ul class="mt-6 space-y-3">
+                            <li class="flex items-start gap-3 text-sm text-muted-foreground"><i data-lucide="x" class="mt-0.5 h-4 w-4 shrink-0 text-destructive"></i><span>Ensina comandos básicos</span></li>
+                            <li class="flex items-start gap-3 text-sm text-muted-foreground"><i data-lucide="x" class="mt-0.5 h-4 w-4 shrink-0 text-destructive"></i><span>Usa exemplos amplos</span></li>
+                            <li class="flex items-start gap-3 text-sm text-muted-foreground"><i data-lucide="x" class="mt-0.5 h-4 w-4 shrink-0 text-destructive"></i><span>Não considera a realidade da Administração Pública</span></li>
+                            <li class="flex items-start gap-3 text-sm text-muted-foreground"><i data-lucide="x" class="mt-0.5 h-4 w-4 shrink-0 text-destructive"></i><span>Não aprofunda riscos de dados e responsabilidade técnica</span></li>
+                        </ul>
+                    </div>
+                    <div class="rounded-2xl border-2 border-gold bg-gradient-navy p-8 text-navy-foreground shadow-elegant">
+                        <p class="text-xs font-semibold uppercase tracking-wider text-gold">IA aplicada ao Controle Interno</p>
+                        <h3 class="mt-2 text-xl font-semibold">Prático, contextualizado, responsável</h3>
+                        <ul class="mt-6 space-y-3">
+                            <li class="flex items-start gap-3 text-sm"><i data-lucide="check" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span>Trabalha situações reais da UCCI</span></li>
+                            <li class="flex items-start gap-3 text-sm"><i data-lucide="check" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span>Aborda relatórios, auditorias e análise documental</span></li>
+                            <li class="flex items-start gap-3 text-sm"><i data-lucide="check" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span>Ensina segurança, ética e governança de dados</span></li>
+                            <li class="flex items-start gap-3 text-sm"><i data-lucide="check" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span>Mostra ferramentas aplicáveis à rotina do Controle Interno</span></li>
+                            <li class="flex items-start gap-3 text-sm"><i data-lucide="check" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span>Reforça validação humana e responsabilidade técnica</span></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="bg-secondary py-20 md:py-28">
+            <div class="mx-auto max-w-7xl px-4 md:px-8">
+                <p class="text-center text-xs font-semibold uppercase tracking-[0.2em] text-gold">Na prática</p>
+                <h2 class="mt-3 text-center text-3xl font-bold leading-tight text-navy md:text-4xl lg:text-5xl">Aplicações reais para a rotina da UCCI</h2>
+                <div class="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <div class="rounded-xl border border-border bg-card p-5 shadow-card"><div class="text-xs font-semibold text-gold">01</div><p class="mt-2 text-sm font-medium text-card-foreground">Revisar um relatório de auditoria</p></div>
+                    <div class="rounded-xl border border-border bg-card p-5 shadow-card"><div class="text-xs font-semibold text-gold">02</div><p class="mt-2 text-sm font-medium text-card-foreground">Organizar informações de uma denúncia</p></div>
+                    <div class="rounded-xl border border-border bg-card p-5 shadow-card"><div class="text-xs font-semibold text-gold">03</div><p class="mt-2 text-sm font-medium text-card-foreground">Apoiar uma auditoria de folha de pagamento</p></div>
+                    <div class="rounded-xl border border-border bg-card p-5 shadow-card"><div class="text-xs font-semibold text-gold">04</div><p class="mt-2 text-sm font-medium text-card-foreground">Montar uma cesta de preços com fontes diversas</p></div>
+                    <div class="rounded-xl border border-border bg-card p-5 shadow-card"><div class="text-xs font-semibold text-gold">05</div><p class="mt-2 text-sm font-medium text-card-foreground">Transformar documentos longos em sínteses úteis</p></div>
+                    <div class="rounded-xl border border-border bg-card p-5 shadow-card"><div class="text-xs font-semibold text-gold">06</div><p class="mt-2 text-sm font-medium text-card-foreground">Criar prompts adaptados à realidade do município</p></div>
+                    <div class="rounded-xl border border-border bg-card p-5 shadow-card"><div class="text-xs font-semibold text-gold">07</div><p class="mt-2 text-sm font-medium text-card-foreground">Conferir fundamentos antes de usar em relatório</p></div>
+                    <div class="rounded-xl border border-border bg-card p-5 shadow-card"><div class="text-xs font-semibold text-gold">08</div><p class="mt-2 text-sm font-medium text-card-foreground">Melhorar a clareza de recomendações e manifestações técnicas</p></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="instrutor" class="bg-background py-20 md:py-28">
+            <div class="mx-auto max-w-7xl px-4 md:px-8">
+                <p class="text-center text-xs font-semibold uppercase tracking-[0.2em] text-gold">Instrutor</p>
+                <h2 class="mt-3 text-center text-3xl font-bold leading-tight text-navy md:text-4xl lg:text-5xl">Com quem você vai aprender</h2>
+                <div class="mt-12 grid items-center gap-10 md:grid-cols-[auto_1fr]">
+                    <div class="relative mx-auto">
+                        <div class="absolute -inset-3 rounded-2xl bg-gradient-gold opacity-30 blur-2xl" aria-hidden="true"></div>
+                        <img src="https://lh3.googleusercontent.com/d/1d7pkkU2b7K_hjbz_rARcK4P64aSWAriP" alt="Prof. Paulo Isaac Silveira" width="320" height="384" class="relative h-80 w-64 rounded-2xl object-top shadow-elegant ring-1 ring-border md:h-96 md:w-80" />
+                    </div>
+                    <div>
+                        <p class="text-sm font-semibold uppercase tracking-wider text-gold">Prof.</p>
+                        <h3 class="mt-1 text-3xl font-bold text-navy md:text-4xl">Paulo Isaac Silveira</h3>
+                        <p class="mt-6 text-base leading-relaxed text-muted-foreground">Bacharel em Relações Internacionais pelo Centro Universitário Internacional, especialista em Revisão de Textos pela PUC Minas, especialista em Direito Público Constitucional pela PUC Brasília e mestrando em Administração Pública pela Universidade Federal do Pampa — UNIPAMPA.</p>
+                        <p class="mt-4 text-base leading-relaxed text-muted-foreground">Atualmente é membro de bancas de concursos públicos na Legalle Concursos Ltda e sócio-consultor na Gestão Assessoria e Consultoria em Administração Pública Ltda e na Gestão A+ Desenvolvimento Ltda ME.</p>
+                        <a href="https://drive.google.com/file/d/1y6HPl8eV1tm0kckkYCoKnexFIOJOoeqi/view?usp=drive_link" target="_blank" rel="noopener noreferrer" class="mt-8 inline-flex items-center gap-2 rounded-md border-2 border-navy bg-transparent px-6 py-3 text-sm font-semibold text-navy transition hover:bg-navy hover:text-navy-foreground">
+                            <i data-lucide="external-link" class="h-4 w-4"></i> Acessar Currículo Lattes
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="bg-secondary py-20 md:py-28">
+            <div class="mx-auto max-w-7xl px-4 md:px-8">
+                <p class="text-center text-xs font-semibold uppercase tracking-[0.2em] text-gold">Detalhes do curso</p>
+                <h2 class="mt-3 text-center text-3xl font-bold leading-tight text-navy md:text-4xl lg:text-5xl">Informações principais</h2>
+                <div class="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <div class="rounded-xl border border-border bg-card p-5 shadow-card"><div class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-secondary text-navy"><i data-lucide="calendar" class="h-5 w-5"></i></div><p class="mt-3 text-xs uppercase tracking-wider text-muted-foreground">Data</p><p class="mt-1 text-sm font-semibold text-card-foreground">25/06/2026</p></div>
+                    <div class="rounded-xl border border-border bg-card p-5 shadow-card"><div class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-secondary text-navy"><i data-lucide="clock" class="h-5 w-5"></i></div><p class="mt-3 text-xs uppercase tracking-wider text-muted-foreground">Horário</p><p class="mt-1 text-sm font-semibold text-card-foreground">08h30 às 12h · 13h30 às 17h</p></div>
+                    <div class="rounded-xl border border-border bg-card p-5 shadow-card"><div class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-secondary text-navy"><i data-lucide="video" class="h-5 w-5"></i></div><p class="mt-3 text-xs uppercase tracking-wider text-muted-foreground">Modalidade</p><p class="mt-1 text-sm font-semibold text-card-foreground">Online ao vivo</p></div>
+                    <div class="rounded-xl border border-border bg-card p-5 shadow-card"><div class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-secondary text-navy"><i data-lucide="monitor" class="h-5 w-5"></i></div><p class="mt-3 text-xs uppercase tracking-wider text-muted-foreground">Plataforma</p><p class="mt-1 text-sm font-semibold text-card-foreground">Zoom</p></div>
+                    <div class="rounded-xl border border-border bg-card p-5 shadow-card"><div class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-secondary text-navy"><i data-lucide="graduation-cap" class="h-5 w-5"></i></div><p class="mt-3 text-xs uppercase tracking-wider text-muted-foreground">Carga horária</p><p class="mt-1 text-sm font-semibold text-card-foreground">7 horas</p></div>
+                    <div class="rounded-xl border border-border bg-card p-5 shadow-card"><div class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-secondary text-navy"><i data-lucide="award" class="h-5 w-5"></i></div><p class="mt-3 text-xs uppercase tracking-wider text-muted-foreground">Certificado</p><p class="mt-1 text-sm font-semibold text-card-foreground">Digital</p></div>
+                    <div class="rounded-xl border border-border bg-card p-5 shadow-card"><div class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-secondary text-navy"><i data-lucide="file-text" class="h-5 w-5"></i></div><p class="mt-3 text-xs uppercase tracking-wider text-muted-foreground">Material</p><p class="mt-1 text-sm font-semibold text-card-foreground">Apostila em PDF</p></div>
+                    <div class="rounded-xl border border-border bg-card p-5 shadow-card"><div class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-secondary text-navy"><i data-lucide="sparkles" class="h-5 w-5"></i></div><p class="mt-3 text-xs uppercase tracking-wider text-muted-foreground">Inclui</p><p class="mt-1 text-sm font-semibold text-card-foreground">Modelos de prompts e exercícios práticos</p></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="inscricao" class="bg-background py-20 md:py-28">
+            <div class="mx-auto max-w-7xl px-4 md:px-8">
+                <p class="text-center text-xs font-semibold uppercase tracking-[0.2em] text-gold">Investimento e Inscrição</p>
+                
+                <div class="mx-auto mt-6 max-w-3xl overflow-hidden rounded-3xl border border-border bg-gradient-navy text-navy-foreground shadow-elegant">
+                    <div class="grid gap-0 md:grid-cols-[1fr_auto]">
+                        <div class="p-10 md:p-12">
+                            <p class="text-xs font-semibold uppercase tracking-wider text-gold">Inscrição individual</p>
+                            <h3 class="mt-3 text-3xl font-bold md:text-4xl">IA na Prática do Controle Interno Municipal</h3>
+                            <p class="mt-6 text-sm uppercase tracking-wider text-navy-foreground/70">Valor por inscrição</p>
+                            <p class="mt-1 text-5xl font-bold text-gold md:text-6xl">R$ 990,00</p>
+                            <p class="mt-4 text-sm text-navy-foreground/80">Clientes com contrato de assessoria possuem <span class="font-semibold text-gold">10% de desconto</span> na inscrição.</p>
+                        </div>
+                        <div class="border-t border-gold/20 bg-navy-foreground/5 p-8 md:border-l md:border-t-0 flex flex-col justify-center">
+                            <p class="text-xs font-semibold uppercase tracking-wider text-gold">Inclui</p>
+                            <ul class="mt-4 space-y-3 text-sm">
+                                <li class="flex items-start gap-2"><i data-lucide="check" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i>Apostila em PDF</li>
+                                <li class="flex items-start gap-2"><i data-lucide="check" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i>Modelos de prompts</li>
+                                <li class="flex items-start gap-2"><i data-lucide="check" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i>Exercícios práticos</li>
+                                <li class="flex items-start gap-2"><i data-lucide="check" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i>Certificado digital</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mx-auto mt-12 max-w-3xl rounded-3xl border border-gold/30 bg-gradient-navy p-8 shadow-elegant md:p-12 text-navy-foreground">
+                    <div class="mb-8 text-center">
+                        <h3 class="text-2xl font-bold text-gold">Preencha seus dados para inscrição</h3>
+                    </div>
+                    
+                    <form action="URL_DO_SEU_WEBHOOK_N8N_AQUI" method="POST" class="grid gap-6 md:grid-cols-2">
+                        
+                        <div class="md:col-span-2">
+                            <label for="nome" class="mb-1 block text-sm font-medium">Nome Completo*</label>
+                            <input type="text" id="nome" name="nome" required class="w-full rounded-md border border-navy-foreground/20 bg-navy-foreground/5 px-4 py-3 text-sm text-white placeholder-navy-foreground/40 outline-none transition focus:border-gold focus:ring-1 focus:ring-gold" placeholder="Seu nome completo">
+                        </div>
+
+                        <div>
+                            <label for="email" class="mb-1 block text-sm font-medium">Email*</label>
+                            <input type="email" id="email" name="email" required class="w-full rounded-md border border-navy-foreground/20 bg-navy-foreground/5 px-4 py-3 text-sm text-white placeholder-navy-foreground/40 outline-none transition focus:border-gold focus:ring-1 focus:ring-gold" placeholder="seu@email.com">
+                        </div>
+
+                        <div>
+                            <label for="telefone" class="mb-1 block text-sm font-medium">Telefone*</label>
+                            <input type="tel" id="telefone" name="telefone" required class="w-full rounded-md border border-navy-foreground/20 bg-navy-foreground/5 px-4 py-3 text-sm text-white placeholder-navy-foreground/40 outline-none transition focus:border-gold focus:ring-1 focus:ring-gold" placeholder="(00) 00000-0000">
+                        </div>
+
+                        <div>
+                            <label for="formacao" class="mb-1 block text-sm font-medium">Formação*</label>
+                            <input type="text" id="formacao" name="formacao" required class="w-full rounded-md border border-navy-foreground/20 bg-navy-foreground/5 px-4 py-3 text-sm text-white placeholder-navy-foreground/40 outline-none transition focus:border-gold focus:ring-1 focus:ring-gold" placeholder="Sua formação acadêmica">
+                        </div>
+
+                        <div>
+                            <label for="cargo" class="mb-1 block text-sm font-medium">Cargo*</label>
+                            <input type="text" id="cargo" name="cargo" required class="w-full rounded-md border border-navy-foreground/20 bg-navy-foreground/5 px-4 py-3 text-sm text-white placeholder-navy-foreground/40 outline-none transition focus:border-gold focus:ring-1 focus:ring-gold" placeholder="Seu cargo atual">
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label for="municipio" class="mb-1 block text-sm font-medium">Município*</label>
+                            <input type="text" id="municipio" name="municipio" required class="w-full rounded-md border border-navy-foreground/20 bg-navy-foreground/5 px-4 py-3 text-sm text-white placeholder-navy-foreground/40 outline-none transition focus:border-gold focus:ring-1 focus:ring-gold" placeholder="Cidade / Estado">
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="mb-2 block text-sm font-medium">Escolha o curso de seu interesse*</label>
+                            <label class="flex items-center gap-3 rounded-md border border-gold/40 bg-gold/10 px-4 py-3 cursor-not-allowed">
+                                <input type="checkbox" name="curso" value="IA na Prática do Controle Interno" checked disabled class="h-5 w-5 accent-gold cursor-not-allowed">
+                                <span class="text-sm font-medium text-gold">IA na Prática do Controle Interno</span>
+                            </label>
+                            <input type="hidden" name="curso_selecionado" value="IA na Prática do Controle Interno">
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label for="captcha" class="mb-1 block text-sm font-medium">6 + 5 = ? *</label>
+                            <input type="number" id="captcha" name="captcha" required class="w-full rounded-md border border-navy-foreground/20 bg-navy-foreground/5 px-4 py-3 text-sm text-white placeholder-navy-foreground/40 outline-none transition focus:border-gold focus:ring-1 focus:ring-gold" placeholder="Soma matemática">
+                        </div>
+
+                        <div class="md:col-span-2 mt-4 text-center">
+                            <button type="submit" class="w-full inline-flex items-center justify-center gap-2 rounded-md bg-gradient-gold px-8 py-4 text-base font-bold text-navy shadow-gold transition hover:brightness-105">
+                                Enviar meus dados <i data-lucide="send" class="h-5 w-5"></i>
+                            </button>
+                            <p class="mt-4 text-xs text-navy-foreground/60">Seus dados estão protegidos conosco.</p>
+                        </div>
+
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <section class="bg-secondary py-20 md:py-28">
+            <div class="mx-auto max-w-7xl px-4 md:px-8">
+                <p class="text-center text-xs font-semibold uppercase tracking-[0.2em] text-gold">Público</p>
+                <h2 class="mt-3 text-center text-3xl font-bold leading-tight text-navy md:text-4xl lg:text-5xl">Para quem é indicado</h2>
+                <p class="mx-auto mt-6 max-w-2xl text-center text-muted-foreground">Este curso é indicado para:</p>
+                <ul class="mx-auto mt-10 grid max-w-4xl gap-3 md:grid-cols-2">
+                    <li class="flex items-start gap-3 rounded-xl border border-border bg-card p-4 shadow-card"><i data-lucide="users" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span class="text-sm font-medium text-card-foreground">Membros do Controle Interno Municipal</span></li>
+                    <li class="flex items-start gap-3 rounded-xl border border-border bg-card p-4 shadow-card"><i data-lucide="users" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span class="text-sm font-medium text-card-foreground">Controladores internos</span></li>
+                    <li class="flex items-start gap-3 rounded-xl border border-border bg-card p-4 shadow-card"><i data-lucide="users" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span class="text-sm font-medium text-card-foreground">Auditores internos</span></li>
+                    <li class="flex items-start gap-3 rounded-xl border border-border bg-card p-4 shadow-card"><i data-lucide="users" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span class="text-sm font-medium text-card-foreground">Servidores da UCCI</span></li>
+                    <li class="flex items-start gap-3 rounded-xl border border-border bg-card p-4 shadow-card"><i data-lucide="users" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span class="text-sm font-medium text-card-foreground">Agentes públicos que elaboram relatórios, pareceres, recomendações e análises</span></li>
+                    <li class="flex items-start gap-3 rounded-xl border border-border bg-card p-4 shadow-card"><i data-lucide="users" class="mt-0.5 h-4 w-4 shrink-0 text-gold"></i><span class="text-sm font-medium text-card-foreground">Servidores que atuam com auditorias, documentos, riscos, controles e governança</span></li>
+                </ul>
+            </div>
+        </section>
+
+        <section class="bg-background py-20 md:py-28">
+            <div class="mx-auto max-w-7xl px-4 md:px-8">
+                <div class="mx-auto max-w-3xl rounded-2xl border border-gold/30 bg-gold/5 p-10 text-center">
+                    <div class="mx-auto inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-gold text-navy shadow-gold">
+                        <i data-lucide="lightbulb" class="h-6 w-6"></i>
+                    </div>
+                    <h3 class="mt-6 text-2xl font-bold text-navy md:text-3xl">Você não precisa ser especialista em tecnologia</h3>
+                    <p class="mt-4 text-base leading-relaxed text-muted-foreground">O curso foi estruturado para servidores do Controle Interno que desejam compreender e aplicar IA na prática, mesmo que ainda não tenham experiência avançada com as ferramentas. A proposta é mostrar o caminho: como acessar, configurar, perguntar, validar e aplicar os resultados com segurança.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="bg-secondary py-20 md:py-28">
+            <div class="mx-auto max-w-7xl px-4 md:px-8">
+                <p class="text-center text-xs font-semibold uppercase tracking-[0.2em] text-gold">Dúvidas frequentes</p>
+                <h2 class="mt-3 text-center text-3xl font-bold leading-tight text-navy md:text-4xl lg:text-5xl">Perguntas frequentes</h2>
+                <div class="mx-auto mt-12 max-w-3xl space-y-3">
+                    
+                    <div class="overflow-hidden rounded-xl border border-border bg-card shadow-card faq-item">
+                        <button type="button" class="faq-button flex w-full items-center justify-between gap-4 px-6 py-5 text-left">
+                            <span class="text-base font-semibold text-card-foreground">Preciso ter conhecimento prévio em Inteligência Artificial?</span>
+                            <i data-lucide="chevron-down" class="faq-icon-down h-5 w-5 shrink-0 text-muted-foreground hidden"></i>
+                            <i data-lucide="chevron-up" class="faq-icon-up h-5 w-5 shrink-0 text-gold"></i>
+                        </button>
+                        <div class="faq-content border-t border-border px-6 py-5 text-sm leading-relaxed text-muted-foreground">
+                            Não. O curso apresenta desde cuidados iniciais e configuração das ferramentas até aplicações práticas na rotina da UCCI.
+                        </div>
+                    </div>
+
+                    <div class="overflow-hidden rounded-xl border border-border bg-card shadow-card faq-item">
+                        <button type="button" class="faq-button flex w-full items-center justify-between gap-4 px-6 py-5 text-left">
+                            <span class="text-base font-semibold text-card-foreground">O curso será gravado?</span>
+                            <i data-lucide="chevron-down" class="faq-icon-down h-5 w-5 shrink-0 text-muted-foreground"></i>
+                            <i data-lucide="chevron-up" class="faq-icon-up h-5 w-5 shrink-0 text-gold hidden"></i>
+                        </button>
+                        <div class="faq-content hidden border-t border-border px-6 py-5 text-sm leading-relaxed text-muted-foreground">
+                            Os participantes receberão acesso à gravação por tempo determinado, conforme política da turma.
+                        </div>
+                    </div>
+
+                    <div class="overflow-hidden rounded-xl border border-border bg-card shadow-card faq-item">
+                        <button type="button" class="faq-button flex w-full items-center justify-between gap-4 px-6 py-5 text-left">
+                            <span class="text-base font-semibold text-card-foreground">Quais ferramentas serão abordadas?</span>
+                            <i data-lucide="chevron-down" class="faq-icon-down h-5 w-5 shrink-0 text-muted-foreground"></i>
+                            <i data-lucide="chevron-up" class="faq-icon-up h-5 w-5 shrink-0 text-gold hidden"></i>
+                        </button>
+                        <div class="faq-content hidden border-t border-border px-6 py-5 text-sm leading-relaxed text-muted-foreground">
+                            Serão demonstradas ferramentas como ChatGPT, Gemini, NotebookLM e recursos voltados à pesquisa técnica e jurisprudencial.
+                        </div>
+                    </div>
+
+                    <div class="overflow-hidden rounded-xl border border-border bg-card shadow-card faq-item">
+                        <button type="button" class="faq-button flex w-full items-center justify-between gap-4 px-6 py-5 text-left">
+                            <span class="text-base font-semibold text-card-foreground">O curso é apenas teórico?</span>
+                            <i data-lucide="chevron-down" class="faq-icon-down h-5 w-5 shrink-0 text-muted-foreground"></i>
+                            <i data-lucide="chevron-up" class="faq-icon-up h-5 w-5 shrink-0 text-gold hidden"></i>
+                        </button>
+                        <div class="faq-content hidden border-t border-border px-6 py-5 text-sm leading-relaxed text-muted-foreground">
+                            Não. A capacitação combina orientação técnica, demonstrações e exercícios práticos aplicados à rotina do Controle Interno.
+                        </div>
+                    </div>
+
+                    <div class="overflow-hidden rounded-xl border border-border bg-card shadow-card faq-item">
+                        <button type="button" class="faq-button flex w-full items-center justify-between gap-4 px-6 py-5 text-left">
+                            <span class="text-base font-semibold text-card-foreground">O participante receberá material?</span>
+                            <i data-lucide="chevron-down" class="faq-icon-down h-5 w-5 shrink-0 text-muted-foreground"></i>
+                            <i data-lucide="chevron-up" class="faq-icon-up h-5 w-5 shrink-0 text-gold hidden"></i>
+                        </button>
+                        <div class="faq-content hidden border-t border-border px-6 py-5 text-sm leading-relaxed text-muted-foreground">
+                            Sim. O curso inclui apostila em PDF, modelos de prompts aplicáveis à rotina da UCCI, exercícios práticos e certificado digital.
+                        </div>
+                    </div>
+
+                    <div class="overflow-hidden rounded-xl border border-border bg-card shadow-card faq-item">
+                        <button type="button" class="faq-button flex w-full items-center justify-between gap-4 px-6 py-5 text-left">
+                            <span class="text-base font-semibold text-card-foreground">A IA substitui a análise do Controlador Interno?</span>
+                            <i data-lucide="chevron-down" class="faq-icon-down h-5 w-5 shrink-0 text-muted-foreground"></i>
+                            <i data-lucide="chevron-up" class="faq-icon-up h-5 w-5 shrink-0 text-gold hidden"></i>
+                        </button>
+                        <div class="faq-content hidden border-t border-border px-6 py-5 text-sm leading-relaxed text-muted-foreground">
+                            Não. A IA deve ser utilizada como ferramenta de apoio. A validação, a decisão e a responsabilidade técnica continuam sendo humanas.
+                        </div>
+                    </div>
+
+                    <div class="overflow-hidden rounded-xl border border-border bg-card shadow-card faq-item">
+                        <button type="button" class="faq-button flex w-full items-center justify-between gap-4 px-6 py-5 text-left">
+                            <span class="text-base font-semibold text-card-foreground">Como funciona o desconto para clientes da assessoria?</span>
+                            <i data-lucide="chevron-down" class="faq-icon-down h-5 w-5 shrink-0 text-muted-foreground"></i>
+                            <i data-lucide="chevron-up" class="faq-icon-up h-5 w-5 shrink-0 text-gold hidden"></i>
+                        </button>
+                        <div class="faq-content hidden border-t border-border px-6 py-5 text-sm leading-relaxed text-muted-foreground">
+                            Clientes com contrato de assessoria possuem 10% de desconto na inscrição.
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <section class="relative overflow-hidden bg-navy text-navy-foreground">
+            <div class="absolute inset-0 opacity-25" style="background-size: cover; background-position: center;" aria-hidden="true"></div>
+            <div class="relative mx-auto max-w-4xl px-4 py-20 text-center md:px-8 md:py-28">
+                <h2 class="text-3xl font-bold leading-tight md:text-5xl">
+                    Prepare sua UCCI para utilizar Inteligência Artificial com <span class="text-gold">método, segurança e responsabilidade</span>.
+                </h2>
+                <p class="mx-auto mt-6 max-w-2xl text-lg text-navy-foreground/80">
+                    A IA já faz parte da realidade da Administração Pública. O Controle Interno precisa estar preparado para utilizar essas ferramentas de forma consciente, técnica e segura.
+                </p>
+                <div class="mt-10 flex flex-wrap justify-center gap-3">
+                    <a href="#inscricao" class="inline-flex items-center gap-2 rounded-md bg-gradient-gold px-7 py-3.5 text-base font-semibold text-navy shadow-gold transition hover:brightness-105">
+                        Fazer inscrição <i data-lucide="arrow-right" class="h-5 w-5"></i>
+                    </a>
+                    <a href="https://wa.me/5551984432097?text=Tenho%20interesse%20no%20curso%20IA%20na%20Pr%C3%A1tica%20do%20Controle%20Interno%20Municipal" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 rounded-md border border-navy-foreground/30 bg-navy-foreground/5 px-7 py-3.5 text-base font-medium text-navy-foreground transition hover:bg-navy-foreground/10">
+                        <i data-lucide="message-circle" class="h-5 w-5"></i> Falar pelo WhatsApp
+                    </a>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <a href="https://wa.me/5551984432097?text=Tenho%20interesse%20no%20curso%20IA%20na%20Pr%C3%A1tica%20do%20Controle%20Interno%20Municipal" target="_blank" rel="noopener noreferrer" aria-label="Falar com a Gestão pelo WhatsApp" class="fixed bottom-5 right-5 z-50 inline-flex h-14 w-14 items-center justify-center rounded-full text-white shadow-elegant transition hover:scale-105" style="background-color: #25D366;">
+        <i data-lucide="message-circle" class="h-7 w-7"></i>
+    </a>
+
+    <script>
+        // Inicializa os ícones do Lucide
+        lucide.createIcons();
+
+        // Lógica do FAQ (Sanfona)
+        document.querySelectorAll('.faq-button').forEach(button => {
+            button.addEventListener('click', () => {
+                const faqItem = button.parentElement;
+                const content = faqItem.querySelector('.faq-content');
+                const iconDown = button.querySelector('.faq-icon-down');
+                const iconUp = button.querySelector('.faq-icon-up');
+                
+                const isHidden = content.classList.contains('hidden');
+
+                document.querySelectorAll('.faq-content').forEach(c => c.classList.add('hidden'));
+                document.querySelectorAll('.faq-icon-up').forEach(i => i.classList.add('hidden'));
+                document.querySelectorAll('.faq-icon-down').forEach(i => i.classList.remove('hidden'));
+
+                if (isHidden) {
+                    content.classList.remove('hidden');
+                    iconDown.classList.add('hidden');
+                    iconUp.classList.remove('hidden');
+                }
+            });
+        });
+
+        // Máscara simples de telefone
+        document.getElementById('telefone').addEventListener('input', function (e) {
+            let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,5})(\d{0,4})/);
+            e.target.value = !x[2] ? x[1] : '(' + x[1] + ') ' + x[2] + (x[3] ? '-' + x[3] : '');
+        });
+    </script>
+</body>
+</html>
