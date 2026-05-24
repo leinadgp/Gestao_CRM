@@ -274,11 +274,15 @@ export function Disparos() {
   }
 
   // --- AÇÕES DO MOTOR E EDIÇÃO DE EMAILS ---
-  async function iniciarCampanha() {
-    if (!window.confirm(`🚀 Deseja iniciar a automação para "${campanhaSelecionada.nome}"?\nIsso vai injetar os leads selecionados no Kanban e na fila de e-mails.`)) return;
+  async function iniciarCampanha(recriarApenas = false) {
+    const msg = recriarApenas
+      ? `Recriar negociações no funil para "${campanhaSelecionada.nome}"?\nContatos com cargo alvo voltam ao Kanban. Negociações que já existirem serão mantidas.`
+      : `🚀 Deseja iniciar a automação para "${campanhaSelecionada.nome}"?\nIsso vai injetar os leads selecionados no Kanban e na fila de e-mails.`;
+    if (!window.confirm(msg)) return;
     try {
       const res = await axios.post(`${API_URL}/campanhas/${campanhaSelecionada.id}/iniciar`, {}, getHeaders());
-      alert(`✅ ${res.data.mensagem}`);
+      const qtd = res.data.negociacoes_criadas ?? 0;
+      alert(`✅ ${res.data.mensagem}\nNegociações novas criadas: ${qtd}`);
       carregarCampanhas();
     } catch (erro) { alert(erro.response?.data?.erro || 'Erro ao iniciar a automação.'); }
   }
@@ -522,14 +526,20 @@ export function Disparos() {
                 <>
                   <StatusBadge $color="green"><i className="fa-solid fa-check-circle"></i> Rodando</StatusBadge>
                   <MotorButton $color="yellow" onClick={alternarStatusMotor}><i className="fa-solid fa-pause"></i> Pausar</MotorButton>
+                  <MotorButton $color="blue" onClick={() => iniciarCampanha(true)} title="Útil após limpar negociações no banco">
+                    <i className="fa-solid fa-rotate"></i> Recriar negociações
+                  </MotorButton>
                 </>
               ) : campanhaSelecionada.status_motor === 'pausado' ? (
                 <>
                   <StatusBadge $color="yellow"><i className="fa-solid fa-pause-circle"></i> Pausada</StatusBadge>
                   <MotorButton $color="green" onClick={alternarStatusMotor}><i className="fa-solid fa-play"></i> Retomar</MotorButton>
+                  <MotorButton $color="blue" onClick={() => iniciarCampanha(true)}>
+                    <i className="fa-solid fa-rotate"></i> Recriar negociações
+                  </MotorButton>
                 </>
               ) : (
-                <MotorButton $color="green" onClick={iniciarCampanha}>
+                <MotorButton $color="green" onClick={() => iniciarCampanha(false)}>
                   <i className="fa-solid fa-rocket"></i> Iniciar Automação
                 </MotorButton>
               )}
