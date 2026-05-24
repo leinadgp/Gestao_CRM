@@ -6,9 +6,16 @@ import { TarefasOportunidade } from '../componentes/TarefasOportunidade.jsx';
 import { listarMinhasTarefas, classificarTarefa } from '../utils/tarefasService.js';
 
 import { normalizarCargosJson, normalizarListaJson, cargosParaTexto } from '../utils/jsonHelpers.js';
+import {
+  calcularTotaisPacote,
+  inscritosUsamModulosPorPessoa,
+  uniaoModulosInscritos,
+  somarValorModulos,
+} from '../utils/calculoPacote.js';
 
-const inscritoVazio = () => ({
+const inscritoVazio = (modulosPadrao = []) => ({
   nome: '', email: '', telefone: '', formacao: '', cargo: '', contato_id: null,
+  modulos_ids: [...(modulosPadrao || [])],
 });
 
 const parseJSONSeguro = (dado, fallback = []) => {
@@ -67,6 +74,8 @@ export function Funil() {
   // --- ESTADOS DE MÓDULOS ---
   const [modulosCampanha, setModulosCampanha] = useState([]);
   const [modulosSelecionados, setModulosSelecionados] = useState([]);
+  /** 'igual' = mesmo pacote × qtd inscritos | 'por_inscrito' = módulo(s) por pessoa */
+  const [modoPacoteInscricao, setModoPacoteInscricao] = useState('igual');
 
   // --- ESTADOS DE NOTAS ---
   const [notas, setNotas] = useState([]);
@@ -349,18 +358,24 @@ export function Funil() {
     return base.filter(c => c.nome.toLowerCase().includes(busca));
   }, [contatos, empresaId, buscaContatoNoModal]);
 
-  const { subtotalModulos, valorFinalCalculado } = useMemo(() => {
-    const sub = modulosSelecionados.reduce((acc, idMod) => {
-      const m = modulosCampanha.find(mod => mod.id === Number(idMod));
-      return acc + (m ? Number(m.valor || 0) : 0);
-    }, 0);
-    
-    // Calcula primeiro a porcentagem e depois subtrai o desconto em reais
-    let final = sub * (1 - (Number(desconto) / 100)) - Number(descontoReais);
-    if (final < 0) final = 0; // Trava de segurança para não ficar negativo
-    
-    return { subtotalModulos: sub, valorFinalCalculado: final };
-  }, [modulosSelecionados, modulosCampanha, desconto, descontoReais]);
+  const { subtotalModulos, valorFinalCalculado, detalheSubtotal, fatorInscritos, somaPacoteUnidade } = useMemo(() => {
+    const totais = calcularTotaisPacote({
+      modulosSelecionados,
+      modulosCampanha,
+      qtdInscritos,
+      inscritos,
+      modoPacote: modoPacoteInscricao,
+      desconto,
+      descontoReais,
+    });
+    return {
+      subtotalModulos: totais.subtotal,
+      valorFinalCalculado: totais.valorFinal,
+      detalheSubtotal: totais.detalhe,
+      fatorInscritos: totais.fator,
+      somaPacoteUnidade: totais.somaUnidade,
+    };
+  }, [modulosSelecionados, modulosCampanha, qtdInscritos, inscritos, modoPacoteInscricao, desconto, descontoReais]);
 
   const campanhaSelecionadaObj = useMemo(() => {
     return campanhas.find(c => c.id === parseInt(filtroCampanha));
@@ -517,9 +532,13 @@ export function Funil() {
 
   function toggleModulo(id) {
     const numId = Number(id);
-    setModulosSelecionados(prev => {
+    setModulosSelecionados((prev) => {
       const arrNumeric = prev.map(Number);
-      return arrNumeric.includes(numId) ? arrNumeric.filter(m => m !== numId) : [...arrNumeric, numId];
+      const next = arrNumeric.includes(numId) ? arrNumeric.filter((m) => m !== numId) : [...arrNumeric, numId];
+      if (modoPacoteInscricao === 'igual') {
+        setInscritos((lista) => lista.map((ins) => ({ ...ins, modulos_ids: [...next] })));
+      }
+      return next;
     });
   }
 
@@ -540,9 +559,29 @@ export function Funil() {
     setQtdInscritos(n);
     setInscritos((prev) => {
       const next = [...prev];
-      while (next.length < n) next.push(inscritoVazio());
-      return n > 0 ? next.slice(0, n) : [];
+      while (next.length < n) next.push(inscritoVazio(modulosSelecionados));
+      const sliced = n > 0 ? next.slice(0, n) : [];
+      return sliced.map((ins) => ({
+        ...ins,
+        modulos_ids: ins.modulos_ids?.length ? ins.modulos_ids : [...modulosSelecionados],
+      }));
     });
+  }
+
+  function toggleModuloInscrito(indexInscrito, idModulo) {
+    const numId = Number(idModulo);
+    setInscritos((prev) => prev.map((ins, i) => {
+      if (i !== indexInscrito) return ins;
+      const atual = (ins.modulos_ids || []).map(Number);
+      const next = atual.includes(numId)
+        ? atual.filter((id) => id !== numId)
+        : [...atual, numId];
+      return { ...ins, modulos_ids: next };
+    }));
+  }
+
+  function aplicarPacoteGlobalAosInscritos() {
+    setInscritos((prev) => prev.map((ins) => ({ ...ins, modulos_ids: [...modulosSelecionados] })));
   }
 
   function atualizarInscrito(index, campo, valor) {
@@ -570,6 +609,7 @@ export function Funil() {
     
     setEditandoId(null); setTitulo(''); setEmpresaId(''); setContatoId(''); setObservacoes('');
     setContatosVinculadosIds([]); setQtdInscritos(0); setInscritos([]);
+    setModoPacoteInscricao('igual');
     setStatusOp('aberto'); setEtapaId(etapas.length > 0 ? etapas[0].id : '');
     setVendedorId(meuUsuarioId || ''); setVendedorOriginal(meuUsuarioId || ''); 
     setDesconto(0); setDescontoReais(0);
@@ -593,11 +633,20 @@ export function Funil() {
     setContatosVinculadosIds(idsVinc);
     const principal = vinc.find((c) => c.is_principal) || vinc[0];
     setContatoId(principal?.id || op.contato_id || '');
+    const mods = parseJSONSeguro(op.modulos_ids, []).map(Number);
     setQtdInscritos(op.qtd_inscritos || 0);
-    setInscritos(
-      (op.inscritos_json && op.inscritos_json.length)
-        ? op.inscritos_json.map((i) => ({ ...inscritoVazio(), ...i }))
-        : (op.qtd_inscritos > 0 ? Array.from({ length: op.qtd_inscritos }, () => inscritoVazio()) : [])
+    const listaInscritos = (op.inscritos_json && op.inscritos_json.length)
+      ? op.inscritos_json.map((i) => ({
+        ...inscritoVazio(mods),
+        ...i,
+        modulos_ids: (i.modulos_ids?.length ? i.modulos_ids : mods).map(Number).filter(Boolean),
+      }))
+      : (op.qtd_inscritos > 0
+        ? Array.from({ length: op.qtd_inscritos }, () => inscritoVazio(mods))
+        : []);
+    setInscritos(listaInscritos);
+    setModoPacoteInscricao(
+      inscritosUsamModulosPorPessoa(listaInscritos, mods) ? 'por_inscrito' : 'igual'
     );
     setEtapaId(op.etapa_id); setObservacoes(op.observacoes || '');
     setStatusOp(op.status || 'aberto'); setVendedorId(op.vendedor_id || '');
@@ -605,11 +654,15 @@ export function Funil() {
     setDesconto(op.desconto || 0);
 
     // Lógica para resgatar os módulos e descobrir o desconto em Reais
-    const mods = parseJSONSeguro(op.modulos_ids, []).map(Number);
-    const sub = mods.reduce((acc, idMod) => {
-      const m = modulosCampanha.find(m => Number(m.id) === idMod);
-      return acc + (m ? Number(m.valor || 0) : 0);
-    }, 0);
+    const sub = calcularTotaisPacote({
+      modulosSelecionados: mods,
+      modulosCampanha,
+      qtdInscritos: op.qtd_inscritos || 0,
+      inscritos: listaInscritos,
+      modoPacote: inscritosUsamModulosPorPessoa(listaInscritos, mods) ? 'por_inscrito' : 'igual',
+      desconto: 0,
+      descontoReais: 0,
+    }).subtotal;
     
     const descPerc = Number(op.desconto || 0);
     const valorComDescontoPerc = sub * (1 - (descPerc / 100));
@@ -625,8 +678,10 @@ export function Funil() {
 
   async function salvarOportunidade(e) {
     e.preventDefault();
-    const valorEnviar = modulosSelecionados.length > 0 
-      ? valorFinalCalculado 
+    const usaCalculoModulos = modulosSelecionados.length > 0
+      || (modoPacoteInscricao === 'por_inscrito' && subtotalModulos > 0);
+    const valorEnviar = usaCalculoModulos
+      ? valorFinalCalculado
       : (valor ? parseFloat(valor.toString().replace(/\./g, '').replace(',', '.')) : 0);
 
     if (!empresaId) {
@@ -639,6 +694,20 @@ export function Funil() {
     }
 
     const tituloFinal = titulo.trim() || `Negociação - ${buscaEmpresaNoModal || 'Prefeitura'}`;
+    const inscritosSalvar = inscritos
+      .slice(0, Math.max(qtdInscritos, inscritos.length))
+      .map((ins) => ({
+        ...ins,
+        modulos_ids: modoPacoteInscricao === 'por_inscrito'
+          ? (ins.modulos_ids?.length ? ins.modulos_ids : modulosSelecionados).map(Number).filter(Boolean)
+          : [...modulosSelecionados.map(Number).filter(Boolean)],
+      }))
+      .filter((i) => i.nome || i.email);
+
+    const modulosGravacao = modoPacoteInscricao === 'por_inscrito'
+      ? uniaoModulosInscritos(modulosSelecionados, inscritosSalvar)
+      : modulosSelecionados.map(Number).filter(Boolean);
+
     const dados = {
       titulo: tituloFinal,
       valor: valorEnviar,
@@ -646,13 +715,13 @@ export function Funil() {
       contato_id: contatoId || contatosVinculadosIds[0] || null,
       contatos_ids: contatosVinculadosIds,
       qtd_inscritos: qtdInscritos,
-      inscritos_json: inscritos.filter((i) => i.nome || i.email),
+      inscritos_json: inscritosSalvar,
       etapa_id: etapaId,
       observacoes,
       campanha_id: filtroCampanha,
       status: statusOp,
       vendedor_id: vendedorId || null,
-      modulos_ids: modulosSelecionados.map(Number),
+      modulos_ids: modulosGravacao,
       desconto: modulosSelecionados.length > 0 ? Number(desconto) : 0,
     };
 
@@ -1024,6 +1093,38 @@ export function Funil() {
                     />
                   </FormGroup>
                 </FormGrid>
+
+                {qtdInscritos >= 2 && modulosCampanha.length > 0 && (
+                  <ModoPacoteBox style={{ marginTop: 12 }}>
+                    <label>
+                      <input
+                        type="radio"
+                        name="modoPacote"
+                        checked={modoPacoteInscricao === 'igual'}
+                        onChange={() => {
+                          setModoPacoteInscricao('igual');
+                          aplicarPacoteGlobalAosInscritos();
+                        }}
+                      />
+                      <span>
+                        <strong>Mesmo pacote para todos</strong>
+                        <small>Subtotal = soma dos módulos × {fatorInscritos} inscrito(s)</small>
+                      </span>
+                    </label>
+                    <label>
+                      <input
+                        type="radio"
+                        name="modoPacote"
+                        checked={modoPacoteInscricao === 'por_inscrito'}
+                        onChange={() => setModoPacoteInscricao('por_inscrito')}
+                      />
+                      <span>
+                        <strong>Módulo diferente por pessoa</strong>
+                        <small>Ex.: contato 1 no módulo A, contato 2 no módulo B…</small>
+                      </span>
+                    </label>
+                  </ModoPacoteBox>
+                )}
               </SectionCard>
 
               {qtdInscritos > 0 && (
@@ -1071,6 +1172,37 @@ export function Funil() {
                           <Input value={ins.formacao} onChange={(e) => atualizarInscrito(idx, 'formacao', e.target.value)} />
                         </FormGroup>
                       </FormGrid>
+                      {modoPacoteInscricao === 'por_inscrito' && modulosCampanha.length > 0 && (
+                        <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px dashed #e2e8f0' }}>
+                          <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#198754', display: 'block', marginBottom: 6 }}>
+                            Turmas deste inscrito
+                            <span style={{ fontWeight: 400, color: '#64748b', marginLeft: 6 }}>
+                              ({formatarMoeda(somarValorModulos(ins.modulos_ids, modulosCampanha))})
+                            </span>
+                          </label>
+                          <ModulesGrid $compact>
+                            {modulosCampanha.map((mod) => {
+                              const sel = (ins.modulos_ids || []).map(Number).includes(Number(mod.id));
+                              return (
+                                <ModuleCard
+                                  key={mod.id}
+                                  $active={sel}
+                                  $compact
+                                  onClick={() => toggleModuloInscrito(idx, mod.id)}
+                                >
+                                  <div className={`custom-checkbox ${sel ? 'active' : ''}`}>
+                                    {sel && <i className="fa-solid fa-check" />}
+                                  </div>
+                                  <div className="mod-info">
+                                    <span className="mod-name">{mod.nome}</span>
+                                    <span className="mod-price">{formatarMoeda(mod.valor)}</span>
+                                  </div>
+                                </ModuleCard>
+                              );
+                            })}
+                          </ModulesGrid>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </SectionCard>
@@ -1095,6 +1227,10 @@ export function Funil() {
 
                 {modulosCampanha.length === 0 ? (
                   <div style={{ fontSize: '0.85rem', color: '#666', fontStyle: 'italic' }}>Este curso não possui módulos. O valor deverá ser inserido manualmente abaixo.</div>
+                ) : modoPacoteInscricao === 'por_inscrito' ? (
+                  <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>
+                    <i className="fa-solid fa-circle-info" /> Marque as turmas de cada inscrito no bloco acima.
+                  </p>
                 ) : (
                   <ModulesGrid>
                     {modulosCampanha.map(mod => {
@@ -1114,11 +1250,19 @@ export function Funil() {
                   </ModulesGrid>
                 )}
 
-                {modulosSelecionados.length > 0 && (
+                {(modulosSelecionados.length > 0 || (modoPacoteInscricao === 'por_inscrito' && subtotalModulos > 0)) && (
                   <TotalsBox>
                     <div>
                       <label>Subtotal</label>
                       <div className="val bg-gray">{formatarMoeda(subtotalModulos)}</div>
+                      {modoPacoteInscricao === 'igual' && fatorInscritos > 1 && somaPacoteUnidade > 0 && (
+                        <SubtotalHint>
+                          {formatarMoeda(somaPacoteUnidade)} × {fatorInscritos} inscrito(s)
+                        </SubtotalHint>
+                      )}
+                      {modoPacoteInscricao === 'por_inscrito' && detalheSubtotal && (
+                        <SubtotalHint>{detalheSubtotal}</SubtotalHint>
+                      )}
                     </div>
                     <div>
                       <label className="text-blue">Desconto (%)</label>
@@ -1139,11 +1283,11 @@ export function Funil() {
                   <label>Valor Final da Negociação (R$)</label>
                   <Input
                     type="number" step="0.01"
-                    value={modulosSelecionados.length > 0 ? valorFinalCalculado : valor}
+                    value={(modulosSelecionados.length > 0 || (modoPacoteInscricao === 'por_inscrito' && subtotalModulos > 0)) ? valorFinalCalculado : valor}
                     onChange={(e) => setValor(e.target.value)}
-                    disabled={modulosSelecionados.length > 0}
-                    placeholder={modulosSelecionados.length > 0 ? "Calculado pelos módulos" : "Digite o valor..."}
-                    className={modulosSelecionados.length > 0 ? 'disabled' : ''}
+                    disabled={modulosSelecionados.length > 0 || (modoPacoteInscricao === 'por_inscrito' && subtotalModulos > 0)}
+                    placeholder={(modulosSelecionados.length > 0 || (modoPacoteInscricao === 'por_inscrito' && subtotalModulos > 0)) ? "Calculado pelos módulos" : "Digite o valor..."}
+                    className={(modulosSelecionados.length > 0 || (modoPacoteInscricao === 'por_inscrito' && subtotalModulos > 0)) ? 'disabled' : ''}
                   />
                 </FormGroup>
               </SectionCard>
@@ -1704,24 +1848,47 @@ const IconButton = styled.button`
 `;
 
 // --- MÓDULOS E CÁLCULOS ---
+const ModoPacoteBox = styled.div`
+  display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; padding: 12px; background: #fff; border-radius: 8px; border: 1px solid #c3e6cb;
+
+  label {
+    display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: 0.88rem;
+    input { margin-top: 3px; }
+    strong { display: block; color: #1e293b; }
+    small { display: block; color: #64748b; font-size: 0.78rem; margin-top: 2px; }
+  }
+`;
+
+const SubtotalHint = styled.div`
+  font-size: 0.75rem; color: #64748b; margin-top: 4px; font-weight: 500;
+`;
+
 const ModulesGrid = styled.div`
   display: flex; gap: 10px; flex-wrap: wrap;
+  ${(p) => p.$compact && 'gap: 6px;'}
 `;
 const ModuleCard = styled.div`
-  display: flex; align-items: center; gap: 12px; padding: 10px 15px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; width: 100%;
-  background: ${props => props.$active ? '#e6f4ea' : '#ffffff'};
-  border: 1px solid ${props => props.$active ? '#28a745' : '#cbd5e1'};
+  display: flex; align-items: center; gap: ${(p) => (p.$compact ? '8px' : '12px')};
+  padding: ${(p) => (p.$compact ? '6px 10px' : '10px 15px')};
+  border-radius: 8px; cursor: pointer; transition: all 0.2s ease;
+  width: ${(p) => (p.$compact ? 'auto' : '100%')};
+  text-align: left;
+  font: inherit;
+  background: ${(props) => props.$active ? '#e6f4ea' : '#ffffff'};
+  border: 1px solid ${(props) => props.$active ? '#28a745' : '#cbd5e1'};
   
   &:hover { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
 
   .custom-checkbox {
-    width: 20px; height: 20px; border-radius: 4px; border: 2px solid #cbd5e1; display: flex; align-items: center; justify-content: center;
-    &.active { background: #28a745; border-color: #28a745; color: #fff; }
+    width: ${(p) => (p.$compact ? '16px' : '20px')};
+    height: ${(p) => (p.$compact ? '16px' : '20px')};
+    border-radius: 4px; border: 2px solid #cbd5e1; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    &.active { background: #28a745; border-color: #28a745; color: #fff; font-size: 0.65rem; }
   }
   
   .mod-info { display: flex; flex-direction: column; }
-  .mod-name { font-size: 0.85rem; color: #333; font-weight: ${props => props.$active ? '700' : '600'}; }
-  .mod-price { font-size: 0.8rem; color: #28a745; font-weight: 700; }
+  .mod-name { font-size: ${(p) => (p.$compact ? '0.75rem' : '0.85rem')}; color: #333; font-weight: ${(props) => props.$active ? '700' : '600'}; }
+  .mod-price { font-size: ${(p) => (p.$compact ? '0.72rem' : '0.8rem')}; color: #28a745; font-weight: 700; }
 `;
 
 const TotalsBox = styled.div`
