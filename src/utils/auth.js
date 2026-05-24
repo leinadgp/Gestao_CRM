@@ -24,6 +24,7 @@ export function clearAuth() {
   localStorage.removeItem('token');
   localStorage.removeItem('perfil');
   localStorage.removeItem('usuarioId');
+  localStorage.removeItem('permissoes');
 }
 
 export function getUserProfile() {

@@ -5,6 +5,7 @@ import SunEditorModule from 'suneditor-react';
 import 'suneditor/dist/css/suneditor.min.css';
 import styled, { keyframes } from 'styled-components';
 import { Header } from '../componentes/Header.jsx';
+import { temPermissao, primeiraRotaPermitida } from '../utils/permissoes';
 
 const SunEditor = SunEditorModule.default || SunEditorModule;
 
@@ -96,10 +97,9 @@ export function Disparos() {
   }, [API_URL, getHeaders]);
 
   useEffect(() => {
-    const perfil = localStorage.getItem('perfil');
-    if (perfil !== 'admin') { 
-      navigate('/empresas'); 
-      return; 
+    if (!temPermissao('disparos')) {
+      navigate(primeiraRotaPermitida());
+      return;
     }
     carregarCampanhas();
   }, [navigate, carregarCampanhas]);

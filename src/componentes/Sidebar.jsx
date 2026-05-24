@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import styled, { keyframes } from 'styled-components';
 import { getUserProfile } from '../utils/auth';
+import { temPermissao } from '../utils/permissoes';
 
 // IMPORTAÇÃO DA SUA LOGO (Ajuste para .svg ou .jpg se necessário)
 import logoCliente from '../assets/Logointerno.png'; 
@@ -10,25 +11,24 @@ const MENU_CONFIG = [
   {
     section: 'MENU PRINCIPAL',
     items: [
-      { label: 'Home', path: '/', icon: 'fa-house' },
-      { label: 'Dashboard', path: '/dashboard', icon: 'fa-chart-pie', role: 'admin' },
-      { label: 'Funil de Vendas', path: '/funil', icon: 'fa-layer-group' }
+      { label: 'Home', path: '/', icon: 'fa-house', modulo: 'home' },
+      { label: 'Dashboard', path: '/dashboard', icon: 'fa-chart-pie', modulo: 'dashboard' },
+      { label: 'Funil de Vendas', path: '/funil', icon: 'fa-layer-group', modulo: 'funil' }
     ]
   },
   {
     section: 'OPERAÇÃO',
     items: [
-      { label: 'Contatos', path: '/contatos', icon: 'fa-users' },
-      { label: 'Prefeituras / Empresas', path: '/empresas', icon: 'fa-building' },
+      { label: 'Contatos', path: '/contatos', icon: 'fa-users', modulo: 'contatos' },
+      { label: 'Prefeituras / Empresas', path: '/empresas', icon: 'fa-building', modulo: 'empresas' },
     ]
   },
   {
     section: 'MARKETING & VENDAS',
-    role: 'admin',
     items: [
-      { label: 'Cursos e Campanhas', path: '/campanhas', icon: 'fa-bullhorn' },
-      { label: 'Máquina de Disparos', path: '/disparos', icon: 'fa-paper-plane' },
-      { label: 'Landing Pages', path: '/landing-pages', icon: 'fa-window-maximize' }
+      { label: 'Cursos e Campanhas', path: '/campanhas', icon: 'fa-bullhorn', modulo: 'campanhas' },
+      { label: 'Máquina de Disparos', path: '/disparos', icon: 'fa-paper-plane', modulo: 'disparos' },
+      { label: 'Landing Pages', path: '/landing-pages', icon: 'fa-window-maximize', modulo: 'landing_pages' }
     ]
   }
 ];
@@ -62,10 +62,8 @@ export function Sidebar({ menuAberto, setMenuAberto }) {
 
         <NavList>
           {MENU_CONFIG.map((section, index) => {
-            if (section.role && section.role !== perfilUsuario) return null;
-
             const visibleItems = section.items.filter(
-              item => !item.role || item.role === perfilUsuario
+              (item) => !item.modulo || temPermissao(item.modulo)
             );
 
             if (visibleItems.length === 0) return null;

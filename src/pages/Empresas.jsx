@@ -5,6 +5,7 @@ import { Header } from '../componentes/Header.jsx';
 
 // --- UTILITÁRIO DE SEGURANÇA PARA JSON ---
 import { normalizarListaJson, cargosParaTexto } from '../utils/jsonHelpers.js';
+import { BotaoExportar } from '../componentes/BotaoExportar.jsx';
 
 export function Empresas() {
   const [empresas, setEmpresas] = useState([]);
@@ -348,6 +349,11 @@ export function Empresas() {
             <Subtitle>Controle de temperatura, assessoria e cadastro de clientes.</Subtitle>
           </div>
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', width: '100%' }}>
+            <BotaoExportar
+              tipo="empresas"
+              params={{ estado: filtroEstado || undefined }}
+              label="Exportar"
+            />
             <InfoButton onClick={popularEstado} className="btn-mobile">
               <i className="fa-solid fa-file-import"></i> Importar IBGE
             </InfoButton>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'; 
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { temPermissao, pathParaModulo, primeiraRotaPermitida } from './utils/permissoes'; 
 import styled, { createGlobalStyle } from 'styled-components';
 
 // Importação dos Componentes de Layout
@@ -30,13 +31,32 @@ const GlobalStyle = createGlobalStyle`
   * { box-sizing: border-box; }
 `;
 
-function RotaProtegida({ children, titulo }) {
+function RotaProtegida({ children, titulo, modulo }) {
   const token = localStorage.getItem('token');
-  // Estado que controla se o menu do celular está aberto ou fechado
+  const location = useLocation();
   const [menuAberto, setMenuAberto] = useState(false);
 
   if (!token) {
     return <Navigate to="/login" replace />;
+  }
+
+  const moduloReq = modulo || pathParaModulo(location.pathname);
+  if (moduloReq && moduloReq !== 'configuracoes' && !temPermissao(moduloReq)) {
+    const destino = primeiraRotaPermitida();
+    if (location.pathname !== destino) {
+      return <Navigate to={destino} replace />;
+    }
+    return (
+      <AppLayout>
+        <Sidebar menuAberto={menuAberto} setMenuAberto={setMenuAberto} />
+        <ContentWrapper>
+          <Header titulo="Acesso negado" setMenuAberto={setMenuAberto} />
+          <MainContent style={{ padding: 40, textAlign: 'center' }}>
+            <p>Você não tem permissão para acessar esta área do CRM.</p>
+          </MainContent>
+        </ContentWrapper>
+      </AppLayout>
+    );
   }
 
   return (

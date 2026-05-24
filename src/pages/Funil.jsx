@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import styled, { keyframes } from 'styled-components';
 import { TarefasOportunidade } from '../componentes/TarefasOportunidade.jsx';
+import { BotaoExportar } from '../componentes/BotaoExportar.jsx';
 import { listarMinhasTarefas, classificarTarefa } from '../utils/tarefasService.js';
 
 import { normalizarCargosJson, normalizarListaJson, cargosParaTexto } from '../utils/jsonHelpers.js';
@@ -846,6 +847,17 @@ export function Funil() {
           )}
 
           {filtroCampanha && (
+            <BotaoExportar
+              tipo="oportunidades"
+              params={{
+                campanha_id: filtroCampanha,
+                estado: filtroEstado || undefined,
+              }}
+              label="Exportar funil"
+            />
+          )}
+
+          {filtroCampanha && (
             <PrimaryButton onClick={abrirModalNovo} className="btn-novo">
               <i className="fa-solid fa-plus-circle"></i> Nova Oportunidade
             </PrimaryButton>
@@ -872,7 +884,18 @@ export function Funil() {
               <KanbanColumn key={etapa.id}>
                 <ColumnHeader>
                   <span className="title">{etapa.nome}</span>
-                  <span className="badge">{cardsDestaColuna.length}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <BotaoExportar
+                      compact
+                      tipo="oportunidades"
+                      params={{
+                        campanha_id: filtroCampanha,
+                        etapa_id: etapa.id,
+                        estado: filtroEstado || undefined,
+                      }}
+                    />
+                    <span className="badge">{cardsDestaColuna.length}</span>
+                  </div>
                 </ColumnHeader>
                 
                 <CardsContainer>
@@ -883,7 +906,6 @@ export function Funil() {
                     let statusConfig = { border: '#cbd5e1', bg: '#ffffff' };
                     if (op.status === 'naofunciona') statusConfig = { border: '#f1c40f', bg: '#fff9db' };
                     if (op.status === 'naoatendeu') statusConfig = { border: '#e67e22', bg: '#fff4e6' };
-                    if (op.status === 'tarefa') statusConfig = { border: '#6f42c1', bg: '#f3e8ff' };
                     if (op.status === 'ganho' ) statusConfig = { border: '#0e3115', bg: '#e7f3ff' };
                     if (op.status === 'interessada') statusConfig = { border: '#36ad52', bg: '#e7f3ff' };
                     if (op.status === 'avaliar') statusConfig = { border: '#9fe069', bg: '#e9f7ef' };
@@ -990,7 +1012,6 @@ export function Funil() {
                     <option value="avaliar">🟢 Avaliar</option>
                     <option value="interessada">🟢 Interessada</option>
                     <option value="ganho">🏆 Vendido </option>
-                    <option value="tarefa">🟣 Tarefa</option>
                     <option value="naoatendeu">🟠 Não Atendeu</option>
                     <option value="naofunciona">🟡 Não Funciona</option>
                     <option value="perdido">🔴 Perdido</option>
@@ -1804,7 +1825,6 @@ const Select = styled.select`
     switch(props.$status) {
       case 'naofunciona': return '#fff9db';
       case 'naoatendeu' : return '#fff4e6';
-      case 'tarefa'     : return '#f3e8ff';
       case 'ganho'      : return '#e6f4ea';
       case 'interessada': return '#e9f7ef';
       case 'avaliar'    : return '#e9f7ef';

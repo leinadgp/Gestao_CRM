@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import styled from 'styled-components';
 import { Header } from '../componentes/Header.jsx';
+import { BotaoExportar } from '../componentes/BotaoExportar.jsx';
 
 // --- UTILITÁRIO DE SEGURANÇA PARA JSON ---
 const parseJSONSeguro = (dadoString, fallback = []) => {
@@ -341,6 +342,10 @@ export function Campanhas() {
                   <div><i className="fa-solid fa-stop text-red"></i> Fim: {formatarDataBR(camp.data_fim)}</div>
                 </CardDates>
 
+                <div style={{ marginTop: 12 }} onClick={(e) => e.stopPropagation()}>
+                  <BotaoExportar tipo="campanha" params={{ campanha_id: camp.id }} label="Exportar campanha" />
+                </div>
+
                 <ModulesSection>
                   <h4 className="section-title"><i className="fa-solid fa-calendar-days"></i> Turmas / Módulos ({camp.listaModulos?.length || 0})</h4>
                   {camp.listaModulos?.length > 0 ? (
@@ -529,7 +534,7 @@ export function Campanhas() {
                   <SectionCard $bgColor="#eef6ff" $borderColor="#b8daff">
                     <SectionTitle $color="#007bff"><i className="fa-solid fa-window-maximize"></i> Landing Page — Formulário</SectionTitle>
                     <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 15px 0' }}>
-                      Define para onde o lead vai no funil ao preencher a página: primeira inscrição → etapa escolhida abaixo; se já existir negociação com o mesmo e-mail → etapa de venda + status vendido.
+                      Define para onde o lead vai no funil ao preencher a página: primeira inscrição → etapa escolhida abaixo; se já existir negociação da mesma prefeitura na campanha → move para a etapa de inscrito (mesmo com outro e-mail/contato).
                     </p>
                     <FormGrid $columns="1fr 1fr">
                       <FormGroup>

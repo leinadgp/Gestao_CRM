@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import styled from 'styled-components';
-// Não precisaremos mais do Header aqui dentro.
+import { MODULOS_CRM, setPermissoes } from '../utils/permissoes';
 
 export function Configuracoes() {
   const API_URL = import.meta.env?.VITE_API_URL || 'https://server-js-gestao.onrender.com';
@@ -27,7 +27,13 @@ export function Configuracoes() {
   const [novoLogin, setNovoLogin] = useState('');
   const [novaSenhaUser, setNovaSenhaUser] = useState('');
   const [novoPerfil, setNovoPerfil] = useState('vendedor');
+  const [permissoesNovoUser, setPermissoesNovoUser] = useState(['home', 'funil', 'contatos', 'empresas']);
   const [salvandoUser, setSalvandoUser] = useState(false);
+
+  const [modalPermissoes, setModalPermissoes] = useState(null);
+  const [permsEditando, setPermsEditando] = useState([]);
+  const [perfilEditando, setPerfilEditando] = useState('vendedor');
+  const [salvandoPermissoes, setSalvandoPermissoes] = useState(false);
 
   // --- ESTADOS DE SENHA ---
   const [senhaAtual, setSenhaAtual] = useState('');
@@ -48,6 +54,7 @@ export function Configuracoes() {
       setMeuEmail(res.data.email || '');
       setMeuTelefone(res.data.telefone || '');
       setMinhaFoto(res.data.foto_perfil || '');
+      if (res.data.permissoes) setPermissoes(res.data.permissoes);
     } catch (error) {
       console.error('Erro ao carregar perfil', error);
     } finally {
@@ -129,7 +136,11 @@ export function Configuracoes() {
     setSalvandoUser(true);
     try {
       await axios.post(`${API_URL}/usuarios`, {
-        nome: novoNome, login: novoLogin, senha: novaSenhaUser, perfil: novoPerfil
+        nome: novoNome,
+        login: novoLogin,
+        senha: novaSenhaUser,
+        perfil: novoPerfil,
+        permissoes: novoPerfil === 'admin' ? undefined : permissoesNovoUser,
       }, getHeaders());
       
       alert('Usuário criado com sucesso!');
@@ -144,6 +155,44 @@ export function Configuracoes() {
   }
 
   // --- LÓGICA DE ATIVAR/DESATIVAR USUÁRIO ---
+  function abrirModalPermissoes(user) {
+    setModalPermissoes(user);
+    setPermsEditando(user.permissoes || []);
+    setPerfilEditando(user.perfil || 'vendedor');
+  }
+
+  function togglePermissaoModulo(moduloId) {
+    setPermsEditando((prev) =>
+      prev.includes(moduloId) ? prev.filter((m) => m !== moduloId) : [...prev, moduloId]
+    );
+  }
+
+  async function salvarPermissoesUsuario(e) {
+    e.preventDefault();
+    if (!modalPermissoes) return;
+    setSalvandoPermissoes(true);
+    try {
+      const res = await axios.put(
+        `${API_URL}/usuarios/${modalPermissoes.id}/permissoes`,
+        {
+          perfil: perfilEditando,
+          permissoes: perfilEditando === 'admin' ? MODULOS_CRM.map((m) => m.id) : permsEditando,
+        },
+        getHeaders()
+      );
+      if (String(modalPermissoes.id) === String(localStorage.getItem('usuarioId'))) {
+        setPermissoes(res.data.permissoes);
+      }
+      alert('Permissões atualizadas!');
+      setModalPermissoes(null);
+      carregarEquipe();
+    } catch (error) {
+      alert(error.response?.data?.erro || 'Erro ao salvar permissões.');
+    } finally {
+      setSalvandoPermissoes(false);
+    }
+  }
+
   async function alternarStatusUsuario(id, statusAtual) {
     const acao = statusAtual ? 'desativar' : 'ativar';
     const confirmacao = window.confirm(`Tem certeza que deseja ${acao} este usuário? Ele ${statusAtual ? 'não poderá mais logar' : 'voltará a ter acesso'} no sistema.`);
@@ -305,13 +354,23 @@ export function Configuracoes() {
                             {!isAtivo && <Badge className="badge-danger" style={{ marginLeft: '10px' }}>Inativo</Badge>}
                           </td>
                           <td data-label="Ações" style={{ textAlign: 'center' }} className="actions-cell">
-                            <ActionButton 
-                              $isAtivo={isAtivo} 
-                              onClick={() => alternarStatusUsuario(user.id, isAtivo)}
-                              title={isAtivo ? "Desativar Acesso" : "Reativar Acesso"}
-                            >
-                              <i className={`fa-solid ${isAtivo ? 'fa-ban' : 'fa-check-circle'}`}></i>
-                            </ActionButton>
+                            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                              <ActionButton
+                                $isAtivo
+                                onClick={() => abrirModalPermissoes(user)}
+                                title="Configurar acessos"
+                                style={{ color: '#007bff' }}
+                              >
+                                <i className="fa-solid fa-sliders" />
+                              </ActionButton>
+                              <ActionButton 
+                                $isAtivo={isAtivo} 
+                                onClick={() => alternarStatusUsuario(user.id, isAtivo)}
+                                title={isAtivo ? "Desativar Acesso" : "Reativar Acesso"}
+                              >
+                                <i className={`fa-solid ${isAtivo ? 'fa-ban' : 'fa-check-circle'}`}></i>
+                              </ActionButton>
+                            </div>
                           </td>
                         </tr>
                       )
@@ -321,6 +380,51 @@ export function Configuracoes() {
               </Table>
             </TabelaResponsiva>
           </Panel>
+        )}
+
+        {modalPermissoes && (
+          <ModalOverlay onClick={() => setModalPermissoes(null)}>
+            <ModalContent onClick={e => e.stopPropagation()} style={{ maxWidth: 640 }}>
+              <ModalHeader>
+                <h3 style={{ margin: 0 }}><i className="fa-solid fa-sliders text-blue" /> Acessos — {modalPermissoes.nome}</h3>
+                <CloseButton onClick={() => setModalPermissoes(null)}>&times;</CloseButton>
+              </ModalHeader>
+              <form onSubmit={salvarPermissoesUsuario}>
+                <div style={{ padding: '25px' }}>
+                  <FormGroup>
+                    <label>Perfil</label>
+                    <Select value={perfilEditando} onChange={(e) => setPerfilEditando(e.target.value)}>
+                      <option value="vendedor">Vendedor / Operador</option>
+                      <option value="admin">Administrador (tudo)</option>
+                    </Select>
+                  </FormGroup>
+                  {perfilEditando !== 'admin' && (
+                    <FormGroup>
+                      <label>Módulos liberados</label>
+                      <PermissoesGrid>
+                        {MODULOS_CRM.map((mod) => (
+                          <label key={mod.id} className="perm-item">
+                            <input
+                              type="checkbox"
+                              checked={permsEditando.includes(mod.id)}
+                              onChange={() => togglePermissaoModulo(mod.id)}
+                            />
+                            {mod.label}
+                          </label>
+                        ))}
+                      </PermissoesGrid>
+                    </FormGroup>
+                  )}
+                </div>
+                <ModalFooter>
+                  <SecondaryButton type="button" onClick={() => setModalPermissoes(null)}>Cancelar</SecondaryButton>
+                  <PrimaryButton type="submit" disabled={salvandoPermissoes}>
+                    {salvandoPermissoes ? 'Salvando...' : 'Salvar acessos'}
+                  </PrimaryButton>
+                </ModalFooter>
+              </form>
+            </ModalContent>
+          </ModalOverlay>
         )}
 
         {/* MODAL DE NOVO USUÁRIO */}
@@ -352,10 +456,30 @@ export function Configuracoes() {
                   <FormGroup>
                     <label>Nível de Acesso (Perfil) *</label>
                     <Select value={novoPerfil} onChange={e => setNovoPerfil(e.target.value)}>
-                      <option value="vendedor">Vendedor / Operador (Acesso restrito ao funil)</option>
+                      <option value="vendedor">Vendedor / Operador (permite marcar módulos abaixo)</option>
                       <option value="admin">Administrador (Acesso total)</option>
                     </Select>
                   </FormGroup>
+
+                  {novoPerfil !== 'admin' && (
+                    <FormGroup>
+                      <label>Módulos que este usuário pode acessar</label>
+                      <PermissoesGrid>
+                        {MODULOS_CRM.map((mod) => (
+                          <label key={mod.id} className="perm-item">
+                            <input
+                              type="checkbox"
+                              checked={permissoesNovoUser.includes(mod.id)}
+                              onChange={() => setPermissoesNovoUser((prev) =>
+                                prev.includes(mod.id) ? prev.filter((m) => m !== mod.id) : [...prev, mod.id]
+                              )}
+                            />
+                            {mod.label}
+                          </label>
+                        ))}
+                      </PermissoesGrid>
+                    </FormGroup>
+                  )}
                 </div>
                 <ModalFooter>
                   <SecondaryButton type="button" onClick={() => setMostrarModalNovoUser(false)}>Cancelar</SecondaryButton>
@@ -527,4 +651,22 @@ const PrimaryButton = styled(ButtonBase)`
 `;
 const SecondaryButton = styled(ButtonBase)`
   background: #e2e8f0; color: #475569; &:hover:not(:disabled) { background: #cbd5e1; }
+`;
+
+const PermissoesGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  .perm-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    color: #334155;
+    padding: 8px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    cursor: pointer;
+    background: #f8fafc;
+  }
 `;

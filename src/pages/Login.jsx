@@ -29,6 +29,9 @@ export function Login() {
 
       localStorage.setItem('token', resposta.data.token);
       localStorage.setItem('perfil', resposta.data.perfil || 'usuario');
+      if (resposta.data.permissoes) {
+        localStorage.setItem('permissoes', JSON.stringify(resposta.data.permissoes));
+      }
       if (resposta.data.foto_perfil) localStorage.setItem('foto_perfil', resposta.data.foto_perfil);
 
       if (resposta.data.usuarioId) localStorage.setItem('usuarioId', resposta.data.usuarioId);

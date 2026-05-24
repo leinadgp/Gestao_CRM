@@ -3,6 +3,7 @@ import axios from 'axios';
 import styled, { keyframes } from 'styled-components';
 
 import { normalizarCargosJson, normalizarListaJson, cargosParaTexto } from '../utils/jsonHelpers.js';
+import { BotaoExportar } from '../componentes/BotaoExportar.jsx';
 
 export function Contatos() {
   const [contatos, setContatos] = useState([]);
@@ -282,9 +283,12 @@ export function Contatos() {
             <Title>Base de Contatos</Title>
             <Subtitle>Gerencie leads e visualize o histórico 360º.</Subtitle>
           </div>
-          <PrimaryButton onClick={abrirModalNovo} className="btn-novo">
-            <i className="fa-solid fa-plus"></i> Novo Contato
-          </PrimaryButton>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <BotaoExportar tipo="contatos" params={{ estado: filtroEstado || undefined }} />
+            <PrimaryButton onClick={abrirModalNovo} className="btn-novo">
+              <i className="fa-solid fa-plus"></i> Novo Contato
+            </PrimaryButton>
+          </div>
         </TopSection>
 
         <FilterBar>
