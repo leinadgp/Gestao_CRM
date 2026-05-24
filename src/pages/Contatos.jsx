@@ -2,12 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import styled, { keyframes } from 'styled-components';
 
-// --- UTILITÁRIOS ---
-const parseJSONSeguro = (dadoString, fallback = []) => {
-  if (!dadoString) return fallback;
-  if (typeof dadoString !== 'string') return dadoString;
-  try { return JSON.parse(dadoString); } catch { return fallback; }
-};
+import { normalizarCargosJson, normalizarListaJson, cargosParaTexto } from '../utils/jsonHelpers.js';
 
 export function Contatos() {
   const [contatos, setContatos] = useState([]);
@@ -160,8 +155,8 @@ export function Contatos() {
       
       let matchCargo = true;
       if (filtroCargo !== '') {
-        const cargosContato = parseJSONSeguro(c.cargos_json, []);
-        matchCargo = Array.isArray(cargosContato) && cargosContato.includes(filtroCargo);
+        const cargosContato = normalizarCargosJson(c.cargos_json, []);
+        matchCargo = cargosContato.includes(filtroCargo);
       }
 
       return matchBusca && matchEstado && matchCargo;
@@ -186,10 +181,13 @@ export function Contatos() {
 
   const abrirModalContatoDetalhes = async (c) => {
     setEditandoId(c.id); setNome(c.nome || ''); 
-    setCargos(parseJSONSeguro(c.cargos_json, ['']));
+    const listaCargos = normalizarCargosJson(c.cargos_json, []);
+    setCargos(listaCargos.length ? listaCargos : ['']);
     setEmpresaId(c.empresa_id || ''); setBuscaEmpresaNoForm(c.empresa_nome || '');
-    setEmails(parseJSONSeguro(c.emails_json, ['']));
-    setTelefones(parseJSONSeguro(c.telefones_json, ['']));
+    const listaEmails = normalizarListaJson(c.emails_json, []);
+    setEmails(listaEmails.length ? listaEmails : ['']);
+    const listaTels = normalizarListaJson(c.telefones_json, []);
+    setTelefones(listaTels.length ? listaTels : ['']);
     setEmailsComErroForm(c.emails_com_erro || []);
     setModoEdicao(false); setMostrarModalContato(true); setCarregandoHistorico(true);
 
@@ -356,9 +354,9 @@ export function Contatos() {
                   <tr><td colSpan="3" className="text-center text-muted">Nenhum resultado.</td></tr>
                 ) : (
                   itensExibidos.map((c, index) => {
-                    const ems = parseJSONSeguro(c.emails_json);
-                    const tels = parseJSONSeguro(c.telefones_json);
-                    const carLista = parseJSONSeguro(c.cargos_json, []);
+                    const ems = normalizarListaJson(c.emails_json, []);
+                    const tels = normalizarListaJson(c.telefones_json, []);
+                    const carLista = normalizarCargosJson(c.cargos_json, []);
                     const hasEmailError = c.emails_com_erro?.includes(ems[0]);
 
                     return (
@@ -414,7 +412,7 @@ export function Contatos() {
               <ModalHeader $bg={modoEdicao ? '#1F4E79' : '#ffffff'} $color={modoEdicao ? '#ffffff' : '#2c3e50'}>
                 <div>
                   <h3>{modoEdicao ? (editandoId ? 'Editar Contato' : 'Novo Contato') : nome}</h3>
-                  {!modoEdicao && <div className="subtitle">{cargos.join(' | ')} <br/> {buscaEmpresaNoForm}</div>}
+                  {!modoEdicao && <div className="subtitle">{cargosParaTexto(cargos) || '—'} <br/> {buscaEmpresaNoForm}</div>}
                 </div>
                 <div className="actions">
                   {!modoEdicao && <WarningButton onClick={() => setModoEdicao(true)}><i className="fa-solid fa-pen"></i> <span className="hide-mobile">Editar</span></WarningButton>}

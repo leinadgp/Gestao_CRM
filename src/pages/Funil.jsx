@@ -5,11 +5,12 @@ import styled, { keyframes } from 'styled-components';
 import { TarefasOportunidade } from '../componentes/TarefasOportunidade.jsx';
 import { listarMinhasTarefas, classificarTarefa } from '../utils/tarefasService.js';
 
-// --- UTILITÁRIOS ---
-const parseJSONSeguro = (dadoString, fallback = []) => {
-  if (!dadoString) return fallback;
-  if (typeof dadoString !== 'string') return dadoString;
-  try { return JSON.parse(dadoString); } catch { return fallback; }
+import { normalizarCargosJson, normalizarListaJson, cargosParaTexto } from '../utils/jsonHelpers.js';
+
+const parseJSONSeguro = (dado, fallback = []) => {
+  if (dado == null || dado === '') return fallback;
+  if (typeof dado !== 'string') return dado;
+  try { return JSON.parse(dado); } catch { return fallback; }
 };
 
 export function Funil() {
@@ -27,9 +28,14 @@ export function Funil() {
   // --- CONTROLES DE TELA E BUSCA ---
   const [carregando, setCarregando] = useState(false);
   const [filtroCampanha, setFiltroCampanha] = useState('');
+  const [filtroEstado, setFiltroEstado] = useState('');
   const [buscaGeral, setBuscaGeral] = useState(''); 
   const [dropdownCampanhaAberto, setDropdownCampanhaAberto] = useState(false);
+  const [dropdownEstadoAberto, setDropdownEstadoAberto] = useState(false);
   const dropdownCampanhaRef = useRef(null);
+  const dropdownEstadoRef = useRef(null);
+
+  const UFS_BRASIL = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
 
   // --- DADOS DO USUÁRIO ---
   const perfilUsuario = localStorage.getItem('perfil');
@@ -176,6 +182,9 @@ export function Funil() {
       if (dropdownCampanhaRef.current && !dropdownCampanhaRef.current.contains(event.target)) {
         setDropdownCampanhaAberto(false);
       }
+      if (dropdownEstadoRef.current && !dropdownEstadoRef.current.contains(event.target)) {
+        setDropdownEstadoAberto(false);
+      }
     };
     document.addEventListener('mousedown', handleClickFora);
     return () => document.removeEventListener('mousedown', handleClickFora);
@@ -285,6 +294,10 @@ export function Funil() {
     
     const termoBusca = buscaGeral.toLowerCase();
     const opsFiltradasBusca = oportunidades.filter(op => {
+      if (filtroEstado) {
+        const estadoOp = (op.empresa_estado || empresas.find(e => e.id === op.empresa_id)?.estado || '').toUpperCase();
+        if (estadoOp !== filtroEstado.toUpperCase()) return false;
+      }
       const tituloMatch = (op.titulo || '').toLowerCase().includes(termoBusca);
       const empresaMatch = (op.empresa_nome || '').toLowerCase().includes(termoBusca);
       const contatoMatch = (op.contato_nome || '').toLowerCase().includes(termoBusca);
@@ -316,7 +329,7 @@ export function Funil() {
       mapa[op.etapa_id].push(op);
     });
     return mapa;
-  }, [etapas, oportunidades, buscaGeral, empresas]);
+  }, [etapas, oportunidades, buscaGeral, filtroEstado, empresas]);
 
   const empresasFiltradasParaSelect = useMemo(() => {
     const busca = buscaEmpresaNoModal.toLowerCase();
@@ -396,12 +409,12 @@ export function Funil() {
 
     setContatoSelecionado(contato);
     setContatoNome(contato.nome);
-    setContatoCargo(contato.cargo || '');
+    setContatoCargo(cargosParaTexto(contato.cargos_json) || '');
     
-    const emails = parseJSONSeguro(contato.emails_json, []);
+    const emails = normalizarListaJson(contato.emails_json, []);
     setContatoEmails(emails.join(', '));
 
-    const tels = parseJSONSeguro(contato.telefones_json, []);
+    const tels = normalizarListaJson(contato.telefones_json, []);
     setContatoTelefones(tels.join(', '));
 
     setEditandoContatoRapido(false);
@@ -414,8 +427,15 @@ export function Funil() {
     const telsArr = contatoTelefones.split(',').map(t => t.trim()).filter(t => t);
     
     try {
+      const cargosArr = contatoCargo.trim()
+        ? contatoCargo.split('|').map((c) => c.trim()).filter(Boolean)
+        : normalizarCargosJson(contatoSelecionado.cargos_json, []);
       await axios.put(`${API_URL}/contatos/${contatoSelecionado.id}`, {
-        nome: contatoNome, cargo: contatoCargo, emails_json: emailsArr, telefones_json: telsArr, empresa_id: empresaId || contatoSelecionado.empresa_id 
+        nome: contatoNome,
+        cargos_json: cargosArr,
+        emails_json: emailsArr,
+        telefones_json: telsArr,
+        empresa_id: empresaId || contatoSelecionado.empresa_id,
       }, getHeaders());
       
       setMostrarModalContato(false);
@@ -617,6 +637,38 @@ export function Funil() {
               </CustomDropdownMenu>
             )}
           </FilterPillWrapper>
+
+          {filtroCampanha && (
+            <FilterPillWrapper ref={dropdownEstadoRef}>
+              <FilterButton
+                $hasValue={!!filtroEstado}
+                onClick={() => setDropdownEstadoAberto(!dropdownEstadoAberto)}
+              >
+                <i className="fa-solid fa-map-location-dot icon"></i>
+                <span>Estado: <strong>{filtroEstado || 'Todos'}</strong></span>
+                <i className="fa-solid fa-chevron-down arrow" style={{ transform: dropdownEstadoAberto ? 'rotate(180deg)' : 'rotate(0)' }}></i>
+              </FilterButton>
+              {dropdownEstadoAberto && (
+                <CustomDropdownMenu>
+                  <CustomDropdownItem
+                    $active={filtroEstado === ''}
+                    onClick={() => { setFiltroEstado(''); setDropdownEstadoAberto(false); }}
+                  >
+                    Todos os Estados
+                  </CustomDropdownItem>
+                  {UFS_BRASIL.map((uf) => (
+                    <CustomDropdownItem
+                      key={uf}
+                      $active={filtroEstado === uf}
+                      onClick={() => { setFiltroEstado(uf); setDropdownEstadoAberto(false); }}
+                    >
+                      {uf}
+                    </CustomDropdownItem>
+                  ))}
+                </CustomDropdownMenu>
+              )}
+            </FilterPillWrapper>
+          )}
 
           {filtroCampanha && (
             <PrimaryButton onClick={abrirModalNovo} className="btn-novo">

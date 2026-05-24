@@ -4,11 +4,7 @@ import styled, { keyframes } from 'styled-components';
 import { Header } from '../componentes/Header.jsx';
 
 // --- UTILITÁRIO DE SEGURANÇA PARA JSON ---
-const parseJSONSeguro = (dadoString, fallback = []) => {
-  if (!dadoString) return fallback;
-  if (typeof dadoString !== 'string') return dadoString;
-  try { return JSON.parse(dadoString); } catch { return fallback; }
-};
+import { normalizarListaJson, cargosParaTexto } from '../utils/jsonHelpers.js';
 
 export function Empresas() {
   const [empresas, setEmpresas] = useState([]);
@@ -224,12 +220,12 @@ export function Empresas() {
   function abrirDetalheContato(contato) {
     setContatoSelecionado(contato);
     setContatoNome(contato.nome || '');
-    setContatoCargo(contato.cargo || '');
+    setContatoCargo(cargosParaTexto(contato.cargos_json) || '');
     
-    const emails = parseJSONSeguro(contato.emails_json, []);
+    const emails = normalizarListaJson(contato.emails_json, []);
     setContatoEmails(emails.join(', '));
     
-    const tels = parseJSONSeguro(contato.telefones_json, []);
+    const tels = normalizarListaJson(contato.telefones_json, []);
     setContatoTelefonesRapido(tels.join(', '));
     
     setEditandoContatoRapido(false);
@@ -271,12 +267,15 @@ export function Empresas() {
     const emailsArr = contatoEmails.split(',').map(m => m.trim()).filter(m => m);
     const telsArr = contatoTelefonesRapido.split(',').map(t => t.trim()).filter(t => t);
     try {
+      const cargosArr = contatoCargo.trim()
+        ? contatoCargo.split('|').map((c) => c.trim()).filter(Boolean)
+        : [];
       await axios.put(`${API_URL}/contatos/${contatoSelecionado.id}`, {
         nome: contatoNome,
-        cargo: contatoCargo,
+        cargos_json: cargosArr,
         emails_json: emailsArr,
         telefones_json: telsArr,
-        empresa_id: detalhesEmpresa.empresa.id 
+        empresa_id: detalhesEmpresa.empresa.id,
       }, getHeaders());
       
       alert('✅ Contato atualizado com sucesso!');
@@ -551,7 +550,7 @@ export function Empresas() {
                                 <ContactItem key={c.id} onClick={() => abrirDetalheContato(c)}>
                                   <div className="c-info">
                                     <strong><i className="fa-solid fa-user"></i> {c.nome}</strong>
-                                    <span>{c.cargo || 'Sem Cargo'}</span>
+                                    <span>{cargosParaTexto(c.cargos_json) || 'Sem Cargo'}</span>
                                   </div>
                                   <i className="fa-solid fa-chevron-right text-blue"></i>
                                 </ContactItem>
