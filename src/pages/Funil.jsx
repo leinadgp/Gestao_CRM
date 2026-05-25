@@ -92,7 +92,12 @@ export function Funil() {
   const [contatoSelecionado, setContatoSelecionado] = useState(null);
   const [editandoContatoRapido, setEditandoContatoRapido] = useState(false);
   const [contatoNome, setContatoNome] = useState('');
-  const [contatoCargo, setContatoCargo] = useState('');
+  const [contatoCargos, setContatoCargos] = useState(['']);
+  const [listaCargos, setListaCargos] = useState([]);
+  const [mostrarModalNovoCargo, setMostrarModalNovoCargo] = useState(false);
+  const [novoCargoNome, setNovoCargoNome] = useState('');
+  const [cargoIndexAtual, setCargoIndexAtual] = useState(null);
+  const [cargoAnteriorParaCancelamento, setCargoAnteriorParaCancelamento] = useState('');
   const [contatoEmails, setContatoEmails] = useState('');
   const [contatoTelefones, setContatoTelefones] = useState('');
 
@@ -216,11 +221,13 @@ export function Funil() {
         setMostrarModalContato(false);
       } else if (mostrarModalEmpresa) {
         setMostrarModalEmpresa(false);
+      } else if (mostrarModalNovoCargo) {
+        setMostrarModalNovoCargo(false);
       }
     };
 
     // Só "engana" o histórico se algum modal estiver aberto
-    if (mostrarModal || mostrarModalContato || mostrarModalEmpresa) {
+    if (mostrarModal || mostrarModalContato || mostrarModalEmpresa || mostrarModalNovoCargo) {
       window.history.pushState(null, null, window.location.pathname);
       window.addEventListener('popstate', lidarComBotaoVoltar);
     }
@@ -228,7 +235,7 @@ export function Funil() {
     return () => {
       window.removeEventListener('popstate', lidarComBotaoVoltar);
     };
-  }, [mostrarModal, mostrarModalContato, mostrarModalEmpresa]);
+  }, [mostrarModal, mostrarModalContato, mostrarModalEmpresa, mostrarModalNovoCargo]);
 
   function onBoardMouseDown(e) {
     if (e.target.closest('.kanban-card')) return;
@@ -253,15 +260,19 @@ export function Funil() {
     setCarregando(true);
     try {
       const config = getHeaders();
-      const [resEmp, resC, resCamp, resEquipe] = await Promise.all([
+      const [resEmp, resC, resCamp, resEquipe, resCargos] = await Promise.all([
         axios.get(`${API_URL}/empresas`, config),
         axios.get(`${API_URL}/contatos`, config),
         axios.get(`${API_URL}/campanhas`, config),
-        axios.get(`${API_URL}/usuarios/equipe`, config)
+        axios.get(`${API_URL}/usuarios/equipe`, config),
+        axios.get(`${API_URL}/cargos`, config).catch(() => ({ data: [] })),
       ]);
-      
-      setEmpresas(resEmp.data); 
-      setContatos(resC.data); 
+
+      setEmpresas(resEmp.data);
+      setContatos(resC.data);
+      if (resCargos.data?.length) {
+        setListaCargos(resCargos.data.map((c) => c.nome).sort((a, b) => a.localeCompare(b)));
+      }
       
       const todasCampanhas = resCamp.data;
       setCampanhas(todasCampanhas); 
@@ -457,7 +468,8 @@ export function Funil() {
 
     setContatoSelecionado(contato);
     setContatoNome(contato.nome);
-    setContatoCargo(cargosParaTexto(contato.cargos_json) || '');
+    const listaCargosContato = normalizarCargosJson(contato.cargos_json, []);
+    setContatoCargos(listaCargosContato.length ? listaCargosContato : ['']);
     
     const emails = normalizarListaJson(contato.emails_json, []);
     setContatoEmails(emails.join(', '));
@@ -469,15 +481,59 @@ export function Funil() {
     setMostrarModalContato(true);
   }
 
+  function gerenciarContatoCargos(acao, index, valor) {
+    if (acao === 'add') setContatoCargos((prev) => [...prev, '']);
+    if (acao === 'remove') setContatoCargos((prev) => prev.filter((_, i) => i !== index));
+    if (acao === 'update') {
+      setContatoCargos((prev) => {
+        const nova = [...prev];
+        nova[index] = valor;
+        return nova;
+      });
+    }
+  }
+
+  function handleContatoCargoChange(e, idx) {
+    const valor = e.target.value;
+    if (valor === 'NOVO_CARGO_ACTION') {
+      setCargoAnteriorParaCancelamento(contatoCargos[idx] || '');
+      setCargoIndexAtual(idx);
+      setNovoCargoNome('');
+      setMostrarModalNovoCargo(true);
+    } else {
+      gerenciarContatoCargos('update', idx, valor);
+    }
+  }
+
+  async function salvarNovoCargoFunil(e) {
+    e.preventDefault();
+    const nomeFormatado = novoCargoNome.trim();
+    if (!nomeFormatado) return;
+    try {
+      await axios.post(`${API_URL}/cargos`, { nome: nomeFormatado }, getHeaders());
+      if (!listaCargos.includes(nomeFormatado)) {
+        setListaCargos((prev) => [...prev, nomeFormatado].sort((a, b) => a.localeCompare(b)));
+      }
+      gerenciarContatoCargos('update', cargoIndexAtual, nomeFormatado);
+      setMostrarModalNovoCargo(false);
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao salvar novo cargo no banco.');
+    }
+  }
+
+  function cancelarNovoCargoFunil() {
+    gerenciarContatoCargos('update', cargoIndexAtual, cargoAnteriorParaCancelamento);
+    setMostrarModalNovoCargo(false);
+  }
+
   async function salvarContatoRapido(e) {
     e.preventDefault();
     const emailsArr = contatoEmails.split(',').map(m => m.trim()).filter(m => m);
     const telsArr = contatoTelefones.split(',').map(t => t.trim()).filter(t => t);
     
     try {
-      const cargosArr = contatoCargo.trim()
-        ? contatoCargo.split('|').map((c) => c.trim()).filter(Boolean)
-        : normalizarCargosJson(contatoSelecionado.cargos_json, []);
+      const cargosArr = contatoCargos.map((c) => c.trim()).filter(Boolean);
       await axios.put(`${API_URL}/contatos/${contatoSelecionado.id}`, {
         nome: contatoNome,
         cargos_json: cargosArr,
@@ -1420,9 +1476,13 @@ export function Funil() {
                       <label>NOME COMPLETO</label>
                       <div>{contatoNome}</div>
                     </InfoBox>
-                    <InfoBox>
-                      <label>CARGO</label>
-                      <div>{contatoCargo || '-'}</div>
+                    <InfoBox className="span-2">
+                      <label>CARGOS E FUNÇÕES</label>
+                      <div>
+                        {contatoCargos.filter(Boolean).length
+                          ? contatoCargos.filter(Boolean).join(' · ')
+                          : '-'}
+                      </div>
                     </InfoBox>
                     <InfoBox className="span-2">
                       <label><i className="fa-regular fa-envelope"></i> E-MAILS (Lista de Disparo)</label>
@@ -1453,9 +1513,38 @@ export function Funil() {
                       <label>Nome *</label>
                       <Input type="text" required value={contatoNome} onChange={e => setContatoNome(e.target.value)} />
                     </FormGroup>
-                    <FormGroup>
-                      <label>Cargo</label>
-                      <Input type="text" value={contatoCargo} onChange={e => setContatoCargo(e.target.value)} placeholder="Ex: Secretário da Fazenda" />
+                    <FormGroup className="span-2" style={{ gridColumn: '1 / -1' }}>
+                      <DynamicInputBox>
+                        <div className="box-header">
+                          <span>Cargos e Funções</span>
+                          <AddLinkBtn type="button" onClick={() => gerenciarContatoCargos('add')}>
+                            <i className="fa-solid fa-plus"></i> Novo Cargo
+                          </AddLinkBtn>
+                        </div>
+                        <div className="dynamic-grid">
+                          {contatoCargos.map((cg, i) => (
+                            <DynamicInputRow key={i}>
+                              <Select value={cg} onChange={(e) => handleContatoCargoChange(e, i)}>
+                                <option value="">-- Selecione ou adicione novo --</option>
+                                <option disabled>──────────</option>
+                                {listaCargos.map((c) => (
+                                  <option key={c} value={c}>{c}</option>
+                                ))}
+                                <option disabled>──────────</option>
+                                <option value="NOVO_CARGO_ACTION">+ Adicionar novo...</option>
+                              </Select>
+                              <IconButton
+                                type="button"
+                                className="danger"
+                                onClick={() => gerenciarContatoCargos('remove', i)}
+                                disabled={contatoCargos.length <= 1}
+                              >
+                                <i className="fa-solid fa-trash"></i>
+                              </IconButton>
+                            </DynamicInputRow>
+                          ))}
+                        </div>
+                      </DynamicInputBox>
                     </FormGroup>
                     <FormGroup>
                       <label><i className="fa-regular fa-envelope"></i> E-mails (Separe por vírgula)</label>
@@ -1474,6 +1563,39 @@ export function Funil() {
                 </form>
               )}
             </div>
+          </ModalContent>
+        </ModalOverlay>
+      )}
+
+      {/* MODAL NOVO CARGO (igual Contatos) */}
+      {mostrarModalNovoCargo && (
+        <ModalOverlay style={{ zIndex: 10001 }} onClick={cancelarNovoCargoFunil}>
+          <ModalContent $small onClick={(e) => e.stopPropagation()}>
+            <ModalHeader $bg="#f8f9fa" $color="#333">
+              <h3 style={{ fontSize: '1.1rem', margin: 0 }}>
+                <i className="fa-solid fa-plus-circle" style={{ color: '#28a745' }}></i> Adicionar Novo Cargo
+              </h3>
+              <CloseButton onClick={cancelarNovoCargoFunil}>&times;</CloseButton>
+            </ModalHeader>
+            <form onSubmit={salvarNovoCargoFunil}>
+              <div style={{ padding: '20px' }}>
+                <FormGroup>
+                  <label>Nome do Novo Cargo *</label>
+                  <Input
+                    type="text"
+                    required
+                    autoFocus
+                    value={novoCargoNome}
+                    onChange={(e) => setNovoCargoNome(e.target.value)}
+                    placeholder="Ex: Controlador Interno, Secretário..."
+                  />
+                </FormGroup>
+              </div>
+              <ModalFooter $justify="flex-end">
+                <SecondaryButton type="button" onClick={cancelarNovoCargoFunil}>Cancelar</SecondaryButton>
+                <PrimaryButton type="submit">Salvar e Selecionar</PrimaryButton>
+              </ModalFooter>
+            </form>
           </ModalContent>
         </ModalOverlay>
       )}
@@ -1862,9 +1984,69 @@ const AutocompleteOption = styled.li`
   &.no-results { color: #94a3b8; font-style: italic; cursor: default; &:hover { background: transparent; transform: none; } }
 `;
 
+const DynamicInputBox = styled.div`
+  border: 1px solid #edf2f9;
+  background: #fbfbfc;
+  padding: 20px;
+  border-radius: 12px;
+  width: 100%;
+  .box-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #2c3e50;
+  }
+  .dynamic-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+`;
+const DynamicInputRow = styled.div`
+  display: flex;
+  gap: 8px;
+  align-items: center;
+`;
+const AddLinkBtn = styled.button`
+  background: rgba(0, 123, 255, 0.1);
+  border: none;
+  color: #007bff;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.8rem;
+  padding: 6px 12px;
+  border-radius: 6px;
+  transition: 0.2s;
+  &:hover {
+    background: #007bff;
+    color: #fff;
+  }
+`;
 const IconButton = styled.button`
-  background: #e7f3ff; color: #007bff; border: 1px solid #b8daff; border-radius: 8px; padding: 0 15px; cursor: pointer; font-size: 1.1rem; transition: 0.2s;
-  &:hover { background: #007bff; color: #fff; }
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  font-size: 1rem;
+  transition: 0.2s;
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  &.danger {
+    color: #dc3545;
+    background: #fff5f5;
+    border-color: #f8d7da;
+    &:hover:not(:disabled) {
+      background: #dc3545;
+      color: #fff;
+    }
+  }
 `;
 
 // --- MÓDULOS E CÁLCULOS ---

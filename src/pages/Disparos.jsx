@@ -6,6 +6,12 @@ import 'suneditor/dist/css/suneditor.min.css';
 import styled, { keyframes } from 'styled-components';
 import { Header } from '../componentes/Header.jsx';
 import { temPermissao, primeiraRotaPermitida } from '../utils/permissoes';
+import {
+  MULTIPLOS_FUNIS_DISPARO,
+  TIPO_FUNIL_UNICO,
+  emailDoFunilDisparo,
+  tipoFunilPadrao,
+} from '../config/disparos.js';
 
 const SunEditor = SunEditorModule.default || SunEditorModule;
 
@@ -30,7 +36,7 @@ export function Disparos() {
   const [dropdownCampanhaAberto, setDropdownCampanhaAberto] = useState(false);
   const dropdownRef = useRef(null);
 
-  const [tipoFunil, setTipoFunil] = useState('BROADCAST_FRIO'); 
+  const [tipoFunil, setTipoFunil] = useState(tipoFunilPadrao()); 
   const [ordemEtapa, setOrdemEtapa] = useState('1');
   const [dataDisparo, setDataDisparo] = useState('');
   const [horasEspera, setHorasEspera] = useState('');
@@ -117,7 +123,9 @@ export function Disparos() {
 
   useEffect(() => {
     if (!editandoEmailId) {
-      const emailsDoFunil = sequenciaAtual.filter(e => e.tipo_funil === tipoFunil);
+      const emailsDoFunil = MULTIPLOS_FUNIS_DISPARO
+        ? sequenciaAtual.filter(e => e.tipo_funil === tipoFunil)
+        : sequenciaAtual.filter(emailDoFunilDisparo);
       if (emailsDoFunil.length > 0) {
         const ultimaOrdem = Math.max(...emailsDoFunil.map(e => Number(e.ordem_etapa)));
         setOrdemEtapa(String(ultimaOrdem + 1));
@@ -160,7 +168,7 @@ export function Disparos() {
   function montarUrlRastreada({ redirect, descricao, etapaAtual, cursoId, tipoF }) {
     const base = `${API_URL}/rastreio`;
     const emailPlaceholder = '{{$json.EmailLimpo}}';
-    return `${base}?redirect=${encodeURIComponent(redirect)}&email=${emailPlaceholder}&descricao=${encodeURIComponent(descricao || '')}&etapa=${encodeURIComponent(String(etapaAtual || ''))}&tipo=${encodeURIComponent(tipoF || 'BROADCAST_FRIO')}&curso=${encodeURIComponent(cursoId || '')}`;
+    return `${base}?redirect=${encodeURIComponent(redirect)}&email=${emailPlaceholder}&descricao=${encodeURIComponent(descricao || '')}&etapa=${encodeURIComponent(String(etapaAtual || ''))}&tipo=${encodeURIComponent(tipoF || tipoFunilPadrao())}&curso=${encodeURIComponent(cursoId || '')}`;
   }
 
   function inserirSnippet(snippet) { setEmailCru(prev => `${prev || ''}${snippet}`); }
@@ -328,26 +336,32 @@ export function Disparos() {
     e.preventDefault();
     if (!cursoAlvo) return alert('Selecione a Campanha.');
 
-    const ordemDuplicada = sequenciaAtual.find(email => 
-      email.tipo_funil === tipoFunil && Number(email.ordem_etapa) === Number(ordemEtapa) && email.id !== editandoEmailId
+    const tipoSalvar = MULTIPLOS_FUNIS_DISPARO ? tipoFunil : TIPO_FUNIL_UNICO;
+    const ordemDuplicada = sequenciaAtual.find(email =>
+      emailDoFunilDisparo(email)
+      && Number(email.ordem_etapa) === Number(ordemEtapa)
+      && email.id !== editandoEmailId
+      && (MULTIPLOS_FUNIS_DISPARO ? email.tipo_funil === tipoSalvar : true)
     );
 
-    if (ordemDuplicada) return alert(`Já existe um e-mail na Etapa ${ordemEtapa} do funil selecionado. Escolha um número de etapa diferente.`);
+    if (ordemDuplicada) return alert(`Já existe um e-mail na Etapa ${ordemEtapa}. Escolha um número de etapa diferente.`);
 
     setSalvandoConfig(true);
 
     let htmlCorrigido = emailCru;
     htmlCorrigido = htmlCorrigido.replace(/([?&]|&amp;)etapa=[^&"']*/g, `$1etapa=${ordemEtapa}`);
-    htmlCorrigido = htmlCorrigido.replace(/([?&]|&amp;)tipo=[^&"']*/g, `$1tipo=${tipoFunil}`);
+    htmlCorrigido = htmlCorrigido.replace(/([?&]|&amp;)tipo=[^&"']*/g, `$1tipo=${tipoSalvar}`);
     htmlCorrigido = htmlCorrigido.replace(/([?&]|&amp;)curso=[^&"']*/g, `$1curso=${cursoAlvo}`);
 
     const payload = {
-      campanha_id: cursoAlvo, 
-      tipo_funil: tipoFunil, 
+      campanha_id: cursoAlvo,
+      tipo_funil: tipoSalvar,
       ordem_etapa: ordemEtapa,
-      data_disparo_exata: tipoFunil.includes('BROADCAST') ? dataDisparo : null,
-      horas_espera: tipoFunil === 'POS_CLIQUE' ? horasEspera : null,
-      dias_expiracao: tipoFunil === 'POS_CLIQUE' && diasExpiracao ? parseInt(diasExpiracao) : null,
+      data_disparo_exata: MULTIPLOS_FUNIS_DISPARO
+        ? (tipoFunil.includes('BROADCAST') ? dataDisparo : null)
+        : dataDisparo,
+      horas_espera: MULTIPLOS_FUNIS_DISPARO && tipoFunil === 'POS_CLIQUE' ? horasEspera : null,
+      dias_expiracao: MULTIPLOS_FUNIS_DISPARO && tipoFunil === 'POS_CLIQUE' && diasExpiracao ? parseInt(diasExpiracao) : null,
       cargo_alvo: 'Todos', 
       titulo_email: tituloemail, 
       cabecalho_email: cabecalhoEmail, 
@@ -374,9 +388,12 @@ export function Disparos() {
 
   function limparFormularioEmail() {
     setEditandoEmailId(null);
-    setTituloemail(''); 
-    setCabecalhoEmail(''); 
+    setTipoFunil(tipoFunilPadrao());
+    setTituloemail('');
+    setCabecalhoEmail('');
     setEmailCru('');
+    setDataDisparo('');
+    setHorasEspera('');
     setDiasExpiracao('');
     setEmailAtivo(true);
   }
@@ -439,13 +456,12 @@ export function Disparos() {
   
   const campanhaSelecionada = useMemo(() => campanhas.find(c => c.id === Number(cursoAlvo)), [campanhas, cursoAlvo]);
 
-  const { broadcastsFrios, broadcastsQuentes, posCliques } = useMemo(() => {
-    return {
-      broadcastsFrios: sequenciaAtual.filter(e => e.tipo_funil === 'BROADCAST_FRIO'),
-      broadcastsQuentes: sequenciaAtual.filter(e => e.tipo_funil === 'BROADCAST_QUENTE'),
-      posCliques: sequenciaAtual.filter(e => e.tipo_funil === 'POS_CLIQUE')
-    };
-  }, [sequenciaAtual]);
+  const { broadcastsFrios, broadcastsQuentes, posCliques, emailsFunilUnico } = useMemo(() => ({
+    broadcastsFrios: sequenciaAtual.filter(e => e.tipo_funil === 'BROADCAST_FRIO'),
+    broadcastsQuentes: sequenciaAtual.filter(e => e.tipo_funil === 'BROADCAST_QUENTE'),
+    posCliques: sequenciaAtual.filter(e => e.tipo_funil === 'POS_CLIQUE'),
+    emailsFunilUnico: sequenciaAtual.filter(emailDoFunilDisparo),
+  }), [sequenciaAtual]);
 
   const htmlPreviewFinal = useMemo(() => {
     return montarHtmlFinal({ titulo: tituloemail, cabecalho: cabecalhoEmail, conteudo: emailCru, etapaEmail: ordemEtapa, cursoId: cursoAlvo, tipoF: tipoFunil });
@@ -547,7 +563,40 @@ export function Disparos() {
           </MotorControlPanel>
         )}
 
-        {cursoAlvo && (
+        {cursoAlvo && !MULTIPLOS_FUNIS_DISPARO && (
+          <FunnelsGrid $single>
+            <FunnelColumn>
+              <h3 className="text-blue"><i className="fa-solid fa-envelope"></i> Sequência de E-mails</h3>
+              <p>Um funil para todos os leads cadastrados na campanha.</p>
+
+              {emailsFunilUnico.length === 0 && <EmptyFunnelMsg>Nenhum e-mail agendado.</EmptyFunnelMsg>}
+              {emailsFunilUnico.map(email => (
+                <EmailCard key={email.id} $active={editandoEmailId === email.id} $borderColor="#007bff" $inativo={email.ativo === false}>
+                  <div className="card-header">
+                    <span className="step-badge">Etapa {email.ordem_etapa}</span>
+                    {email.ativo === false && <span className="expire-badge danger">Desabilitado</span>}
+                  </div>
+                  <div className="email-title">{email.titulo_email}</div>
+                  <div className="email-meta"><i className="fa-regular fa-clock"></i> Dia {email.data_disparo_exata ? exibirDataISO(email.data_disparo_exata) : '-'}</div>
+
+                  <div className="card-actions-top">
+                    <ActionButton onClick={() => carregarParaEdicao(email)}>{editandoEmailId === email.id ? 'Editando' : 'Editar'}</ActionButton>
+                    <ActionButton className={email.ativo === false ? "success" : "warning"} onClick={() => alternarStatusEmail(email)}>
+                      <i className={`fa-solid ${email.ativo === false ? 'fa-play' : 'fa-ban'}`}></i>
+                      <span className="action-text">{email.ativo === false ? 'Ativar' : 'Desabilitar'}</span>
+                    </ActionButton>
+                  </div>
+                  <div className="card-actions-bottom">
+                    <ActionButton className="primary" onClick={() => abrirModalEnvios(email)}><i className="fa-solid fa-paper-plane"></i> Fila</ActionButton>
+                    <ActionButton className="info" onClick={() => abrirModalCliques(email)}><i className="fa-solid fa-mouse-pointer"></i> Cliques</ActionButton>
+                  </div>
+                </EmailCard>
+              ))}
+            </FunnelColumn>
+          </FunnelsGrid>
+        )}
+
+        {cursoAlvo && MULTIPLOS_FUNIS_DISPARO && (
           <FunnelsGrid>
             {/* BROADCAST FRIOS */}
             <FunnelColumn>
@@ -659,21 +708,23 @@ export function Disparos() {
           </div>
 
           <form onSubmit={salvarCardEmail}>
-            <FormGrid $isPosClique={tipoFunil === 'POS_CLIQUE'}>
-              <FormGroup>
-                <label>Qual Funil? *</label>
-                <div className="select-container highlight">
-                  <select value={tipoFunil} onChange={e => setTipoFunil(e.target.value)} required>
-                    <option value="BROADCAST_FRIO">Broadcast (Frios / Mornos)</option>
-                    <option value="BROADCAST_QUENTE">Broadcast (Quentes / Clientes)</option>
-                    <option value="POS_CLIQUE">Pós-Clique (Timeline / Expiração)</option>
-                  </select>
-                  <i className="fa-solid fa-chevron-down arrow"></i>
-                </div>
-              </FormGroup>
+            <FormGrid $isPosClique={MULTIPLOS_FUNIS_DISPARO && tipoFunil === 'POS_CLIQUE'}>
+              {MULTIPLOS_FUNIS_DISPARO && (
+                <FormGroup>
+                  <label>Qual Funil? *</label>
+                  <div className="select-container highlight">
+                    <select value={tipoFunil} onChange={e => setTipoFunil(e.target.value)} required>
+                      <option value="BROADCAST_FRIO">Broadcast (Frios / Mornos)</option>
+                      <option value="BROADCAST_QUENTE">Broadcast (Quentes / Clientes)</option>
+                      <option value="POS_CLIQUE">Pós-Clique (Timeline / Expiração)</option>
+                    </select>
+                    <i className="fa-solid fa-chevron-down arrow"></i>
+                  </div>
+                </FormGroup>
+              )}
 
-              {tipoFunil.includes('BROADCAST') ? (
-                <FormGroup className="span-2">
+              {(!MULTIPLOS_FUNIS_DISPARO || tipoFunil.includes('BROADCAST')) ? (
+                <FormGroup className={MULTIPLOS_FUNIS_DISPARO ? 'span-2' : 'span-full'}>
                   <label className="text-blue"><i className="fa-regular fa-calendar"></i> Data de Disparo *</label>
                   <input type="date" required value={dataDisparo} onChange={e => setDataDisparo(e.target.value)} />
                 </FormGroup>
@@ -982,7 +1033,11 @@ const MotorButton = styled.button`
 `;
 
 const FunnelsGrid = styled.div`
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 30px;
+  display: grid;
+  grid-template-columns: ${props => props.$single ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))'};
+  gap: 20px;
+  margin-bottom: 30px;
+  max-width: ${props => props.$single ? '520px' : 'none'};
 `;
 
 const FunnelColumn = styled.div`
