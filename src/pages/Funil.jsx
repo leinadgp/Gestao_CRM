@@ -318,6 +318,17 @@ export function Funil() {
     } catch (e) { console.error('Erro ao buscar módulos', e); }
   }
 
+  const campanhaSelecionadaObj = useMemo(() => {
+    return campanhas.find(c => c.id === parseInt(filtroCampanha));
+  }, [campanhas, filtroCampanha]);
+
+  const cargosAlvoCampanha = useMemo(() => {
+    if (!campanhaSelecionadaObj?.cargos_alvo) return [];
+    const raw = campanhaSelecionadaObj.cargos_alvo;
+    if (Array.isArray(raw)) return raw;
+    try { return JSON.parse(raw); } catch { return []; }
+  }, [campanhaSelecionadaObj]);
+
   const oportunidadesPorEtapa = useMemo(() => {
     const mapa = {};
     etapas.forEach(e => mapa[e.id] = []);
@@ -398,17 +409,6 @@ export function Funil() {
       somaPacoteUnidade: totais.somaUnidade,
     };
   }, [modulosSelecionados, modulosCampanha, qtdInscritos, inscritos, modoPacoteInscricao, desconto, descontoReais]);
-
-  const campanhaSelecionadaObj = useMemo(() => {
-    return campanhas.find(c => c.id === parseInt(filtroCampanha));
-  }, [campanhas, filtroCampanha]);
-
-  const cargosAlvoCampanha = useMemo(() => {
-    if (!campanhaSelecionadaObj?.cargos_alvo) return [];
-    const raw = campanhaSelecionadaObj.cargos_alvo;
-    if (Array.isArray(raw)) return raw;
-    try { return JSON.parse(raw); } catch { return []; }
-  }, [campanhaSelecionadaObj]);
 
   const contatosDaEmpresa = useMemo(() => {
     if (!empresaId) return [];
