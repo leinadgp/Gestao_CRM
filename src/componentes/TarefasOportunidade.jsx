@@ -1,14 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import styled, { keyframes, css } from 'styled-components';
-import { InscritosOportunidadeEditor } from './InscritosOportunidadeEditor.jsx';
 import {
   listarTarefasOportunidade,
   criarTarefa,
+  atualizarTarefa,
   concluirTarefa,
   excluirTarefa,
   classificarTarefa,
   formatarDataHoraTarefa,
   deInputDatetimeLocal,
+  paraInputDatetimeLocal,
 } from '../utils/tarefasService';
 
 export function TarefasOportunidade({ oportunidadeId, oportunidadeTitulo }) {
@@ -17,6 +18,9 @@ export function TarefasOportunidade({ oportunidadeId, oportunidadeTitulo }) {
   const [titulo, setTitulo] = useState('');
   const [dataHora, setDataHora] = useState('');
   const [salvando, setSalvando] = useState(false);
+  const [editandoId, setEditandoId] = useState(null);
+  const [editTitulo, setEditTitulo] = useState('');
+  const [editDataHora, setEditDataHora] = useState('');
 
   const carregar = useCallback(async () => {
     if (!oportunidadeId) return;
@@ -40,6 +44,18 @@ export function TarefasOportunidade({ oportunidadeId, oportunidadeTitulo }) {
     window.addEventListener('tarefasAtualizadas', handler);
     return () => window.removeEventListener('tarefasAtualizadas', handler);
   }, [carregar]);
+
+  function cancelarEdicao() {
+    setEditandoId(null);
+    setEditTitulo('');
+    setEditDataHora('');
+  }
+
+  function iniciarEdicao(t) {
+    setEditandoId(t.id);
+    setEditTitulo(t.titulo || '');
+    setEditDataHora(paraInputDatetimeLocal(t.data_hora));
+  }
 
   async function handleCriar() {
     if (!titulo.trim() || !dataHora) {
@@ -72,9 +88,38 @@ export function TarefasOportunidade({ oportunidadeId, oportunidadeTitulo }) {
     }
   }
 
+  async function handleSalvarEdicao() {
+    if (!editTitulo.trim() || !editDataHora) {
+      alert('Preencha a descrição e a data/horário da tarefa.');
+      return;
+    }
+
+    const iso = deInputDatetimeLocal(editDataHora);
+    if (!iso) {
+      alert('Data/horário inválidos.');
+      return;
+    }
+
+    setSalvando(true);
+    try {
+      await atualizarTarefa(editandoId, {
+        titulo: editTitulo,
+        data_hora: iso,
+      });
+      cancelarEdicao();
+      await carregar();
+    } catch (erro) {
+      const msg = erro.response?.data?.erro || erro.message || 'Não foi possível salvar a tarefa.';
+      alert(msg);
+    } finally {
+      setSalvando(false);
+    }
+  }
+
   async function handleConcluir(id) {
     try {
       await concluirTarefa(id);
+      if (editandoId === id) cancelarEdicao();
       await carregar();
     } catch {
       alert('Erro ao concluir tarefa.');
@@ -85,6 +130,7 @@ export function TarefasOportunidade({ oportunidadeId, oportunidadeTitulo }) {
     if (!window.confirm('Excluir esta tarefa?')) return;
     try {
       await excluirTarefa(id);
+      if (editandoId === id) cancelarEdicao();
       await carregar();
     } catch {
       alert('Erro ao excluir tarefa.');
@@ -93,6 +139,69 @@ export function TarefasOportunidade({ oportunidadeId, oportunidadeTitulo }) {
 
   const pendentes = tarefas.filter(t => !t.concluida);
   const concluidas = tarefas.filter(t => t.concluida);
+
+  function renderTarefaItem(t, concluida = false) {
+    const status = classificarTarefa(t);
+    const emEdicao = editandoId === t.id;
+
+    if (emEdicao) {
+      return (
+        <TarefaItem key={t.id} $status="editando">
+          <FormEdicao>
+            <input
+              type="text"
+              value={editTitulo}
+              onChange={e => setEditTitulo(e.target.value)}
+              placeholder="Descrição da tarefa..."
+              autoFocus
+            />
+            <input
+              type="datetime-local"
+              value={editDataHora}
+              onChange={e => setEditDataHora(e.target.value)}
+            />
+            <FormEdicaoAcoes>
+              <BtnSalvar type="button" onClick={handleSalvarEdicao} disabled={salvando}>
+                <i className="fa-solid fa-check" /> {salvando ? 'Salvando...' : 'Salvar'}
+              </BtnSalvar>
+              <BtnCancelar type="button" onClick={cancelarEdicao} disabled={salvando}>
+                Cancelar
+              </BtnCancelar>
+            </FormEdicaoAcoes>
+          </FormEdicao>
+        </TarefaItem>
+      );
+    }
+
+    return (
+      <TarefaItem key={t.id} $status={status}>
+        <TarefaInfo>
+          <strong>{t.titulo}</strong>
+          <span className={concluida ? 'meta done' : 'meta'}>
+            <i className={concluida ? 'fa-solid fa-check-circle' : 'fa-regular fa-clock'}></i>
+            {formatarDataHoraTarefa(t.data_hora)}
+            {!concluida && status === 'proxima' && <Badge $tipo="proxima">Em breve</Badge>}
+            {!concluida && status === 'vencida' && <Badge $tipo="vencida">Atrasada</Badge>}
+          </span>
+        </TarefaInfo>
+        <Acoes>
+          {!concluida && (
+            <>
+              <BtnEditar type="button" onClick={() => iniciarEdicao(t)} title="Editar tarefa">
+                <i className="fa-solid fa-pen"></i>
+              </BtnEditar>
+              <BtnConcluir type="button" onClick={() => handleConcluir(t.id)} title="Marcar como concluída">
+                <i className="fa-solid fa-check"></i>
+              </BtnConcluir>
+            </>
+          )}
+          <BtnExcluir type="button" onClick={() => handleExcluir(t.id)} title="Excluir">
+            <i className="fa-solid fa-trash"></i>
+          </BtnExcluir>
+        </Acoes>
+      </TarefaItem>
+    );
+  }
 
   return (
     <Container>
@@ -114,7 +223,7 @@ export function TarefasOportunidade({ oportunidadeId, oportunidadeTitulo }) {
           onChange={e => setDataHora(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleCriar(); } }}
         />
-        <button type="button" onClick={handleCriar} disabled={salvando}>
+        <button type="button" onClick={handleCriar} disabled={salvando || !!editandoId}>
           <i className="fa-solid fa-plus"></i>
         </button>
       </FormNova>
@@ -125,55 +234,11 @@ export function TarefasOportunidade({ oportunidadeId, oportunidadeTitulo }) {
         <EmptyMsg>Nenhuma tarefa agendada. Crie um lembrete com data e horário.</EmptyMsg>
       ) : (
         <Lista>
-          {pendentes.map(t => {
-            const status = classificarTarefa(t);
-            return (
-              <TarefaItem key={t.id} $status={status}>
-                <TarefaInfo>
-                  <strong>{t.titulo}</strong>
-                  <span className="meta">
-                    <i className="fa-regular fa-clock"></i>
-                    {formatarDataHoraTarefa(t.data_hora)}
-                    {status === 'proxima' && <Badge $tipo="proxima">Em breve</Badge>}
-                    {status === 'vencida' && <Badge $tipo="vencida">Atrasada</Badge>}
-                  </span>
-                </TarefaInfo>
-                <Acoes>
-                  <BtnConcluir type="button" onClick={() => handleConcluir(t.id)} title="Marcar como concluída">
-                    <i className="fa-solid fa-check"></i>
-                  </BtnConcluir>
-                  <BtnExcluir type="button" onClick={() => handleExcluir(t.id)} title="Excluir">
-                    <i className="fa-solid fa-trash"></i>
-                  </BtnExcluir>
-                </Acoes>
-              </TarefaItem>
-            );
-          })}
-          <InscritosOportunidadeEditor
-        oportunidadeId={oportunidadeId}
-        titulo="Inscritos — editar dados"
-        compact
-      />
-
-      {concluidas.length > 0 && (
+          {pendentes.map(t => renderTarefaItem(t, false))}
+          {concluidas.length > 0 && (
             <>
               <Divider>Concluídas</Divider>
-              {concluidas.map(t => (
-                <TarefaItem key={t.id} $status="concluida">
-                  <TarefaInfo>
-                    <strong>{t.titulo}</strong>
-                    <span className="meta done">
-                      <i className="fa-solid fa-check-circle"></i>
-                      {formatarDataHoraTarefa(t.data_hora)}
-                    </span>
-                  </TarefaInfo>
-                  <Acoes>
-                    <BtnExcluir type="button" onClick={() => handleExcluir(t.id)} title="Excluir">
-                      <i className="fa-solid fa-trash"></i>
-                    </BtnExcluir>
-                  </Acoes>
-                </TarefaItem>
-              ))}
+              {concluidas.map(t => renderTarefaItem(t, true))}
             </>
           )}
         </Lista>
@@ -237,7 +302,7 @@ const Lista = styled.div`
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 220px;
+  max-height: 280px;
   overflow-y: auto;
 `;
 
@@ -249,14 +314,70 @@ const TarefaItem = styled.div`
   padding: 12px 14px;
   border-radius: 8px;
   border: 1px solid ${p =>
+    p.$status === 'editando' ? '#c4b5fd' :
     p.$status === 'vencida' ? '#f5c6cb' :
     p.$status === 'proxima' ? '#ffeeba' :
     p.$status === 'concluida' ? '#c3e6cb' : '#e2e8f0'};
   background: ${p =>
+    p.$status === 'editando' ? '#f5f3ff' :
     p.$status === 'vencida' ? '#fff5f5' :
     p.$status === 'proxima' ? '#fff9db' :
     p.$status === 'concluida' ? '#f4fbf5' : '#fff'};
   ${p => (p.$status === 'vencida' || p.$status === 'proxima') && pulseUrgente}
+`;
+
+const FormEdicao = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+
+  input {
+    padding: 10px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    outline: none;
+    width: 100%;
+    box-sizing: border-box;
+    &:focus { border-color: #6f42c1; box-shadow: 0 0 0 3px rgba(111, 66, 193, 0.15); }
+  }
+`;
+
+const FormEdicaoAcoes = styled.div`
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+`;
+
+const BtnSalvar = styled.button`
+  background: #6f42c1;
+  color: #fff;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  &:hover { background: #5a32a3; }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+`;
+
+const BtnCancelar = styled.button`
+  background: #e2e8f0;
+  color: #475569;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  &:hover { background: #cbd5e1; }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
 `;
 
 const TarefaInfo = styled.div`
@@ -292,6 +413,17 @@ const Acoes = styled.div`
   display: flex;
   gap: 6px;
   flex-shrink: 0;
+`;
+
+const BtnEditar = styled.button`
+  background: #eef2ff;
+  color: #4f46e5;
+  border: 1px solid #c7d2fe;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  cursor: pointer;
+  &:hover { background: #4f46e5; color: #fff; }
 `;
 
 const BtnConcluir = styled.button`

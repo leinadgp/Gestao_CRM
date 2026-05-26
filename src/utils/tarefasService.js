@@ -114,6 +114,38 @@ export async function criarTarefa({
   }
 }
 
+export async function atualizarTarefa(tarefaId, { titulo, descricao, data_hora }) {
+  const payload = {};
+  if (titulo !== undefined) payload.titulo = String(titulo).trim();
+  if (descricao !== undefined) payload.descricao = String(descricao).trim();
+  if (data_hora !== undefined) payload.data_hora = data_hora;
+
+  try {
+    const res = await axios.put(
+      `${getApiUrl()}/tarefas/${tarefaId}`,
+      payload,
+      getHeaders()
+    );
+    window.dispatchEvent(new CustomEvent('tarefasAtualizadas'));
+    return res.data;
+  } catch (erro) {
+    if (erro.response?.status !== 404) throw erro;
+
+    const todas = lerLocal().map(t =>
+      t.id === tarefaId
+        ? {
+            ...t,
+            ...(payload.titulo !== undefined ? { titulo: payload.titulo } : {}),
+            ...(payload.descricao !== undefined ? { descricao: payload.descricao } : {}),
+            ...(payload.data_hora !== undefined ? { data_hora: payload.data_hora } : {}),
+          }
+        : t
+    );
+    salvarLocal(todas);
+    return todas.find(t => t.id === tarefaId);
+  }
+}
+
 export async function concluirTarefa(tarefaId) {
   try {
     const res = await axios.put(

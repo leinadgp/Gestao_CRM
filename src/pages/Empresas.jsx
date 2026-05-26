@@ -665,7 +665,12 @@ export function Empresas() {
                       </FormGroup>
                       <FormGroup>
                         <label>Estado (UF)</label>
-                        <Input type="text" value={estado} onChange={e => setEstado(e.target.value.toUpperCase())} maxLength="2" style={{textTransform: 'uppercase'}} />
+                        <Select value={estado} onChange={e => setEstado(e.target.value)}>
+                          <option value="">— Selecione a UF —</option>
+                          {listaEstados.map(uf => (
+                            <option key={uf} value={uf}>{uf}</option>
+                          ))}
+                        </Select>
                       </FormGroup>
                       <FormGroup>
                         <label>Cidade</label>

@@ -4,13 +4,22 @@ import styled from 'styled-components';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { emailDoFunilDisparo, TIPOS_FUNIL_BROADCAST } from '../config/disparos.js';
 import { InscritosOportunidadeEditor } from '../componentes/InscritosOportunidadeEditor.jsx';
+import { exportarLinhasComoCsv, flattenExportInscritosDashboard } from '../utils/exportarCsv.js';
+import { temPermissaoEspecial } from '../utils/permissoes.js';
 
 // --- UTILITÁRIOS ---
 const parseJSONSeguro = (dado, fallback = []) => {
-  if (dado == null) return fallback;
+  if (dado == null || dado === '') return fallback;
   if (Array.isArray(dado)) return dado;
+  if (typeof dado === 'object') return fallback;
   if (typeof dado !== 'string') return fallback;
-  try { return JSON.parse(dado); } catch { return fallback; }
+  try {
+    let parsed = JSON.parse(dado);
+    if (typeof parsed === 'string') parsed = JSON.parse(parsed);
+    return Array.isArray(parsed) ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
 };
 
 export function Dashboard() {
@@ -30,7 +39,10 @@ export function Dashboard() {
   const [emailSelecionado, setEmailSelecionado] = useState(null);
   const [dadosCliquesModal, setDadosCliquesModal] = useState([]);
   const [erroModal, setErroModal] = useState(null);
-  const [oportunidadeInscritosId, setOportunidadeInscritosId] = useState(null);
+  const [inscritoDetalhe, setInscritoDetalhe] = useState(null);
+  const [exportandoInscritos, setExportandoInscritos] = useState(false);
+  const [excluindoInscricao, setExcluindoInscricao] = useState(false);
+  const podeExcluirInscricao = temPermissaoEspecial('excluir_inscricao');
   
   // --- ESTADOS: CONTROLE DE TELA ---
   const [carregando, setCarregando] = useState(true);
@@ -277,6 +289,47 @@ export function Dashboard() {
       return passaCampanha && passaMes;
     });
   }, [inscritos, filtroCampanha, campanhas, mesFiltro]);
+
+  function recarregarInscritos() {
+    const config = getHeaders();
+    return axios.get(`${API_URL}/dashboard/inscritos`, config).then((res) => {
+      setInscritos(res.data);
+      return res.data;
+    });
+  }
+
+  async function excluirInscricaoDashboard() {
+    if (!inscritoDetalhe || !podeExcluirInscricao) return;
+    const msg = `Remover a inscrição de "${inscritoDetalhe.contato_nome}"?\n\nA negociação voltará ao funil como "aberta" e os dados de inscritos serão limpos.`;
+    if (!window.confirm(msg)) return;
+
+    setExcluindoInscricao(true);
+    try {
+      await axios.delete(
+        `${API_URL}/dashboard/inscritos/${inscritoDetalhe.oportunidade_id}`,
+        getHeaders()
+      );
+      setInscritoDetalhe(null);
+      await recarregarInscritos();
+      alert('Inscrição removida com sucesso.');
+    } catch (err) {
+      alert(err.response?.data?.erro || 'Erro ao excluir inscrição.');
+    } finally {
+      setExcluindoInscricao(false);
+    }
+  }
+
+  function exportarInscritos() {
+    setExportandoInscritos(true);
+    try {
+      const linhas = flattenExportInscritosDashboard(listaInscritosFiltrada, parseJSONSeguro);
+      if (!exportarLinhasComoCsv(linhas, 'inscritos_dashboard')) {
+        alert('Nenhum inscrito para exportar com os filtros atuais.');
+      }
+    } finally {
+      setExportandoInscritos(false);
+    }
+  }
 
   const cliquesAgrupadosModal = useMemo(() => {
     return Object.values((dadosCliquesModal || []).reduce((acc, clique) => {
@@ -559,91 +612,167 @@ export function Dashboard() {
               </TabelaResponsiva>
             </Panel>
 
-            <Panel $borderTop="#28a745">
-              <PanelTitle><i className="fa-solid fa-users-viewfinder text-green"></i> Lista Nominal de Inscritos</PanelTitle>
-              <TabelaResponsiva $maxHeight="500px">
-                <Table>
-                  <thead className="sticky-head">
-                    <tr>
-                      <th>Lead / Inscritos</th>
-                      <th>Curso</th>
-                      <th>Data</th>
-                      <th style={{ width: '100px' }}></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {listaInscritosFiltrada.length === 0 ? (
-                      <tr><td colSpan="4" className="text-center text-muted">Nenhuma inscrição encontrada para este período.</td></tr>
-                    ) : (
-                      listaInscritosFiltrada.map((ins) => {
-                        let emailDisplay = 'Sem E-mail';
-                        const emails = parseJSONSeguro(ins.emails_json);
-                        if (emails.length > 0) emailDisplay = emails[0];
+            <Panel $borderTop="#28a745" $fullWidth>
+              <PanelHeaderRow>
+                <PanelTitle style={{ paddingBottom: 0 }}>
+                  <i className="fa-solid fa-users-viewfinder text-green"></i> Lista Nominal de Inscritos
+                </PanelTitle>
+                <BtnExportarInscritos
+                  type="button"
+                  disabled={exportandoInscritos || listaInscritosFiltrada.length === 0}
+                  onClick={exportarInscritos}
+                >
+                  {exportandoInscritos ? (
+                    <i className="fa-solid fa-spinner fa-spin" />
+                  ) : (
+                    <i className="fa-solid fa-file-csv" />
+                  )}
+                  Exportar inscritos
+                </BtnExportarInscritos>
+              </PanelHeaderRow>
+              <PanelSubtitle style={{ paddingTop: 0, paddingLeft: 20 }}>
+                Clique em uma linha para ver e editar os dados completos.
+              </PanelSubtitle>
 
-                        const listaInsc = parseJSONSeguro(ins.inscritos_json, []);
-                        const qtd = ins.qtd_inscritos || listaInsc.length || 0;
-
-                        return (
-                          <tr key={ins.oportunidade_id}>
-                            <td data-label="Contato">
-                              <strong>{ins.contato_nome}</strong>
-                              {ins.empresa_nome && (
-                                <div className="contact-subtext"><i className="fa-solid fa-building" /> {ins.empresa_nome}</div>
-                              )}
-                              <div className="contact-subtext"><i className="fa-solid fa-envelope" /> {emailDisplay}</div>
-                              {qtd > 0 && (
-                                <div className="contact-subtext" style={{ color: '#198754' }}>
-                                  <i className="fa-solid fa-user-group" /> {qtd} inscrito(s) cadastrado(s)
-                                </div>
-                              )}
-                              {listaInsc.slice(0, 3).map((p, i) => (
-                                <div key={i} className="contact-subtext" style={{ fontSize: '0.78rem' }}>
-                                  · {p.nome || '—'} {p.email ? `(${p.email})` : ''}
-                                </div>
-                              ))}
-                            </td>
-                            <td data-label="Curso" className="text-blue font-bold">
-                              {ins.curso_nome}
-                            </td>
-                            <td data-label="Data" className="date-text">
-                              {formatarData(ins.data_inscricao)}
-                            </td>
-                            <td data-label="Ações">
-                              <BtnInscritos type="button" onClick={() => setOportunidadeInscritosId(ins.oportunidade_id)}>
-                                <i className="fa-solid fa-pen" /> Ver / editar
-                              </BtnInscritos>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </Table>
-              </TabelaResponsiva>
+              {listaInscritosFiltrada.length === 0 ? (
+                <InscritosEmpty>Nenhuma inscrição encontrada para este período.</InscritosEmpty>
+              ) : (
+                <InscritosListaCompacta>
+                  <InscritosListaHead>
+                    <span>Nome</span>
+                    <span>Prefeitura</span>
+                    <span>Curso</span>
+                    <span className="col-qtd">Qtd.</span>
+                  </InscritosListaHead>
+                  {listaInscritosFiltrada.map((ins) => {
+                    const listaInsc = parseJSONSeguro(ins.inscritos_json, []).filter((p) => p.nome || p.email);
+                    const qtd = ins.qtd_inscritos || listaInsc.length || 0;
+                    return (
+                      <InscritosListaRow
+                        key={ins.oportunidade_id}
+                        type="button"
+                        onClick={() => setInscritoDetalhe(ins)}
+                      >
+                        <span className="col-nome" title={ins.contato_nome}>
+                          {ins.contato_nome || '—'}
+                        </span>
+                        <span className="col-pref" title={ins.empresa_nome}>
+                          {ins.empresa_nome || '—'}
+                        </span>
+                        <span className="col-curso" title={ins.curso_nome}>
+                          {ins.curso_nome || '—'}
+                        </span>
+                        <span className="col-qtd">{qtd}</span>
+                      </InscritosListaRow>
+                    );
+                  })}
+                </InscritosListaCompacta>
+              )}
             </Panel>
           </DashboardGrid>
         </>
       )}
 
-      {oportunidadeInscritosId && (
-        <ModalOverlay onClick={() => setOportunidadeInscritosId(null)}>
-          <ModalContent $large onClick={(e) => e.stopPropagation()}>
-            <ModalHeader>
-              <h3 className="text-green"><i className="fa-solid fa-user-graduate" /> Inscritos da negociação</h3>
-              <CloseButton onClick={() => setOportunidadeInscritosId(null)}>&times;</CloseButton>
-            </ModalHeader>
-            <div style={{ padding: '20px' }}>
-              <InscritosOportunidadeEditor
-                oportunidadeId={oportunidadeInscritosId}
-                onSalvo={() => {
-                  const config = getHeaders();
-                  axios.get(`${API_URL}/dashboard/inscritos`, config).then((res) => setInscritos(res.data));
-                }}
-              />
-            </div>
-          </ModalContent>
-        </ModalOverlay>
-      )}
+      {inscritoDetalhe && (() => {
+        const emails = parseJSONSeguro(inscritoDetalhe.emails_json, []);
+        const telefones = parseJSONSeguro(inscritoDetalhe.telefones_json, []);
+        const listaInsc = parseJSONSeguro(inscritoDetalhe.inscritos_json, []).filter((p) => p.nome || p.email);
+        const qtd = inscritoDetalhe.qtd_inscritos || listaInsc.length || 0;
+
+        return (
+          <ModalOverlay onClick={() => setInscritoDetalhe(null)}>
+            <ModalContent $large onClick={(e) => e.stopPropagation()}>
+              <ModalHeader>
+                <div>
+                  <h3 className="text-green"><i className="fa-solid fa-user-graduate" /> Inscrição</h3>
+                  <div className="subtitle">{inscritoDetalhe.contato_nome} · {inscritoDetalhe.empresa_nome || 'Sem prefeitura'}</div>
+                </div>
+                <CloseButton onClick={() => setInscritoDetalhe(null)}>&times;</CloseButton>
+              </ModalHeader>
+
+              <ModalBody>
+                <DetalheResumoGrid>
+                  <DetalheItem>
+                    <label>Contato (lead)</label>
+                    <div>{inscritoDetalhe.contato_nome || '—'}</div>
+                  </DetalheItem>
+                  <DetalheItem>
+                    <label>Prefeitura</label>
+                    <div>{inscritoDetalhe.empresa_nome || '—'}</div>
+                  </DetalheItem>
+                  <DetalheItem>
+                    <label>Curso</label>
+                    <div className="text-blue">{inscritoDetalhe.curso_nome || '—'}</div>
+                  </DetalheItem>
+                  <DetalheItem>
+                    <label>Data</label>
+                    <div>{formatarData(inscritoDetalhe.data_inscricao)}</div>
+                  </DetalheItem>
+                  <DetalheItem>
+                    <label>E-mail do lead</label>
+                    <div>{emails.length ? emails.join(', ') : '—'}</div>
+                  </DetalheItem>
+                  <DetalheItem>
+                    <label>Telefone do lead</label>
+                    <div>{telefones.length ? telefones.join(', ') : '—'}</div>
+                  </DetalheItem>
+                  <DetalheItem>
+                    <label>Quantidade de inscritos</label>
+                    <div><strong>{qtd}</strong></div>
+                  </DetalheItem>
+                </DetalheResumoGrid>
+
+                {listaInsc.length > 0 && (
+                  <>
+                    <DetalheSectionTitle><i className="fa-solid fa-users" /> Inscritos cadastrados</DetalheSectionTitle>
+                    <DetalheInscritosLista>
+                      {listaInsc.map((p, i) => (
+                        <DetalheInscritoCard key={i}>
+                          <strong>{p.nome || 'Sem nome'}</strong>
+                          {p.email && <span><i className="fa-solid fa-envelope" /> {p.email}</span>}
+                          {p.telefone && <span><i className="fa-solid fa-phone" /> {p.telefone}</span>}
+                          {p.cargo && <span><i className="fa-solid fa-briefcase" /> {p.cargo}</span>}
+                          {p.formacao && <span><i className="fa-solid fa-graduation-cap" /> {p.formacao}</span>}
+                        </DetalheInscritoCard>
+                      ))}
+                    </DetalheInscritosLista>
+                  </>
+                )}
+
+                <InscritosOportunidadeEditor
+                  oportunidadeId={inscritoDetalhe.oportunidade_id}
+                  titulo="Editar inscritos"
+                  onSalvo={async () => {
+                    const dados = await recarregarInscritos();
+                    const atualizado = dados.find((d) => Number(d.oportunidade_id) === Number(inscritoDetalhe.oportunidade_id));
+                    if (atualizado) setInscritoDetalhe(atualizado);
+                  }}
+                />
+
+                <ModalAcoesRodape>
+                  {podeExcluirInscricao ? (
+                    <BtnExcluirInscricao
+                      type="button"
+                      disabled={excluindoInscricao}
+                      onClick={excluirInscricaoDashboard}
+                    >
+                      {excluindoInscricao ? (
+                        <><i className="fa-solid fa-spinner fa-spin" /> Excluindo...</>
+                      ) : (
+                        <><i className="fa-solid fa-trash" /> Excluir inscrição</>
+                      )}
+                    </BtnExcluirInscricao>
+                  ) : (
+                    <span className="hint-sem-perm">
+                      <i className="fa-solid fa-lock" /> Somente usuários autorizados pelo administrador podem excluir inscrições.
+                    </span>
+                  )}
+                </ModalAcoesRodape>
+              </ModalBody>
+            </ModalContent>
+          </ModalOverlay>
+        );
+      })()}
 
       {/* MODAL DE CLIQUES DETALHADOS */}
       {mostrarModalCliques && (
@@ -796,6 +925,7 @@ const DashboardGrid = styled.div`
 
 const Panel = styled.div`
   background: #ffffff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border: 1px solid #edf2f9; border-left: ${props => props.$borderLeft ? `5px solid ${props.$borderLeft}` : 'none'}; border-top: ${props => props.$borderTop ? `5px solid ${props.$borderTop}` : 'none'}; overflow: hidden;
+  ${props => props.$fullWidth && 'grid-column: 1 / -1;'}
 `;
 
 const PanelTitle = styled.h4`
@@ -830,8 +960,13 @@ const ModalOverlay = styled.div`
 `;
 
 const ModalContent = styled.div`
-  background: #ffffff; border-radius: 12px; width: 100%; max-width: 700px; box-shadow: 0 15px 40px rgba(0,0,0,0.2); animation: slideUp 0.3s ease-out;
+  background: #ffffff; border-radius: 12px; width: 100%; max-width: ${(p) => (p.$large ? '920px' : '700px')}; max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 15px 40px rgba(0,0,0,0.2); animation: slideUp 0.3s ease-out;
   @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+`;
+
+const ModalBody = styled.div`
+  padding: 20px;
 `;
 
 const ModalHeader = styled.div`
@@ -912,15 +1047,223 @@ const Badge = styled.span`
   &.badge-gray { background: #f1f5f9; color: #475569; } &.badge-blue { background: #e7f3ff; color: #007bff; } &.badge-primary { background: #eef4fa; color: #1F4E79; } &.badge-success { background: #f4fbf5; color: #28a745; }
 `;
 
-const BtnInscritos = styled.button`
-  padding: 8px 12px;
+const PanelHeaderRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 20px 20px 0;
+`;
+
+const BtnExportarInscritos = styled.button`
+  padding: 8px 14px;
   border-radius: 8px;
-  border: 1px solid #86efac;
-  background: #f0fdf4;
-  color: #166534;
-  font-size: 0.8rem;
+  border: 1px solid #198754;
+  background: #e6f4ea;
+  color: #195326;
+  font-size: 0.85rem;
   font-weight: 700;
   cursor: pointer;
-  white-space: nowrap;
-  &:hover { background: #dcfce7; }
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  &:hover:not(:disabled) { background: #d1e7dd; }
+  &:disabled { opacity: 0.55; cursor: not-allowed; }
+`;
+
+const InscritosEmpty = styled.p`
+  margin: 0;
+  padding: 40px 20px;
+  text-align: center;
+  color: #94a3b8;
+  font-style: italic;
+`;
+
+const inscritosGridCols = 'minmax(120px, 1.2fr) minmax(140px, 1.4fr) minmax(100px, 1fr) 52px';
+
+const InscritosListaCompacta = styled.div`
+  margin: 8px 16px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  max-height: 420px;
+  overflow-y: auto;
+  &::-webkit-scrollbar { width: 6px; }
+  &::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+`;
+
+const InscritosListaHead = styled.div`
+  display: grid;
+  grid-template-columns: ${inscritosGridCols};
+  gap: 12px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #64748b;
+  letter-spacing: 0.03em;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  .col-qtd { text-align: center; }
+`;
+
+const InscritosListaRow = styled.button`
+  display: grid;
+  grid-template-columns: ${inscritosGridCols};
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border: none;
+  border-bottom: 1px solid #f1f5f9;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+  font-size: 0.88rem;
+  color: #334155;
+  transition: background 0.15s;
+  align-items: center;
+
+  &:last-child { border-bottom: none; }
+  &:hover { background: #f0fdf4; }
+  &:focus-visible { outline: 2px solid #28a745; outline-offset: -2px; }
+
+  span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .col-nome { font-weight: 700; color: #1e293b; }
+  .col-curso { color: #007bff; font-weight: 600; font-size: 0.82rem; }
+  .col-qtd {
+    text-align: center;
+    font-weight: 800;
+    color: #166534;
+    background: #f0fdf4;
+    border-radius: 6px;
+    padding: 4px 0;
+    font-size: 0.85rem;
+  }
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+    gap: 4px;
+    span::before {
+      content: attr(data-label);
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      display: block;
+      margin-bottom: 2px;
+    }
+    .col-nome::before { content: 'Nome'; }
+    .col-pref::before { content: 'Prefeitura'; }
+    .col-curso::before { content: 'Curso'; }
+    .col-qtd::before { content: 'Qtd.'; }
+    .col-qtd { width: fit-content; }
+  }
+`;
+
+const DetalheResumoGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+`;
+
+const DetalheItem = styled.div`
+  label {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #94a3b8;
+    margin-bottom: 4px;
+  }
+  div {
+    font-size: 0.92rem;
+    color: #1e293b;
+    font-weight: 600;
+    word-break: break-word;
+  }
+  .text-blue { color: #007bff; }
+`;
+
+const DetalheSectionTitle = styled.h4`
+  margin: 0 0 12px;
+  font-size: 0.95rem;
+  color: #334155;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const DetalheInscritosLista = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  margin-bottom: 20px;
+`;
+
+const ModalAcoesRodape = styled.div`
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: flex-end;
+  .hint-sem-perm {
+    font-size: 0.82rem;
+    color: #94a3b8;
+    font-style: italic;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+`;
+
+const BtnExcluirInscricao = styled.button`
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1px solid #f8d7da;
+  background: #fff5f5;
+  color: #dc3545;
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  &:hover:not(:disabled) { background: #dc3545; color: #fff; }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+`;
+
+const DetalheInscritoCard = styled.div`
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  strong { font-size: 0.9rem; color: #0f172a; }
+  span {
+    font-size: 0.82rem;
+    color: #475569;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    line-height: 1.4;
+    word-break: break-word;
+    i { color: #94a3b8; margin-top: 3px; flex-shrink: 0; }
+  }
 `;

@@ -15,6 +15,7 @@ import {
   uniaoModulosInscritos,
   somarValorModulos,
 } from '../utils/calculoPacote.js';
+import { UFS_BRASIL } from '../constants/ufsBrasil.js';
 
 const inscritoVazio = (modulosPadrao = []) => ({
   nome: '', email: '', telefone: '', formacao: '', cargo: '', contato_id: null,
@@ -48,8 +49,6 @@ export function Funil() {
   const [dropdownEstadoAberto, setDropdownEstadoAberto] = useState(false);
   const dropdownCampanhaRef = useRef(null);
   const dropdownEstadoRef = useRef(null);
-
-  const UFS_BRASIL = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
 
   // --- DADOS DO USUÁRIO ---
   const perfilUsuario = localStorage.getItem('perfil');
@@ -91,6 +90,7 @@ export function Funil() {
 
   // --- ESTADOS DO SUB-MODAL DE CONTATO ---
   const [mostrarModalContato, setMostrarModalContato] = useState(false);
+  const [modoContatoModal, setModoContatoModal] = useState('ver'); // ver | editar | novo
   const [contatoSelecionado, setContatoSelecionado] = useState(null);
   const [editandoContatoRapido, setEditandoContatoRapido] = useState(false);
   const [contatoNome, setContatoNome] = useState('');
@@ -220,7 +220,7 @@ export function Funil() {
       if (mostrarModal) {
         setMostrarModal(false);
       } else if (mostrarModalContato) {
-        setMostrarModalContato(false);
+        fecharModalContato();
       } else if (mostrarModalEmpresa) {
         setMostrarModalEmpresa(false);
       } else if (mostrarModalNovoCargo) {
@@ -471,24 +471,54 @@ export function Funil() {
     } catch (e) { alert('Erro ao editar a nota.'); }
   }
 
-  function abrirDetalheContato() {
-    if (!contatoId) return;
-    const contato = contatos.find(c => c.id === parseInt(contatoId));
-    if (!contato) return;
-
+  function preencherFormContato(contato) {
     setContatoSelecionado(contato);
-    setContatoNome(contato.nome);
-    const listaCargosContato = normalizarCargosJson(contato.cargos_json, []);
+    setContatoNome(contato?.nome || '');
+    const listaCargosContato = normalizarCargosJson(contato?.cargos_json, []);
     setContatoCargos(listaCargosContato.length ? listaCargosContato : ['']);
-    
-    const emails = normalizarListaJson(contato.emails_json, []);
+    const emails = normalizarListaJson(contato?.emails_json, []);
     setContatoEmails(emails.join(', '));
-
-    const tels = normalizarListaJson(contato.telefones_json, []);
+    const tels = normalizarListaJson(contato?.telefones_json, []);
     setContatoTelefones(tels.join(', '));
+  }
 
-    setEditandoContatoRapido(false);
+  function abrirEditarContato(contato) {
+    preencherFormContato(contato);
+    setModoContatoModal('editar');
+    setEditandoContatoRapido(true);
     setMostrarModalContato(true);
+  }
+
+  function abrirNovoContato() {
+    if (!empresaId) {
+      alert('Selecione a prefeitura antes de cadastrar um contato.');
+      return;
+    }
+    setContatoSelecionado(null);
+    setContatoNome('');
+    setContatoCargos(['']);
+    setContatoEmails('');
+    setContatoTelefones('');
+    setModoContatoModal('novo');
+    setEditandoContatoRapido(true);
+    setMostrarModalContato(true);
+  }
+
+  function definirContatoPrincipal(id) {
+    const numId = Number(id);
+    if (!contatosVinculadosIds.includes(numId)) {
+      setContatosVinculadosIds((prev) => [...prev, numId]);
+    }
+    setContatoId(String(numId));
+    const c = contatos.find((x) => x.id === numId);
+    setBuscaContatoNoModal(c?.nome || '');
+  }
+
+  function fecharModalContato() {
+    setMostrarModalContato(false);
+    setModoContatoModal('ver');
+    setEditandoContatoRapido(false);
+    setContatoSelecionado(null);
   }
 
   function gerenciarContatoCargos(acao, index, valor) {
@@ -541,24 +571,36 @@ export function Funil() {
     e.preventDefault();
     const emailsArr = contatoEmails.split(',').map(m => m.trim()).filter(m => m);
     const telsArr = contatoTelefones.split(',').map(t => t.trim()).filter(t => t);
-    
+    const cargosArr = contatoCargos.map((c) => c.trim()).filter(Boolean);
+    const payload = {
+      nome: contatoNome,
+      cargos_json: cargosArr,
+      emails_json: emailsArr,
+      telefones_json: telsArr,
+      empresa_id: empresaId || contatoSelecionado?.empresa_id,
+    };
+
     try {
-      const cargosArr = contatoCargos.map((c) => c.trim()).filter(Boolean);
-      await axios.put(`${API_URL}/contatos/${contatoSelecionado.id}`, {
-        nome: contatoNome,
-        cargos_json: cargosArr,
-        emails_json: emailsArr,
-        telefones_json: telsArr,
-        empresa_id: empresaId || contatoSelecionado.empresa_id,
-      }, getHeaders());
-      
-      setMostrarModalContato(false);
-      const resC = await axios.get(`${API_URL}/contatos`, getHeaders());
-      setContatos(resC.data);
-      setBuscaContatoNoModal(contatoNome); 
-      alert('Contato atualizado com sucesso!');
-    } catch(error) {
-      alert(error.response?.data?.erro || 'Erro ao atualizar contato.');
+      if (modoContatoModal === 'novo') {
+        const res = await axios.post(`${API_URL}/contatos`, payload, getHeaders());
+        const novo = res.data;
+        const resC = await axios.get(`${API_URL}/contatos`, getHeaders());
+        setContatos(resC.data);
+        setContatosVinculadosIds((prev) => [...new Set([...prev, novo.id])]);
+        setContatoId(String(novo.id));
+        setBuscaContatoNoModal(novo.nome || contatoNome);
+        fecharModalContato();
+        alert('Contato criado e vinculado à negociação.');
+      } else {
+        await axios.put(`${API_URL}/contatos/${contatoSelecionado.id}`, payload, getHeaders());
+        const resC = await axios.get(`${API_URL}/contatos`, getHeaders());
+        setContatos(resC.data);
+        setBuscaContatoNoModal(contatoNome);
+        fecharModalContato();
+        alert('Contato atualizado com sucesso!');
+      }
+    } catch (error) {
+      alert(error.response?.data?.erro || 'Erro ao salvar contato.');
     }
   }
 
@@ -1127,46 +1169,59 @@ export function Funil() {
                     <label><i className="fa-solid fa-users text-green"></i> Contatos vinculados à negociação</label>
                     {!empresaId ? (
                       <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>Selecione a prefeitura para listar os contatos.</p>
-                    ) : contatosDaEmpresa.length === 0 ? (
-                      <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>Nenhum contato cadastrado nesta prefeitura.</p>
                     ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 180, overflowY: 'auto', padding: '8px 0' }}>
-                        {contatosDaEmpresa.map((cont) => (
-                          <label key={cont.id} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: '0.9rem' }}>
-                            <input
-                              type="checkbox"
-                              checked={contatosVinculadosIds.includes(cont.id)}
-                              onChange={() => toggleContatoVinculado(cont.id)}
-                            />
-                            <span>
-                              <strong>{cont.nome}</strong>
-                              <span style={{ color: '#64748b', marginLeft: 6 }}>
-                                {cargosParaTexto(cont.cargos_json) || 'Sem cargo'}
-                              </span>
-                            </span>
-                          </label>
-                        ))}
-                      </div>
+                      <>
+                        {contatosDaEmpresa.length === 0 ? (
+                          <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 8px' }}>Nenhum contato nesta prefeitura — cadastre abaixo.</p>
+                        ) : (
+                          <ContatosNegociacaoLista>
+                            {contatosDaEmpresa.map((cont) => {
+                              const vinculado = contatosVinculadosIds.includes(cont.id);
+                              const isPrincipal = Number(contatoId) === cont.id;
+                              return (
+                                <ContatoNegociacaoRow key={cont.id} $vinculado={vinculado}>
+                                  <label className="check-wrap">
+                                    <input
+                                      type="checkbox"
+                                      checked={vinculado}
+                                      onChange={() => toggleContatoVinculado(cont.id)}
+                                    />
+                                    <span className="info">
+                                      <strong>{cont.nome}</strong>
+                                      <small>{cargosParaTexto(cont.cargos_json) || 'Sem cargo'}</small>
+                                      {isPrincipal && vinculado && (
+                                        <span className="badge-principal"><i className="fa-solid fa-star" /> Principal</span>
+                                      )}
+                                    </span>
+                                  </label>
+                                  <ContatoNegociacaoAcoes>
+                                    <IconButton
+                                      type="button"
+                                      title="Editar contato"
+                                      onClick={() => abrirEditarContato(cont)}
+                                    >
+                                      <i className="fa-solid fa-pen" />
+                                    </IconButton>
+                                    {vinculado && !isPrincipal && (
+                                      <IconButton
+                                        type="button"
+                                        title="Definir como contato principal"
+                                        onClick={() => definirContatoPrincipal(cont.id)}
+                                      >
+                                        <i className="fa-solid fa-star" />
+                                      </IconButton>
+                                    )}
+                                  </ContatoNegociacaoAcoes>
+                                </ContatoNegociacaoRow>
+                              );
+                            })}
+                          </ContatosNegociacaoLista>
+                        )}
+                        <BtnNovoContato type="button" onClick={abrirNovoContato}>
+                          <i className="fa-solid fa-user-plus" /> Novo contato nesta prefeitura
+                        </BtnNovoContato>
+                      </>
                     )}
-                  </FormGroup>
-
-                  <FormGroup>
-                    <label><i className="fa-solid fa-user-check text-green"></i> Contato principal</label>
-                    <Select
-                      value={contatoId}
-                      onChange={(e) => {
-                        setContatoId(e.target.value);
-                        const c = contatos.find((x) => String(x.id) === e.target.value);
-                        setBuscaContatoNoModal(c?.nome || '');
-                      }}
-                      disabled={!contatosVinculadosIds.length}
-                    >
-                      <option value="">— Selecione —</option>
-                      {contatosVinculadosIds.map((idV) => {
-                        const c = contatos.find((x) => x.id === idV);
-                        return c ? <option key={c.id} value={c.id}>{c.nome}</option> : null;
-                      })}
-                    </Select>
                   </FormGroup>
 
                   <FormGroup>
@@ -1294,18 +1349,6 @@ export function Funil() {
                   ))}
                 </SectionCard>
               )}
-
-              <SectionCard>
-                <FormGrid $columns="1fr">
-                  {contatoId && (
-                    <FormGroup>
-                      <IconButton type="button" onClick={abrirDetalheContato} title="Editar contato principal">
-                        <i className="fa-solid fa-user-pen"></i> Editar contato principal
-                      </IconButton>
-                    </FormGroup>
-                  )}
-                </FormGrid>
-              </SectionCard>
 
               <SectionCard $bgColor="#f4fbf5" $borderColor="#c3e6cb">
                 <label style={{ display: 'block', marginBottom: '15px', color: '#28a745', fontSize: '0.95rem', fontWeight: 'bold' }}>
@@ -1477,18 +1520,21 @@ export function Funil() {
       )}
 
       {/* SUB-MODAL DE CONTATO RÁPIDO */}
-      {mostrarModalContato && contatoSelecionado && (
-        <ModalOverlay onClick={() => setMostrarModalContato(false)} style={{zIndex: 9999}}>
+      {mostrarModalContato && (
+        <ModalOverlay onClick={fecharModalContato} style={{zIndex: 9999}}>
           <ModalContent $small onClick={e => e.stopPropagation()}>
             <ModalHeader $bg="#1F4E79" $color="#fff">
               <div>
-                <h3 style={{color: '#fff'}}><i className="fa-solid fa-user-pen"></i> Detalhes do Contato</h3>
+                <h3 style={{color: '#fff'}}>
+                  <i className={`fa-solid ${modoContatoModal === 'novo' ? 'fa-user-plus' : 'fa-user-pen'}`}></i>
+                  {modoContatoModal === 'novo' ? ' Novo contato' : modoContatoModal === 'editar' ? ' Editar contato' : ' Detalhes do contato'}
+                </h3>
               </div>
-              <CloseButton $color="#fff" onClick={() => setMostrarModalContato(false)}>&times;</CloseButton>
+              <CloseButton $color="#fff" onClick={fecharModalContato}>&times;</CloseButton>
             </ModalHeader>
 
             <div style={{ padding: '20px' }}>
-              {!editandoContatoRapido ? (
+              {modoContatoModal === 'ver' && contatoSelecionado && !editandoContatoRapido ? (
                 <>
                   <FormGrid $columns="1fr 1fr" style={{marginBottom: '20px'}}>
                     <InfoBox>
@@ -1519,9 +1565,9 @@ export function Funil() {
                     </InfoBox>
                   </FormGrid>
                   <ModalFooter $justify="flex-end">
-                    <SecondaryButton onClick={() => setMostrarModalContato(false)}>Voltar</SecondaryButton>
-                    <WarningButton onClick={() => setEditandoContatoRapido(true)}>
-                      <i className="fa-solid fa-pen"></i> Editar Contato
+                    <SecondaryButton type="button" onClick={fecharModalContato}>Voltar</SecondaryButton>
+                    <WarningButton type="button" onClick={() => { setModoContatoModal('editar'); setEditandoContatoRapido(true); }}>
+                      <i className="fa-solid fa-pen"></i> Editar
                     </WarningButton>
                   </ModalFooter>
                 </>
@@ -1576,8 +1622,10 @@ export function Funil() {
                   </FormGrid>
 
                   <ModalFooter $justify="flex-end">
-                    <SecondaryButton type="button" onClick={() => setEditandoContatoRapido(false)}>Cancelar</SecondaryButton>
-                    <PrimaryButton type="submit"><i className="fa-solid fa-save"></i> Salvar Alterações</PrimaryButton>
+                    <SecondaryButton type="button" onClick={fecharModalContato}>Cancelar</SecondaryButton>
+                    <PrimaryButton type="submit">
+                      <i className="fa-solid fa-save"></i> {modoContatoModal === 'novo' ? 'Criar e vincular' : 'Salvar'}
+                    </PrimaryButton>
                   </ModalFooter>
                 </form>
               )}
@@ -1687,11 +1735,16 @@ export function Funil() {
                     </FormGroup>
                     <FormGroup>
                       <label>Estado (UF)</label>
-                      <Input type="text" value={empresaEstado} onChange={e => setEmpresaEstado(e.target.value.toUpperCase())} maxLength="2" style={{textTransform: 'uppercase'}} />
+                      <Select value={empresaEstado} onChange={e => setEmpresaEstado(e.target.value)}>
+                        <option value="">— Selecione a UF —</option>
+                        {UFS_BRASIL.map((uf) => (
+                          <option key={uf} value={uf}>{uf}</option>
+                        ))}
+                      </Select>
                     </FormGroup>
                     <FormGroup>
                       <label>Cidade</label>
-                      <Input type="text" value={empresaCidade} onChange={e => setCidade(e.target.value)} />
+                      <Input type="text" value={empresaCidade} onChange={e => setEmpresaCidade(e.target.value)} />
                     </FormGroup>
                     <FormGroup className="span-2">
                       <label><i className="fa-solid fa-phone text-green"></i> Telefones</label>
@@ -2066,6 +2119,76 @@ const IconButton = styled.button`
       color: #fff;
     }
   }
+`;
+
+const ContatosNegociacaoLista = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 10px;
+`;
+
+const ContatoNegociacaoRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid ${(p) => (p.$vinculado ? '#bbf7d0' : '#e2e8f0')};
+  background: ${(p) => (p.$vinculado ? '#f0fdf4' : '#fff')};
+
+  .check-wrap {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+    cursor: pointer;
+    margin: 0;
+  }
+  .info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    strong { font-size: 0.88rem; color: #1e293b; }
+    small { font-size: 0.75rem; color: #64748b; }
+  }
+  .badge-principal {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #b45309;
+    margin-top: 2px;
+  }
+`;
+
+const ContatoNegociacaoAcoes = styled.div`
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+`;
+
+const BtnNovoContato = styled.button`
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px dashed #86efac;
+  border-radius: 8px;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  &:hover { background: #dcfce7; border-color: #4ade80; }
 `;
 
 // --- MÓDULOS E CÁLCULOS ---

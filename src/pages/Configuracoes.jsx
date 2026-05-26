@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import styled from 'styled-components';
-import { MODULOS_CRM, setPermissoes } from '../utils/permissoes';
+import { MODULOS_CRM, PERMISSOES_ESPECIAIS, setPermissoes } from '../utils/permissoes';
 
 export function Configuracoes() {
   const API_URL = import.meta.env?.VITE_API_URL || 'https://server-js-gestao.onrender.com';
@@ -164,6 +164,12 @@ export function Configuracoes() {
   function togglePermissaoModulo(moduloId) {
     setPermsEditando((prev) =>
       prev.includes(moduloId) ? prev.filter((m) => m !== moduloId) : [...prev, moduloId]
+    );
+  }
+
+  function togglePermissaoEspecial(especialId) {
+    setPermsEditando((prev) =>
+      prev.includes(especialId) ? prev.filter((m) => m !== especialId) : [...prev, especialId]
     );
   }
 
@@ -399,21 +405,38 @@ export function Configuracoes() {
                     </Select>
                   </FormGroup>
                   {perfilEditando !== 'admin' && (
-                    <FormGroup>
-                      <label>Módulos liberados</label>
-                      <PermissoesGrid>
-                        {MODULOS_CRM.map((mod) => (
-                          <label key={mod.id} className="perm-item">
-                            <input
-                              type="checkbox"
-                              checked={permsEditando.includes(mod.id)}
-                              onChange={() => togglePermissaoModulo(mod.id)}
-                            />
-                            {mod.label}
-                          </label>
-                        ))}
-                      </PermissoesGrid>
-                    </FormGroup>
+                    <>
+                      <FormGroup>
+                        <label>Módulos liberados</label>
+                        <PermissoesGrid>
+                          {MODULOS_CRM.map((mod) => (
+                            <label key={mod.id} className="perm-item">
+                              <input
+                                type="checkbox"
+                                checked={permsEditando.includes(mod.id)}
+                                onChange={() => togglePermissaoModulo(mod.id)}
+                              />
+                              {mod.label}
+                            </label>
+                          ))}
+                        </PermissoesGrid>
+                      </FormGroup>
+                      <FormGroup>
+                        <label>Permissões especiais</label>
+                        <PermissoesGrid>
+                          {PERMISSOES_ESPECIAIS.map((esp) => (
+                            <label key={esp.id} className="perm-item perm-especial">
+                              <input
+                                type="checkbox"
+                                checked={permsEditando.includes(esp.id)}
+                                onChange={() => togglePermissaoEspecial(esp.id)}
+                              />
+                              {esp.label}
+                            </label>
+                          ))}
+                        </PermissoesGrid>
+                      </FormGroup>
+                    </>
                   )}
                 </div>
                 <ModalFooter>
@@ -475,6 +498,25 @@ export function Configuracoes() {
                               )}
                             />
                             {mod.label}
+                          </label>
+                        ))}
+                      </PermissoesGrid>
+                    </FormGroup>
+                  )}
+                  {novoPerfil !== 'admin' && (
+                    <FormGroup>
+                      <label>Permissões especiais</label>
+                      <PermissoesGrid>
+                        {PERMISSOES_ESPECIAIS.map((esp) => (
+                          <label key={esp.id} className="perm-item perm-especial">
+                            <input
+                              type="checkbox"
+                              checked={permissoesNovoUser.includes(esp.id)}
+                              onChange={() => setPermissoesNovoUser((prev) =>
+                                prev.includes(esp.id) ? prev.filter((m) => m !== esp.id) : [...prev, esp.id]
+                              )}
+                            />
+                            {esp.label}
                           </label>
                         ))}
                       </PermissoesGrid>

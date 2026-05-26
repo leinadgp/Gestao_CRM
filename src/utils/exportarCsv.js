@@ -148,6 +148,55 @@ export function flattenExportCampanha(payload) {
   }));
 }
 
+/** Uma linha por inscrito (dados do dashboard /inscritos). */
+export function flattenExportInscritosDashboard(items, parseJson) {
+  const parse = parseJson || ((d, f) => (d == null ? f : d));
+  const linhas = [];
+
+  for (const ins of items || []) {
+    const emails = parse(ins.emails_json, []);
+    const tels = parse(ins.telefones_json, []);
+    const lista = parse(ins.inscritos_json, []).filter((p) => p?.nome || p?.email);
+    const qtd = ins.qtd_inscritos || lista.length || 0;
+
+    const base = {
+      oportunidade_id: ins.oportunidade_id,
+      contato_nome: ins.contato_nome || '',
+      prefeitura: ins.empresa_nome || '',
+      curso: ins.curso_nome || '',
+      qtd_inscritos: qtd,
+      data_inscricao: ins.data_inscricao || '',
+      email_lead: Array.isArray(emails) ? emails.join('; ') : '',
+      telefone_lead: Array.isArray(tels) ? tels.join('; ') : '',
+    };
+
+    if (!lista.length) {
+      linhas.push({
+        ...base,
+        inscrito_nome: '',
+        inscrito_email: '',
+        inscrito_telefone: '',
+        inscrito_cargo: '',
+        inscrito_formacao: '',
+      });
+      continue;
+    }
+
+    for (const p of lista) {
+      linhas.push({
+        ...base,
+        inscrito_nome: p.nome || '',
+        inscrito_email: p.email || '',
+        inscrito_telefone: p.telefone || '',
+        inscrito_cargo: p.cargo || '',
+        inscrito_formacao: p.formacao || '',
+      });
+    }
+  }
+
+  return linhas;
+}
+
 export function exportarLinhasComoCsv(linhas, prefixoArquivo) {
   if (!linhas.length) return false;
   const keys = Object.keys(linhas[0]);

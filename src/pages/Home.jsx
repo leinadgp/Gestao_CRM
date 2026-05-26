@@ -268,7 +268,7 @@ export function Home() {
               ) : (
                 <>
                   <div className="chart-container">
-                    <ResponsiveContainer>
+                    <ResponsiveContainer width="100%" height={200} minHeight={1}>
                       <PieChart>
                         <Pie data={dadosGrafico} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={5} dataKey="value">
                           {dadosGrafico.map((entry, index) => (

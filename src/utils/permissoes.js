@@ -9,6 +9,25 @@ export const MODULOS_CRM = [
   { id: 'landing_pages', label: 'Landing Pages', path: '/landing-pages' },
 ];
 
+/** Permissões extras (não são rotas do menu) — o admin libera por usuário */
+export const PERMISSOES_ESPECIAIS = [
+  { id: 'excluir_inscricao', label: 'Excluir inscrições no Dashboard' },
+];
+
+const IDS_MODULOS = new Set(MODULOS_CRM.map((m) => m.id));
+
+export function isModuloPermissao(id) {
+  return IDS_MODULOS.has(id);
+}
+
+export function temPermissaoEspecial(especialId) {
+  const perfil = localStorage.getItem('perfil');
+  if (perfil === 'admin') return true;
+  const permissoes = getPermissoes();
+  if (!permissoes) return false;
+  return permissoes.includes(especialId);
+}
+
 export function getPermissoes() {
   try {
     const raw = localStorage.getItem('permissoes');
