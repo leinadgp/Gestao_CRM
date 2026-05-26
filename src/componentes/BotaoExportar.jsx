@@ -25,7 +25,7 @@ export function BotaoExportar({
   params = {},
   label = 'Exportar',
   className = '',
-  mostrarJson = true,
+  mostrarJson = false,
   compact = false,
 }) {
   const [exportando, setExportando] = useState(false);

@@ -2,11 +2,15 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import styled from 'styled-components';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { emailDoFunilDisparo, TIPOS_FUNIL_BROADCAST } from '../config/disparos.js';
+import { InscritosOportunidadeEditor } from '../componentes/InscritosOportunidadeEditor.jsx';
 
 // --- UTILITÁRIOS ---
-const parseJSONSeguro = (dadoString, fallback = []) => {
-  if (typeof dadoString !== 'string') return dadoString || fallback;
-  try { return JSON.parse(dadoString); } catch { return fallback; }
+const parseJSONSeguro = (dado, fallback = []) => {
+  if (dado == null) return fallback;
+  if (Array.isArray(dado)) return dado;
+  if (typeof dado !== 'string') return fallback;
+  try { return JSON.parse(dado); } catch { return fallback; }
 };
 
 export function Dashboard() {
@@ -26,6 +30,7 @@ export function Dashboard() {
   const [emailSelecionado, setEmailSelecionado] = useState(null);
   const [dadosCliquesModal, setDadosCliquesModal] = useState([]);
   const [erroModal, setErroModal] = useState(null);
+  const [oportunidadeInscritosId, setOportunidadeInscritosId] = useState(null);
   
   // --- ESTADOS: CONTROLE DE TELA ---
   const [carregando, setCarregando] = useState(true);
@@ -288,17 +293,21 @@ export function Dashboard() {
     }, {}));
   }, [dadosCliquesModal]);
 
-  const { seqFrios, seqQuentes, seqPosClique } = useMemo(() => {
-    return {
-      seqFrios: sequenciaEmails.filter(e => e.tipo_funil === 'BROADCAST_FRIO'),
-      seqQuentes: sequenciaEmails.filter(e => e.tipo_funil === 'BROADCAST_QUENTE'),
-      seqPosClique: sequenciaEmails.filter(e => e.tipo_funil === 'POS_CLIQUE')
-    };
-  }, [sequenciaEmails]);
+  const emailsEngajamento = useMemo(
+    () => sequenciaEmails.filter(emailDoFunilDisparo),
+    [sequenciaEmails]
+  );
 
   function getCliquesDoEmail(email) {
-    const rel = relatorioCliques.find(r => r.tipo_funil === email.tipo_funil && Number(r.etapa_email) === Number(email.ordem_etapa));
-    return rel ? parseInt(rel.total_cliques) : 0;
+    const etapa = Number(email.ordem_etapa);
+    const rels = relatorioCliques.filter((r) => Number(r.etapa_email) === etapa);
+    if (!rels.length) return 0;
+    const tipos = TIPOS_FUNIL_BROADCAST.includes(email.tipo_funil)
+      ? TIPOS_FUNIL_BROADCAST
+      : [email.tipo_funil];
+    const match = rels.find((r) => tipos.includes(r.tipo_funil));
+    if (match) return parseInt(match.total_cliques, 10) || 0;
+    return rels.reduce((acc, r) => acc + (parseInt(r.total_cliques, 10) || 0), 0);
   }
 
   const campanhaSelecionada = campanhas.find(c => c.id === parseInt(filtroCampanha));
@@ -419,62 +428,26 @@ export function Dashboard() {
           </KpiGrid>
 
           {/* ENGAJAMENTO DE E-MAILS */}
-          {filtroCampanha && sequenciaEmails.length > 0 && (
+          {filtroCampanha && emailsEngajamento.length > 0 && (
             <Panel $borderLeft="#6f42c1">
               <PanelTitle><i className="fa-solid fa-envelope-open-text text-purple"></i> Funil de Engajamento de E-mails</PanelTitle>
-              <PanelSubtitle>Acompanhe os cliques de cada e-mail cadastrado nesta campanha.</PanelSubtitle>
-              
+              <PanelSubtitle>Sequência única de disparos — cliques por etapa.</PanelSubtitle>
+
               <EngagementListsContainer>
-                {seqFrios.length > 0 && (
-                  <EngagementColumn>
-                    <h5 className="col-title text-blue"><i className="fa-solid fa-snowflake"></i> Broadcast Frios</h5>
-                    {seqFrios.map(email => (
-                      <EmailRow key={email.id} onClick={() => abrirModalCliquesDetalhado(email)}>
-                        <div className="email-info">
-                          <span className="badge-step">Etapa {email.ordem_etapa}</span>
-                          <span className="email-name">{email.titulo_email}</span>
-                        </div>
-                        <div className="clicks-badge">
-                          {getCliquesDoEmail(email)} cliques <i className="fa-solid fa-chevron-right"></i>
-                        </div>
-                      </EmailRow>
-                    ))}
-                  </EngagementColumn>
-                )}
-
-                {seqQuentes.length > 0 && (
-                  <EngagementColumn>
-                    <h5 className="col-title text-red"><i className="fa-solid fa-fire"></i> Broadcast Quentes</h5>
-                    {seqQuentes.map(email => (
-                      <EmailRow key={email.id} onClick={() => abrirModalCliquesDetalhado(email)}>
-                        <div className="email-info">
-                          <span className="badge-step">Etapa {email.ordem_etapa}</span>
-                          <span className="email-name">{email.titulo_email}</span>
-                        </div>
-                        <div className="clicks-badge">
-                          {getCliquesDoEmail(email)} cliques <i className="fa-solid fa-chevron-right"></i>
-                        </div>
-                      </EmailRow>
-                    ))}
-                  </EngagementColumn>
-                )}
-
-                {seqPosClique.length > 0 && (
-                  <EngagementColumn>
-                    <h5 className="col-title text-orange"><i className="fa-solid fa-bolt"></i> Pós-Clique</h5>
-                    {seqPosClique.map(email => (
-                      <EmailRow key={email.id} onClick={() => abrirModalCliquesDetalhado(email)}>
-                        <div className="email-info">
-                          <span className="badge-step">Etapa {email.ordem_etapa}</span>
-                          <span className="email-name">{email.titulo_email}</span>
-                        </div>
-                        <div className="clicks-badge">
-                          {getCliquesDoEmail(email)} cliques <i className="fa-solid fa-chevron-right"></i>
-                        </div>
-                      </EmailRow>
-                    ))}
-                  </EngagementColumn>
-                )}
+                <EngagementColumn>
+                  <h5 className="col-title text-blue"><i className="fa-solid fa-envelope"></i> Sequência da campanha</h5>
+                  {emailsEngajamento.map((email) => (
+                    <EmailRow key={email.id} onClick={() => abrirModalCliquesDetalhado(email)}>
+                      <div className="email-info">
+                        <span className="badge-step">Etapa {email.ordem_etapa}</span>
+                        <span className="email-name">{email.titulo_email}</span>
+                      </div>
+                      <div className="clicks-badge">
+                        {getCliquesDoEmail(email)} cliques <i className="fa-solid fa-chevron-right"></i>
+                      </div>
+                    </EmailRow>
+                  ))}
+                </EngagementColumn>
               </EngagementListsContainer>
             </Panel>
           )}
@@ -592,36 +565,53 @@ export function Dashboard() {
                 <Table>
                   <thead className="sticky-head">
                     <tr>
-                      <th>Lead (Contato)</th>
-                      <th>Curso Base</th>
+                      <th>Lead / Inscritos</th>
+                      <th>Curso</th>
                       <th>Data</th>
+                      <th style={{ width: '100px' }}></th>
                     </tr>
                   </thead>
                   <tbody>
                     {listaInscritosFiltrada.length === 0 ? (
-                      <tr><td colSpan="3" className="text-center text-muted">Nenhuma inscrição encontrada para este período.</td></tr>
+                      <tr><td colSpan="4" className="text-center text-muted">Nenhuma inscrição encontrada para este período.</td></tr>
                     ) : (
-                      listaInscritosFiltrada.map(ins => {
-                        let emailDisplay = "Sem E-mail";
+                      listaInscritosFiltrada.map((ins) => {
+                        let emailDisplay = 'Sem E-mail';
                         const emails = parseJSONSeguro(ins.emails_json);
                         if (emails.length > 0) emailDisplay = emails[0];
-                        
-                        let fonesDisplay = "Sem Telefone";
-                        const fones = parseJSONSeguro(ins.telefones_json);
-                        if (fones.length > 0) fonesDisplay = fones[0];
+
+                        const listaInsc = parseJSONSeguro(ins.inscritos_json, []);
+                        const qtd = ins.qtd_inscritos || listaInsc.length || 0;
 
                         return (
                           <tr key={ins.oportunidade_id}>
                             <td data-label="Contato">
                               <strong>{ins.contato_nome}</strong>
-                              <div className="contact-subtext"><i className="fa-solid fa-envelope"></i> {emailDisplay}</div>
-                              <div className="contact-subtext"><i className="fa-solid fa-phone"></i> {fonesDisplay}</div>
+                              {ins.empresa_nome && (
+                                <div className="contact-subtext"><i className="fa-solid fa-building" /> {ins.empresa_nome}</div>
+                              )}
+                              <div className="contact-subtext"><i className="fa-solid fa-envelope" /> {emailDisplay}</div>
+                              {qtd > 0 && (
+                                <div className="contact-subtext" style={{ color: '#198754' }}>
+                                  <i className="fa-solid fa-user-group" /> {qtd} inscrito(s) cadastrado(s)
+                                </div>
+                              )}
+                              {listaInsc.slice(0, 3).map((p, i) => (
+                                <div key={i} className="contact-subtext" style={{ fontSize: '0.78rem' }}>
+                                  · {p.nome || '—'} {p.email ? `(${p.email})` : ''}
+                                </div>
+                              ))}
                             </td>
-                            <td data-label="Curso Base" className="text-blue font-bold">
+                            <td data-label="Curso" className="text-blue font-bold">
                               {ins.curso_nome}
                             </td>
                             <td data-label="Data" className="date-text">
                               {formatarData(ins.data_inscricao)}
+                            </td>
+                            <td data-label="Ações">
+                              <BtnInscritos type="button" onClick={() => setOportunidadeInscritosId(ins.oportunidade_id)}>
+                                <i className="fa-solid fa-pen" /> Ver / editar
+                              </BtnInscritos>
                             </td>
                           </tr>
                         );
@@ -633,6 +623,26 @@ export function Dashboard() {
             </Panel>
           </DashboardGrid>
         </>
+      )}
+
+      {oportunidadeInscritosId && (
+        <ModalOverlay onClick={() => setOportunidadeInscritosId(null)}>
+          <ModalContent $large onClick={(e) => e.stopPropagation()}>
+            <ModalHeader>
+              <h3 className="text-green"><i className="fa-solid fa-user-graduate" /> Inscritos da negociação</h3>
+              <CloseButton onClick={() => setOportunidadeInscritosId(null)}>&times;</CloseButton>
+            </ModalHeader>
+            <div style={{ padding: '20px' }}>
+              <InscritosOportunidadeEditor
+                oportunidadeId={oportunidadeInscritosId}
+                onSalvo={() => {
+                  const config = getHeaders();
+                  axios.get(`${API_URL}/dashboard/inscritos`, config).then((res) => setInscritos(res.data));
+                }}
+              />
+            </div>
+          </ModalContent>
+        </ModalOverlay>
       )}
 
       {/* MODAL DE CLIQUES DETALHADOS */}
@@ -900,4 +910,17 @@ const Table = styled.table`
 const Badge = styled.span`
   padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 700; white-space: nowrap; display: inline-block;
   &.badge-gray { background: #f1f5f9; color: #475569; } &.badge-blue { background: #e7f3ff; color: #007bff; } &.badge-primary { background: #eef4fa; color: #1F4E79; } &.badge-success { background: #f4fbf5; color: #28a745; }
+`;
+
+const BtnInscritos = styled.button`
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #86efac;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  &:hover { background: #dcfce7; }
 `;

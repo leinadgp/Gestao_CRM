@@ -5,6 +5,7 @@ import { Header } from '../componentes/Header.jsx';
 
 // --- UTILITÁRIO DE SEGURANÇA PARA JSON ---
 import { normalizarListaJson, cargosParaTexto } from '../utils/jsonHelpers.js';
+import { normalizarClassificacoesPorCargo, labelClassificacao } from '../utils/classificacaoEmpresa.js';
 import { BotaoExportar } from '../componentes/BotaoExportar.jsx';
 
 export function Empresas() {
@@ -42,6 +43,8 @@ export function Empresas() {
   const [horarioFuncionamento, setHorarioFuncionamento] = useState('');
   const [classificacao, setClassificacao] = useState('nao_assessorada');
   const [estrelas, setEstrelas] = useState(0);
+  const [listaCargos, setListaCargos] = useState([]);
+  const [classificacoesPorCargo, setClassificacoesPorCargo] = useState([]);
 
   // === CONTROLE DO SUB-MODAL DE CONTATO RÁPIDO ===
   const [mostrarModalContato, setMostrarModalContato] = useState(false);
@@ -68,8 +71,14 @@ export function Empresas() {
   const buscarEmpresas = useCallback(async () => {
     setCarregando(true);
     try {
-      const resposta = await axios.get(`${API_URL}/empresas`, getHeaders());
+      const [resposta, resCargos] = await Promise.all([
+        axios.get(`${API_URL}/empresas`, getHeaders()),
+        axios.get(`${API_URL}/cargos`, getHeaders()).catch(() => ({ data: [] })),
+      ]);
       setEmpresas(resposta.data);
+      if (resCargos.data?.length) {
+        setListaCargos(resCargos.data.map((c) => c.nome).sort((a, b) => a.localeCompare(b)));
+      }
     } catch (erro) {
       console.error('Erro ao buscar empresas:', erro);
     } finally {
@@ -180,11 +189,12 @@ export function Empresas() {
 
   // --- AÇÕES DOS MODAIS ---
   function abrirModalNovo() {
-    setEditandoId(null); 
-    setNome(''); setEstado(''); setCidade(''); setTelefones(''); setHorarioFuncionamento(''); 
-    setClassificacao('nao_assessorada'); setEstrelas(0); 
+    setEditandoId(null);
+    setNome(''); setEstado(''); setCidade(''); setTelefones(''); setHorarioFuncionamento('');
+    setClassificacao('nao_assessorada'); setEstrelas(0);
+    setClassificacoesPorCargo([]);
     setDetalhesEmpresa(null);
-    setModoEdicaoEmpresa(true); 
+    setModoEdicaoEmpresa(true);
     setMostrarModalEmpresa(true);
   }
 
@@ -197,6 +207,7 @@ export function Empresas() {
     setHorarioFuncionamento(emp.horario_funcionamento || '');
     setClassificacao(emp.classificacao || 'nao_assessorada');
     setEstrelas(emp.estrelas !== undefined ? emp.estrelas : 0);
+    setClassificacoesPorCargo(normalizarClassificacoesPorCargo(emp.classificacoes_por_cargo_json));
     
     setModoEdicaoEmpresa(false); 
     setMostrarModalEmpresa(true);
@@ -234,9 +245,37 @@ export function Empresas() {
   }
 
   // --- SALVAMENTO E EXCLUSÃO ---
+  function atualizarClassificacaoCargo(index, campo, valor) {
+    setClassificacoesPorCargo((prev) => prev.map((item, i) => (i === index ? { ...item, [campo]: valor } : item)));
+  }
+
+  function renderStarsRow(rating, onSet) {
+    const stars = [];
+    for (let i = 1; i <= 5; i++) {
+      stars.push(
+        <i
+          key={i}
+          className={`fa-solid fa-star ${i <= rating ? 'active' : ''}`}
+          onClick={() => onSet(rating === i ? 0 : i)}
+          style={{ cursor: 'pointer' }}
+        />
+      );
+    }
+    return <StarsContainer $readonly={false}>{stars}</StarsContainer>;
+  }
+
   async function salvarEmpresa(e) {
     e.preventDefault();
-    const dados = { nome, estado, cidade, telefones, horario_funcionamento: horarioFuncionamento, classificacao, estrelas };
+    const dados = {
+      nome,
+      estado,
+      cidade,
+      telefones,
+      horario_funcionamento: horarioFuncionamento,
+      classificacao,
+      estrelas,
+      classificacoes_por_cargo_json: classificacoesPorCargo.filter((c) => c.cargo),
+    };
     try {
       if (editandoId) {
         await axios.put(`${API_URL}/empresas/${editandoId}`, dados, getHeaders());
@@ -534,13 +573,24 @@ export function Empresas() {
                         <InfoCard $borderTop="#e2e8f0">
                           <h4><i className="fa-solid fa-circle-info text-blue"></i> Informações Cadastrais</h4>
                           <div className="info-line" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                            <strong>Status no Funil:</strong> 
-                            {detalhesEmpresa.empresa.classificacao === 'assessorada' ? <span className="text-yellow font-bold">👑 Assessorada VIP</span> : 
-                             detalhesEmpresa.empresa.classificacao === 'lead_quente' ? <span className="text-red font-bold">🔥 Lead Quente</span> : 
-                             <span className="text-muted font-bold">❄️ Frio Padrão</span>}
-                             
-                             <span style={{marginLeft: '10px'}}>{renderStars(detalhesEmpresa.empresa.estrelas || 0, true)}</span>
+                            <strong>Padrão geral:</strong>
+                            {detalhesEmpresa.empresa.classificacao === 'assessorada' ? <span className="text-yellow font-bold">👑 VIP</span> :
+                             detalhesEmpresa.empresa.classificacao === 'lead_quente' ? <span className="text-red font-bold">🔥 Quente</span> :
+                             <span className="text-muted font-bold">❄️ Frio</span>}
+                            <span style={{ marginLeft: '10px' }}>{renderStars(detalhesEmpresa.empresa.estrelas || 0, true)}</span>
                           </div>
+                          {normalizarClassificacoesPorCargo(detalhesEmpresa.empresa.classificacoes_por_cargo_json).length > 0 && (
+                            <div className="info-line" style={{ marginTop: '10px' }}>
+                              <strong>Por cargo:</strong>
+                              <ul style={{ margin: '8px 0 0', paddingLeft: '18px', fontSize: '0.9rem' }}>
+                                {normalizarClassificacoesPorCargo(detalhesEmpresa.empresa.classificacoes_por_cargo_json).map((row) => (
+                                  <li key={row.cargo}>
+                                    <strong>{row.cargo}</strong> — {labelClassificacao(row.classificacao)} · {row.estrelas}★
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
                           <div className="info-line"><strong>Telefone Geral:</strong> {detalhesEmpresa.empresa.telefones || '-'}</div>
                           <div className="info-line"><strong>Horário de Func.:</strong> {detalhesEmpresa.empresa.horario_funcionamento || '-'}</div>
                           <div className="info-line"><strong>Cadastrada em:</strong> {formatarData(detalhesEmpresa.empresa.criado_em)}</div>
@@ -631,35 +681,66 @@ export function Empresas() {
                       </FormGroup>
                     </FormGrid>
 
-                    {/* SESSÃO DE LEAD SCORING */}
-                    <SectionCard style={{marginTop: '20px'}}>
+                    <SectionCard style={{ marginTop: '20px' }}>
                       <label style={{ display: 'block', marginBottom: '15px', color: '#1F4E79', fontSize: '1rem', fontWeight: 'bold' }}>
-                        <i className="fa-solid fa-fire"></i> Qualificação e Temperatura (Lead Scoring)
+                        <i className="fa-solid fa-briefcase"></i> Classificação por cargo (prioridade no funil da campanha)
+                      </label>
+                      <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0 0 12px' }}>
+                        Ex.: assessorada/VIP só no cargo Controle Interno; outro cargo pode ser frio. O funil usa os cargos-alvo da campanha.
+                      </p>
+                      {classificacoesPorCargo.map((row, idx) => (
+                        <CargoClassRow key={idx}>
+                          <FormGroup>
+                            <label>Cargo</label>
+                            <Select value={row.cargo} onChange={(e) => atualizarClassificacaoCargo(idx, 'cargo', e.target.value)}>
+                              <option value="">— Selecione —</option>
+                              {listaCargos.map((c) => (
+                                <option key={c} value={c}>{c}</option>
+                              ))}
+                            </Select>
+                          </FormGroup>
+                          <FormGroup>
+                            <label>Classificação</label>
+                            <Select
+                              value={row.classificacao}
+                              onChange={(e) => atualizarClassificacaoCargo(idx, 'classificacao', e.target.value)}
+                              $status={row.classificacao}
+                            >
+                              <option value="nao_assessorada">❄️ Frio</option>
+                              <option value="lead_quente">🔥 Quente</option>
+                              <option value="assessorada">👑 VIP</option>
+                            </Select>
+                          </FormGroup>
+                          <FormGroup>
+                            <label>Estrelas</label>
+                            {renderStarsRow(row.estrelas, (v) => atualizarClassificacaoCargo(idx, 'estrelas', v))}
+                          </FormGroup>
+                          <IconBtn type="button" className="danger" onClick={() => setClassificacoesPorCargo((p) => p.filter((_, i) => i !== idx))}>
+                            <i className="fa-solid fa-trash" />
+                          </IconBtn>
+                        </CargoClassRow>
+                      ))}
+                      <AddCargoBtn type="button" onClick={() => setClassificacoesPorCargo((p) => [...p, { cargo: '', classificacao: 'nao_assessorada', estrelas: 0 }])}>
+                        <i className="fa-solid fa-plus" /> Adicionar cargo
+                      </AddCargoBtn>
+                    </SectionCard>
+
+                    <SectionCard style={{ marginTop: '20px' }}>
+                      <label style={{ display: 'block', marginBottom: '15px', color: '#64748b', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                        <i className="fa-solid fa-fire"></i> Padrão geral (quando o cargo não estiver configurado acima)
                       </label>
                       <FormGrid $columns="1fr 1fr">
                         <FormGroup>
-                          <label>Classificação no Funil</label>
-                          <Select 
-                            value={classificacao} 
-                            onChange={e => setClassificacao(e.target.value)} 
-                            $status={classificacao}
-                          >
-                            <option value="nao_assessorada">❄️ Frio (Não Assessorada)</option>
-                            <option value="lead_quente">🔥 Quente (Lead Quente)</option>
-                            <option value="assessorada">👑 VIP (Assessorada)</option>
+                          <label>Classificação geral</label>
+                          <Select value={classificacao} onChange={(e) => setClassificacao(e.target.value)} $status={classificacao}>
+                            <option value="nao_assessorada">❄️ Frio</option>
+                            <option value="lead_quente">🔥 Quente</option>
+                            <option value="assessorada">👑 VIP</option>
                           </Select>
-                          <small style={{color: '#64748b', fontSize: '0.75rem', marginTop: '4px'}}>
-                            * Quentes e Assessoradas recebem o broadcast VIP.
-                          </small>
                         </FormGroup>
-
                         <FormGroup>
-                          <label>Temperatura (Avaliação)</label>
-                          {/* O renderStars gerencia os cliques para poder zerar */}
+                          <label>Estrelas gerais</label>
                           {renderStars(estrelas, false)}
-                          <small style={{color: '#64748b', fontSize: '0.75rem', marginTop: '4px'}}>
-                            * Clique na estrela ativa para remover a pontuação (Zero).
-                          </small>
                         </FormGroup>
                       </FormGrid>
                     </SectionCard>
@@ -819,6 +900,38 @@ const StarsContainer = styled.div`
   ${props => !props.$readonly && `
     i:hover { transform: scale(1.2); color: #fbbf24; }
   `}
+`;
+
+const CargoClassRow = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr auto auto;
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed #e2e8f0;
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+`;
+const AddCargoBtn = styled.button`
+  margin-top: 8px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(0, 123, 255, 0.1);
+  color: #007bff;
+  font-weight: 700;
+  cursor: pointer;
+  &:hover { background: #007bff; color: #fff; }
+`;
+const IconBtn = styled.button`
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  cursor: pointer;
+  &.danger { color: #dc3545; border-color: #f8d7da; background: #fff5f5; }
 `;
 
 const SectionCard = styled.div`

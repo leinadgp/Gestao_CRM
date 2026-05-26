@@ -7,6 +7,8 @@ import { BotaoExportar } from '../componentes/BotaoExportar.jsx';
 import { listarMinhasTarefas, classificarTarefa } from '../utils/tarefasService.js';
 
 import { normalizarCargosJson, normalizarListaJson, cargosParaTexto } from '../utils/jsonHelpers.js';
+import { resolverScoringEmpresa, PESOS_CLASSIFICACAO } from '../utils/classificacaoEmpresa.js';
+import { InscritosOportunidadeEditor } from '../componentes/InscritosOportunidadeEditor.jsx';
 import {
   calcularTotaisPacote,
   inscritosUsamModulosPorPessoa,
@@ -332,23 +334,31 @@ export function Funil() {
       return tituloMatch || empresaMatch || contatoMatch;
     });
 
-    const opsEnriquecidas = opsFiltradasBusca.map(op => {
-      const emp = empresas.find(e => e.id === op.empresa_id) || {};
+    const opsEnriquecidas = opsFiltradasBusca.map((op) => {
+      const emp = empresas.find((e) => e.id === op.empresa_id) || {};
+      const cargosCont = normalizarCargosJson(op.contato_cargos_json, []);
+      const scoring = resolverScoringEmpresa(
+        {
+          classificacao: op.empresa_classificacao ?? emp.classificacao,
+          estrelas: op.empresa_estrelas ?? emp.estrelas,
+          classificacoes_por_cargo_json: op.empresa_classificacoes_por_cargo_json ?? emp.classificacoes_por_cargo_json,
+        },
+        cargosAlvoCampanha,
+        cargosCont
+      );
       return {
         ...op,
-        classificacao: emp.classificacao || 'nao_assessorada',
-        estrelas: emp.estrelas !== undefined ? emp.estrelas : 0 
+        classificacao: scoring.classificacao,
+        estrelas: scoring.estrelas,
+        cargoPrioridade: scoring.cargoRef,
       };
     });
 
     opsEnriquecidas.sort((a, b) => {
       if (b.estrelas !== a.estrelas) return b.estrelas - a.estrelas;
-      
-      const pesos = { assessorada: 3, lead_quente: 2, nao_assessorada: 1 };
-      const pesoA = pesos[a.classificacao] || 1;
-      const pesoB = pesos[b.classificacao] || 1;
+      const pesoA = PESOS_CLASSIFICACAO[a.classificacao] || 1;
+      const pesoB = PESOS_CLASSIFICACAO[b.classificacao] || 1;
       if (pesoA !== pesoB) return pesoB - pesoA;
-      
       return new Date(b.criado_em) - new Date(a.criado_em);
     });
 
@@ -357,7 +367,7 @@ export function Funil() {
       mapa[op.etapa_id].push(op);
     });
     return mapa;
-  }, [etapas, oportunidades, buscaGeral, filtroEstado, empresas]);
+  }, [etapas, oportunidades, buscaGeral, filtroEstado, empresas, cargosAlvoCampanha]);
 
   const empresasFiltradasParaSelect = useMemo(() => {
     const busca = buscaEmpresaNoModal.toLowerCase();
@@ -1435,12 +1445,21 @@ export function Funil() {
                 </SectionCard>
 
                 {editandoId && (
-                  <SectionCard $bgColor="#faf5ff" $borderColor="#d6bcfa">
-                    <TarefasOportunidade
-                      oportunidadeId={editandoId}
-                      oportunidadeTitulo={titulo}
-                    />
-                  </SectionCard>
+                  <>
+                    <SectionCard $bgColor="#faf5ff" $borderColor="#d6bcfa">
+                      <TarefasOportunidade
+                        oportunidadeId={editandoId}
+                        oportunidadeTitulo={titulo}
+                      />
+                    </SectionCard>
+                    <SectionCard $bgColor="#f0fdf4" $borderColor="#86efac">
+                      <InscritosOportunidadeEditor
+                        oportunidadeId={editandoId}
+                        titulo="Inscritos no curso (esta negociação)"
+                        compact
+                      />
+                    </SectionCard>
+                  </>
                 )}
               </FormGrid>
 

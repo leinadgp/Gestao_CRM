@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import styled, { keyframes, css } from 'styled-components';
+import { InscritosOportunidadeEditor } from './InscritosOportunidadeEditor.jsx';
 import {
   listarTarefasOportunidade,
   criarTarefa,
@@ -148,7 +149,13 @@ export function TarefasOportunidade({ oportunidadeId, oportunidadeTitulo }) {
               </TarefaItem>
             );
           })}
-          {concluidas.length > 0 && (
+          <InscritosOportunidadeEditor
+        oportunidadeId={oportunidadeId}
+        titulo="Inscritos — editar dados"
+        compact
+      />
+
+      {concluidas.length > 0 && (
             <>
               <Divider>Concluídas</Divider>
               {concluidas.map(t => (
