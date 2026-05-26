@@ -7,6 +7,7 @@ import { Header } from '../componentes/Header.jsx';
 import { normalizarListaJson, cargosParaTexto } from '../utils/jsonHelpers.js';
 import { normalizarClassificacoesPorCargo, labelClassificacao } from '../utils/classificacaoEmpresa.js';
 import { BotaoExportar } from '../componentes/BotaoExportar.jsx';
+import { normalizarTexto } from '../utils/normalizarTexto.js';
 
 export function Empresas() {
   const [empresas, setEmpresas] = useState([]);
@@ -330,10 +331,10 @@ export function Empresas() {
   // MEMOIZAÇÕES DE PERFORMANCE
   // ==========================================
   const empresasFiltradas = useMemo(() => {
-    const termo = buscaGeral.toLowerCase();
+    const termo = normalizarTexto(buscaGeral);
     return empresas.filter(emp => {
-      const matchBusca = (emp.nome || '').toLowerCase().includes(termo) ||
-                         (emp.cidade || '').toLowerCase().includes(termo);
+      const matchBusca = normalizarTexto(emp.nome || '').includes(termo) ||
+                         normalizarTexto(emp.cidade || '').includes(termo);
       const matchEstado = filtroEstado === '' || (emp.estado || '').toUpperCase() === filtroEstado.toUpperCase();
       
       const matchClass = filtroClassificacao === '' || (emp.classificacao || 'nao_assessorada') === filtroClassificacao;

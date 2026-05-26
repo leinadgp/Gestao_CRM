@@ -16,6 +16,7 @@ import {
   somarValorModulos,
 } from '../utils/calculoPacote.js';
 import { UFS_BRASIL } from '../constants/ufsBrasil.js';
+import { normalizarTexto } from '../utils/normalizarTexto.js';
 
 const inscritoVazio = (modulosPadrao = []) => ({
   nome: '', email: '', telefone: '', formacao: '', cargo: '', contato_id: null,
@@ -45,10 +46,12 @@ export function Funil() {
   const [filtroCampanha, setFiltroCampanha] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('');
   const [buscaGeral, setBuscaGeral] = useState(''); 
+  const [mostrarSugestoesBusca, setMostrarSugestoesBusca] = useState(false);
   const [dropdownCampanhaAberto, setDropdownCampanhaAberto] = useState(false);
   const [dropdownEstadoAberto, setDropdownEstadoAberto] = useState(false);
   const dropdownCampanhaRef = useRef(null);
   const dropdownEstadoRef = useRef(null);
+  const buscaWrapperRef = useRef(null);
 
   // --- DADOS DO USUÁRIO ---
   const perfilUsuario = localStorage.getItem('perfil');
@@ -209,6 +212,9 @@ export function Funil() {
       if (dropdownEstadoRef.current && !dropdownEstadoRef.current.contains(event.target)) {
         setDropdownEstadoAberto(false);
       }
+      if (buscaWrapperRef.current && !buscaWrapperRef.current.contains(event.target)) {
+        setMostrarSugestoesBusca(false);
+      }
     };
     document.addEventListener('mousedown', handleClickFora);
     return () => document.removeEventListener('mousedown', handleClickFora);
@@ -332,20 +338,16 @@ export function Funil() {
   const oportunidadesPorEtapa = useMemo(() => {
     const mapa = {};
     etapas.forEach(e => mapa[e.id] = []);
-    
-    const termoBusca = buscaGeral.toLowerCase();
-    const opsFiltradasBusca = oportunidades.filter(op => {
+
+    const opsFiltradasEstado = oportunidades.filter(op => {
       if (filtroEstado) {
         const estadoOp = (op.empresa_estado || empresas.find(e => e.id === op.empresa_id)?.estado || '').toUpperCase();
         if (estadoOp !== filtroEstado.toUpperCase()) return false;
       }
-      const tituloMatch = (op.titulo || '').toLowerCase().includes(termoBusca);
-      const empresaMatch = (op.empresa_nome || '').toLowerCase().includes(termoBusca);
-      const contatoMatch = (op.contato_nome || '').toLowerCase().includes(termoBusca);
-      return tituloMatch || empresaMatch || contatoMatch;
+      return true;
     });
 
-    const opsEnriquecidas = opsFiltradasBusca.map((op) => {
+    const opsEnriquecidas = opsFiltradasEstado.map((op) => {
       const emp = empresas.find((e) => e.id === op.empresa_id) || {};
       const cargosCont = normalizarCargosJson(op.contato_cargos_json, []);
       const scoring = resolverScoringEmpresa(
@@ -378,7 +380,40 @@ export function Funil() {
       mapa[op.etapa_id].push(op);
     });
     return mapa;
-  }, [etapas, oportunidades, buscaGeral, filtroEstado, empresas, cargosAlvoCampanha]);
+  }, [etapas, oportunidades, filtroEstado, empresas, cargosAlvoCampanha]);
+
+  const sugestoesBusca = useMemo(() => {
+    const termo = normalizarTexto(buscaGeral);
+    if (!termo || termo.length < 2) return [];
+
+    const base = (oportunidades || []).filter((op) => {
+      if (filtroEstado) {
+        const estadoOp = (op.empresa_estado || empresas.find(e => e.id === op.empresa_id)?.estado || '').toUpperCase();
+        if (estadoOp !== filtroEstado.toUpperCase()) return false;
+      }
+      return true;
+    });
+
+    const scored = base
+      .map((op) => {
+        const titulo = normalizarTexto(op.titulo || '');
+        const empresa = normalizarTexto(op.empresa_nome || '');
+        const contato = normalizarTexto(op.contato_nome || '');
+        const hit = titulo.includes(termo) || empresa.includes(termo) || contato.includes(termo);
+        if (!hit) return null;
+        const starts = empresa.startsWith(termo) || titulo.startsWith(termo) || contato.startsWith(termo);
+        return { op, score: starts ? 2 : 1 };
+      })
+      .filter(Boolean)
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return new Date(b.op.criado_em) - new Date(a.op.criado_em);
+      })
+      .slice(0, 12)
+      .map((x) => x.op);
+
+    return scored;
+  }, [buscaGeral, oportunidades, filtroEstado, empresas]);
 
   const empresasFiltradasParaSelect = useMemo(() => {
     const busca = buscaEmpresaNoModal.toLowerCase();
@@ -874,14 +909,39 @@ export function Funil() {
         </div>
 
         <ActionsContainer>
-          <SearchInputWrapper>
+          <SearchInputWrapper ref={buscaWrapperRef}>
             <i className="fa-solid fa-search"></i>
             <input 
               type="text" 
               placeholder="Buscar cliente, prefeitura..." 
               value={buscaGeral} 
-              onChange={e => setBuscaGeral(e.target.value)} 
+              onFocus={() => setMostrarSugestoesBusca(true)}
+              onChange={e => { setBuscaGeral(e.target.value); setMostrarSugestoesBusca(true); }} 
             />
+            {mostrarSugestoesBusca && sugestoesBusca.length > 0 && (
+              <SugestoesBusca>
+                {sugestoesBusca.map((op) => (
+                  <SugestaoItem
+                    key={op.id}
+                    type="button"
+                    onClick={() => {
+                      setMostrarSugestoesBusca(false);
+                      setBuscaGeral('');
+                      abrirModalEdicao(op);
+                    }}
+                  >
+                    <div className="linha1">
+                      <strong>{op.empresa_nome || op.titulo || 'Negociação'}</strong>
+                      {op.empresa_estado && <span className="uf">{String(op.empresa_estado).toUpperCase()}</span>}
+                    </div>
+                    <div className="linha2">
+                      <span className="sub">{op.titulo || '—'}</span>
+                      {op.contato_nome && <span className="sub"> · {op.contato_nome}</span>}
+                    </div>
+                  </SugestaoItem>
+                ))}
+              </SugestoesBusca>
+            )}
           </SearchInputWrapper>
 
           <FilterPillWrapper ref={dropdownCampanhaRef}>
@@ -1007,9 +1067,6 @@ export function Funil() {
                 </ColumnHeader>
                 
                 <CardsContainer>
-                  {cardsDestaColuna.length === 0 && buscaGeral && (
-                     <div style={{textAlign: 'center', color: '#a0aec0', fontSize: '0.85rem', marginTop: '20px'}}>Nenhum resultado</div>
-                  )}
                   {cardsDestaColuna.map(op => {
                     let statusConfig = { border: '#cbd5e1', bg: '#ffffff' };
                     if (op.status === 'naofunciona') statusConfig = { border: '#f1c40f', bg: '#fff9db' };
@@ -1826,6 +1883,50 @@ const SearchInputWrapper = styled.div`
     padding: 10px 15px 10px 38px; border-radius: 10px; border: 1px solid #cbd5e1; font-size: 0.95rem; outline: none; width: 280px; transition: 0.2s; box-sizing: border-box;
     &:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.1); }
     @media (max-width: 768px) { width: 100%; }
+  }
+`;
+
+const SugestoesBusca = styled.div`
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 18px 50px -18px rgba(0,0,0,0.25);
+  z-index: 2000;
+  overflow: hidden;
+  max-height: 340px;
+  overflow-y: auto;
+  &::-webkit-scrollbar { width: 6px; }
+  &::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 6px; }
+`;
+
+const SugestaoItem = styled.button`
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: #fff;
+  padding: 12px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid #f1f5f9;
+  &:last-child { border-bottom: none; }
+  &:hover { background: #f8fafc; }
+
+  .linha1 {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    strong { color: #0f172a; font-size: 0.92rem; }
+    .uf { font-size: 0.72rem; font-weight: 800; color: #166534; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 2px 8px; border-radius: 999px; flex-shrink: 0; }
+  }
+  .linha2 {
+    margin-top: 4px;
+    font-size: 0.8rem;
+    color: #64748b;
+    .sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-block; max-width: 100%; }
   }
 `;
 
