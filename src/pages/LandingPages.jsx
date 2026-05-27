@@ -37,6 +37,119 @@ export function LandingPages() {
   const editorRef = useRef(null);
   const [htmlInicial, setHtmlInicial] = useState('');
   const [cssInicial, setCssInicial] = useState('');
+  const [extraHtmlHead, setExtraHtmlHead] = useState('');
+  const [importErro, setImportErro] = useState('');
+  const fileInputRef = useRef(null);
+
+  const getMarkupFormularioCRM = () => `
+    <section id="inscricao" style="padding: 80px 20px; background: #0B192C; border-radius: 24px; color: #f8fafc; font-family: Arial, sans-serif;">
+      <div style="max-width: 1100px; margin: 0 auto;">
+        <div style="margin-bottom: 40px; text-align: center;">
+          <p style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2em; color: #F59E0B; margin: 0 0 10px;">Capacitação aplicada</p>
+          <h2 style="font-size: 2.5rem; font-weight: 800; line-height: 1.1; margin: 0; color: #ffffff;">Garanta sua vaga na turma</h2>
+          <p style="margin: 16px auto 0; max-width: 720px; color: #cbd5e1; font-size: 1rem; line-height: 1.8;">Preencha seus dados abaixo e receba a inscrição diretamente no CRM.</p>
+        </div>
+
+        <div style="background: rgba(15, 25, 48, 0.92); border: 1px solid rgba(245, 158, 11, 0.18); border-radius: 24px; padding: 36px; box-shadow: 0 30px 60px -30px rgba(0,0,0,0.45);">
+          <form id="formInscricaoCRM" style="display: grid; gap: 18px;">
+            <div style="display: grid; gap: 18px; grid-template-columns: repeat(2, minmax(0, 1fr));">
+              <div>
+                <label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Formação*</label>
+                <input type="text" id="formacao" name="formacao" required placeholder="Sua formação acadêmica" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" />
+              </div>
+              <div>
+                <label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Cargo*</label>
+                <input type="text" id="cargo" name="cargo" required placeholder="Seu cargo atual" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" />
+              </div>
+            </div>
+            <div>
+              <label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Município*</label>
+              <input type="text" id="cidade" name="cidade" required placeholder="Cidade / Estado" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" />
+            </div>
+            <div>
+              <label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Email*</label>
+              <input type="email" id="email" name="email" required placeholder="seu@email.com" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" />
+            </div>
+            <div>
+              <label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">WhatsApp*</label>
+              <input type="tel" id="whatsapp" name="whatsapp" required placeholder="(00) 00000-0000" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" />
+            </div>
+            <div id="containerModulos" style="border-radius: 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(248,250,252,0.12); padding: 18px; color: #f8fafc;"> 
+              <p style="margin: 0; font-size: 0.95rem; color: #f8fafc; opacity: 0.9;">(Os módulos definidos na campanha aparecerão automaticamente aqui quando a página estiver publicada)</p>
+            </div>
+            <div>
+              <label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">4 + 3 = ? *</label>
+              <input type="number" id="captchaCalc" name="captchaCalc" required placeholder="Soma matemática" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" />
+            </div>
+            <button type="submit" id="btnSubmit" style="width:100%; padding: 16px 20px; border-radius: 14px; border: none; font-weight: 700; font-size: 1rem; color: #0B192C; background: linear-gradient(90deg, #FCD34D 0%, #F59E0B 100%); cursor:pointer;">Enviar meus dados</button>
+            <div id="feedback" style="display:none; padding: 14px 16px; border-radius: 12px; text-align:center; font-weight:700;"></div>
+            <p style="margin: 0; font-size: 0.82rem; color: rgba(248,250,252,0.72); text-align:center;">Seus dados estão protegidos conosco.</p>
+          </form>
+        </div>
+      </div>
+    </section>
+  `;
+
+  const injectExtraHeadIntoCanvas = (editor, extraHead) => {
+    if (!extraHead || !editor) return;
+    try {
+      const canvasDoc = editor.Canvas.getDocument();
+      const wrapper = document.createElement('div');
+      wrapper.innerHTML = extraHead;
+      Array.from(wrapper.children).forEach((node) => {
+        const tagName = node.tagName.toLowerCase();
+        if (tagName === 'script') {
+          const script = canvasDoc.createElement('script');
+          Array.from(node.attributes).forEach(attr => script.setAttribute(attr.name, attr.value));
+          script.textContent = node.textContent;
+          canvasDoc.body.appendChild(script);
+        } else if (tagName === 'link') {
+          const link = canvasDoc.createElement('link');
+          Array.from(node.attributes).forEach(attr => link.setAttribute(attr.name, attr.value));
+          canvasDoc.head.appendChild(link);
+        } else if (tagName === 'style') {
+          const style = canvasDoc.createElement('style');
+          Array.from(node.attributes).forEach(attr => style.setAttribute(attr.name, attr.value));
+          style.textContent = node.textContent;
+          canvasDoc.head.appendChild(style);
+        } else {
+          const imported = canvasDoc.createElement(tagName);
+          Array.from(node.attributes).forEach(attr => imported.setAttribute(attr.name, attr.value));
+          imported.innerHTML = node.innerHTML;
+          canvasDoc.head.appendChild(imported);
+        }
+      });
+    } catch (err) {
+      console.warn('Não foi possível injetar ativos no preview do GrapesJS.', err);
+    }
+  };
+
+  const extractHtmlAssets = (htmlSource) => {
+    if (!htmlSource) return { bodyHtml: '', extraMarkup: '', plainCssText: '' };
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlSource, 'text/html');
+
+    const allStyleTags = Array.from(doc.querySelectorAll('head style, body style'));
+    const tailwindStyleMarkup = allStyleTags
+      .filter((tag) => (tag.getAttribute('type') || '').toLowerCase() === 'text/tailwindcss')
+      .map((tag) => tag.outerHTML)
+      .join('\n');
+    const plainCssText = allStyleTags
+      .filter((tag) => (tag.getAttribute('type') || '').toLowerCase() !== 'text/tailwindcss')
+      .map((tag) => tag.textContent || '')
+      .join('\n');
+
+    allStyleTags.forEach((tag) => tag.remove());
+
+    const assetTags = Array.from(doc.querySelectorAll('head link[rel="stylesheet"], head script[src], head script:not([src]), body script[src], body script:not([src])'))
+      .map((tag) => tag.outerHTML)
+      .join('\n');
+
+    Array.from(doc.querySelectorAll('head link[rel="stylesheet"], head script[src], head script:not([src]), body script[src], body script:not([src])')).forEach((tag) => tag.remove());
+
+    const extraMarkup = `${tailwindStyleMarkup}${tailwindStyleMarkup && assetTags ? '\n' : ''}${assetTags}`;
+    return { bodyHtml: doc.body.innerHTML, extraMarkup, plainCssText };
+  };
 
   const getHeaders = useCallback(() => {
     const token = localStorage.getItem('token');
@@ -78,9 +191,9 @@ export function LandingPages() {
         pluginsOpts: {
           'gjs-preset-webpage': {}
         },
-        // 👇 ADICIONE ESTE BLOCO PARA O TAILWIND FUNCIONAR DENTRO DO EDITOR
+        // 👇 ADICIONE ESTE BLOCO PARA O TAILWIND E ÍCONES DO LOVABLE FUNCIONAREM DENTRO DO EDITOR
         canvas: {
-          scripts: ['https://cdn.tailwindcss.com']
+          scripts: ['https://cdn.tailwindcss.com', 'https://unpkg.com/lucide@latest']
         },
         i18n: {
           locale: 'pt',
@@ -101,6 +214,9 @@ export function LandingPages() {
         editor.Panels.removeButton('views', 'open-tm');
         editor.Panels.removeButton('views', 'open-layers');
         editor.Panels.getButton('views', 'open-blocks').set('active', true);
+        if (extraHtmlHead) {
+          injectExtraHeadIntoCanvas(editor, extraHtmlHead);
+        }
       });
 
       // Abertura automática da galeria ao clicar numa imagem
@@ -394,6 +510,9 @@ export function LandingPages() {
       if (htmlInicial) {
         editor.setComponents(htmlInicial);
         if (cssInicial) editor.setStyle(cssInicial);
+        if (extraHtmlHead) {
+          setTimeout(() => injectExtraHeadIntoCanvas(editor, extraHtmlHead), 200);
+        }
       } else {
         editor.setComponents('<div style="padding: 50px; text-align: center; font-family: sans-serif; color: #999;"><h1>Seu Editor de Páginas Profissional</h1><p>Arraste a "Capa Autoridade" e o "Form. Inscrição" do menu lateral.</p></div>');
       }
@@ -614,11 +733,79 @@ export function LandingPages() {
   }
 
   function abrirModalNovo() {
-    setEditandoId(null); setNome(''); setSlug(''); setStatusLP('rascunho'); setCampanhaId(''); setHtmlInicial(''); setCssInicial(''); setMostrarModal(true);
+    setEditandoId(null); setNome(''); setSlug(''); setStatusLP('rascunho'); setCampanhaId(''); setHtmlInicial(''); setCssInicial(''); setExtraHtmlHead(''); setImportErro(''); setMostrarModal(true);
+  }
+
+  function selecionarArquivoLovable() {
+    fileInputRef.current?.click();
+  }
+
+  function handleImportarHtmlLovable(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!/\.(html|htm)$/i.test(file.name)) {
+      setImportErro('Selecione um arquivo HTML válido do Lovable.');
+      event.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target.result;
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(text, 'text/html');
+        const { bodyHtml, extraMarkup, plainCssText } = extractHtmlAssets(text);
+
+        const pageTitle = doc.querySelector('title')?.textContent || file.name.replace(/\.[^.]+$/, '');
+        const pageSlug = pageTitle.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+
+        const hasCrmForm = !!doc.querySelector('#formInscricaoCRM, #formInscricaoLP, form[id*="Inscricao" i], form[class*="Inscricao" i]');
+        const hasCrmPlaceholder = !!doc.querySelector('#CRM_FORM_INJECT_ZONE');
+        if (!hasCrmForm && !hasCrmPlaceholder) {
+          const wrapper = doc.createElement('div');
+          wrapper.innerHTML = getMarkupFormularioCRM();
+          doc.body.appendChild(wrapper);
+        } else if (hasCrmPlaceholder) {
+          const placeholder = doc.querySelector('#CRM_FORM_INJECT_ZONE');
+          placeholder.outerHTML = getMarkupFormularioCRM();
+        }
+
+        setHtmlInicial(doc.body.innerHTML);
+        setCssInicial(plainCssText);
+        setExtraHtmlHead(extraMarkup);
+        setNome(pageTitle);
+        setSlug(pageSlug);
+        setStatusLP('rascunho');
+        setCampanhaId('');
+        setEditandoId(null);
+        setImportErro('');
+        setMostrarModal(true);
+      } catch (err) {
+        console.error('Importação de HTML falhou', err);
+        setImportErro('Não foi possível importar o arquivo HTML.');
+      }
+    };
+    reader.onerror = () => {
+      setImportErro('Erro ao ler o arquivo. Tente novamente.');
+    };
+    reader.readAsText(file);
+    event.target.value = '';
   }
 
   function abrirModalEdicao(lp) {
-    setEditandoId(lp.id); setNome(lp.nome); setSlug(lp.slug); setStatusLP(lp.status || 'rascunho'); setCampanhaId(lp.campanha_id || ''); setHtmlInicial(lp.html_content || ''); setCssInicial(lp.css_content || ''); setMostrarModal(true);
+    setEditandoId(lp.id);
+    setNome(lp.nome);
+    setSlug(lp.slug);
+    setStatusLP(lp.status || 'rascunho');
+    setCampanhaId(lp.campanha_id || '');
+
+    const parsed = extractHtmlAssets(lp.html_content || '');
+    setHtmlInicial(parsed.bodyHtml || '');
+    setCssInicial(`${parsed.plainCssText}${parsed.plainCssText && lp.css_content ? '\n' : ''}${lp.css_content || ''}`);
+    setExtraHtmlHead(parsed.extraMarkup);
+    setImportErro('');
+    setMostrarModal(true);
   }
 
   async function salvarPagina(e) {
@@ -628,8 +815,9 @@ export function LandingPages() {
     const slugFormatado = slug.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
     const htmlGerado = editorRef.current ? editorRef.current.getHtml() : htmlInicial;
     const cssGerado = editorRef.current ? editorRef.current.getCss() : cssInicial;
+    const htmlComExtras = `${htmlGerado}${extraHtmlHead || ''}`;
 
-    const payload = { nome, slug: slugFormatado, status: statusLP, campanha_id: campanhaId || null, html_content: htmlGerado, css_content: cssGerado };
+    const payload = { nome, slug: slugFormatado, status: statusLP, campanha_id: campanhaId || null, html_content: htmlComExtras, css_content: cssGerado };
 
     try {
       if (editandoId) {
@@ -648,6 +836,46 @@ export function LandingPages() {
     try { await axios.delete(`${API_URL}/landing-pages/${id}`, getHeaders()); setMostrarModal(false); carregarDados(); } catch (err) { alert("Erro ao excluir página."); }
   }
 
+  async function duplicarPagina(pagina) {
+    if (!window.confirm(`Duplicar a página "${pagina.nome}" como um novo rascunho?`)) return;
+
+    const novoNome = `${pagina.nome} (Cópia)`;
+    const baseSlug = pagina.slug ? `${pagina.slug}-copy` : `${novoNome.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}-copy`;
+    let slugCandidate = baseSlug;
+    let tentativa = 1;
+
+    while (tentativa <= 10) {
+      try {
+        const payload = {
+          nome: novoNome,
+          slug: slugCandidate,
+          status: 'rascunho',
+          campanha_id: pagina.campanha_id || null,
+          html_content: pagina.html_content || '',
+          css_content: pagina.css_content || ''
+        };
+
+        const res = await axios.post(`${API_URL}/landing-pages`, payload, getHeaders());
+        alert('Página duplicada com sucesso! Abrindo cópia para edição.');
+        carregarDados();
+        abrirModalEdicao(res.data);
+        return;
+      } catch (err) {
+        const erro = err.response?.data?.erro || err.message;
+        if (/SLUG já está sendo usado/i.test(erro) || err.response?.status === 400) {
+          tentativa += 1;
+          slugCandidate = `${baseSlug}-${tentativa}`;
+          continue;
+        }
+        console.error('Erro ao duplicar página', err);
+        alert(erro || 'Erro ao duplicar a página.');
+        return;
+      }
+    }
+
+    alert('Não foi possível criar a cópia porque o slug já existia em várias tentativas.');
+  }
+
   const paginasFiltradas = useMemo(() => {
     const termo = buscaGeral.toLowerCase();
     return paginas.filter(p => p.nome.toLowerCase().includes(termo) || p.slug.toLowerCase().includes(termo));
@@ -662,14 +890,24 @@ export function LandingPages() {
             <Subtitle>Crie, edite e publique páginas de venda integradas ao funil.</Subtitle>
           </div>
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-            <SecondaryButton onClick={abrirModalNovo} className="btn-mobile">
+            <input type="file" ref={fileInputRef} accept=".html,.htm" style={{ display: 'none' }} onChange={handleImportarHtmlLovable} />
+          <SecondaryButton onClick={abrirModalNovo} className="btn-mobile">
               <i className="fa-solid fa-code"></i> Criar do Zero
+            </SecondaryButton>
+            <SecondaryButton onClick={selecionarArquivoLovable} className="btn-mobile">
+              <i className="fa-solid fa-file-import"></i> Importar HTML
             </SecondaryButton>
             <AiButton onClick={() => setMostrarWizardIA(true)} className="btn-mobile">
               <i className="fa-solid fa-wand-magic-sparkles"></i> Gerar com IA
             </AiButton>
           </div>
         </TopSection>
+
+        {importErro && (
+          <div style={{ marginBottom: '16px', color: '#c53030', fontWeight: 600 }}>
+            {importErro}
+          </div>
+        )}
 
         <FilterBar>
           <SearchWrapper>
@@ -686,7 +924,7 @@ export function LandingPages() {
                   <th>Página / Configuração</th>
                   <th>Campanha Vinculada</th>
                   <th className="text-center">Status</th>
-                  <th className="text-center" style={{width: '120px'}}>Link Ao Vivo</th>
+                  <th className="text-center" style={{width: '180px'}}>Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -713,10 +951,13 @@ export function LandingPages() {
                           {p.status === 'publicada' ? '🌐 Publicada' : '📝 Rascunho'}
                         </StatusBadge>
                       </td>
-                      <td data-label="Link Ao Vivo" className="text-center actions-cell">
+                      <td data-label="Ações" className="text-center actions-cell">
                         <LinkButton href={`${API_URL}/lp/${p.slug}`} target="_blank" rel="noreferrer" title="Abrir página online" onClick={(e) => e.stopPropagation()}>
                           <i className="fa-solid fa-arrow-up-right-from-square"></i> Visitar
                         </LinkButton>
+                        <ActionButton type="button" onClick={(e) => { e.stopPropagation(); duplicarPagina(p); }} title="Duplicar página">
+                          <i className="fa-solid fa-copy"></i> Copiar
+                        </ActionButton>
                       </td>
                     </ClickableRow>
                   ))
@@ -959,6 +1200,11 @@ const StatusBadge = styled.span`
 const LinkButton = styled.a`
   background: #f1f5f9; color: #007bff; border: none; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; transition: 0.2s;
   &:hover { background: #e7f3ff; }
+`;
+
+const ActionButton = styled.button`
+  background: #e2e8f0; color: #475569; border: none; padding: 6px 10px; border-radius: 6px; font-size: 0.82rem; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; cursor: pointer; transition: 0.2s;
+  &:hover { background: #cbd5e1; }
 `;
 
 // --- BOTÕES ---

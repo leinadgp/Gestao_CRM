@@ -19,6 +19,7 @@ import { Dashboard } from './pages/Dashboard.jsx';
 import { LandingPages } from './pages/LandingPages.jsx';
 import { Configuracoes } from './pages/Configuracoes.jsx';
 import { AlertasTarefas } from './componentes/AlertasTarefas.jsx';
+import { NotificacaoLanding } from './componentes/NotificacaoLanding.jsx';
 
 // === ESTILOS GLOBAIS E FIX PARA IPHONE ===
 const GlobalStyle = createGlobalStyle`
@@ -68,6 +69,7 @@ function RotaProtegida({ children, titulo, modulo }) {
         <MainContent>
           {children}
           <AlertasTarefas />
+          <NotificacaoLanding />
         </MainContent>
       </ContentWrapper>
     </AppLayout>
