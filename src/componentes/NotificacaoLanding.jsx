@@ -3,6 +3,9 @@ import styled, { keyframes } from 'styled-components';
 import { io } from 'socket.io-client';
 
 const API_URL = import.meta.env?.VITE_API_URL || 'https://server-js-gestao.onrender.com';
+const SOUND_URL = import.meta.env?.VITE_NOTIFICATION_SOUND_URL || '';
+const SOUND_PRESET = import.meta.env?.VITE_NOTIFICATION_SOUND || 'ding';
+const DEFAULT_SOUND_URL = new URL('../assets/notificacao.mp3', import.meta.url).href;
 
 export function NotificacaoLanding() {
   const [notificacao, setNotificacao] = useState(null);
@@ -29,20 +32,40 @@ export function NotificacaoLanding() {
   }, []);
 
   function tocarSom() {
+    const soundUrl = SOUND_URL || DEFAULT_SOUND_URL;
+    if (soundUrl) {
+      const audio = new Audio(soundUrl);
+      audio.volume = 0.25;
+      audio.play().catch((err) => console.warn('Falha ao reproduzir som de notificação:', err));
+      return;
+    }
+
     try {
       const AudioContext = window.AudioContext || window.webkitAudioContext;
       const ctx = new AudioContext();
       const oscillator = ctx.createOscillator();
       const gain = ctx.createGain();
 
-      oscillator.type = 'triangle';
-      oscillator.frequency.value = 620;
+      const soundStyles = {
+        ding: { type: 'triangle', sequence: [620], duration: 0.18 },
+        pop: { type: 'square', sequence: [780, 520], duration: 0.14 },
+        alert: { type: 'sine', sequence: [520, 660, 780], duration: 0.28 },
+      };
+      const style = soundStyles[SOUND_PRESET] || soundStyles.ding;
+
+      oscillator.type = style.type;
       gain.gain.value = 0.12;
       oscillator.connect(gain);
       gain.connect(ctx.destination);
-      oscillator.start();
-      oscillator.stop(ctx.currentTime + 0.16);
 
+      let time = ctx.currentTime;
+      style.sequence.forEach((freq) => {
+        oscillator.frequency.setValueAtTime(freq, time);
+        time += style.duration / style.sequence.length;
+      });
+
+      oscillator.start();
+      oscillator.stop(ctx.currentTime + style.duration);
       oscillator.onended = () => ctx.close();
     } catch (error) {
       console.warn('Não foi possível tocar som de notificação.', error);
