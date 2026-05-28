@@ -98,7 +98,7 @@ export function Disparos() {
   const carregarCampanhas = useCallback(async () => {
     try {
       const res = await axios.get(`${API_URL}/campanhas`, getHeaders());
-      setCampanhas(res.data);
+      setCampanhas((res.data || []).filter((camp) => camp.arquivada !== true));
     } catch (erro) { console.error('Erro campanhas', erro); }
   }, [API_URL, getHeaders]);
 

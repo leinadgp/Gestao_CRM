@@ -5,7 +5,7 @@ import { Header } from '../componentes/Header.jsx';
 
 // --- UTILITÁRIO DE SEGURANÇA PARA JSON ---
 import { normalizarListaJson, cargosParaTexto } from '../utils/jsonHelpers.js';
-import { normalizarClassificacoesPorCargo, labelClassificacao } from '../utils/classificacaoEmpresa.js';
+import { normalizarClassificacoesPorCargo, labelClassificacao, resolverScoringEmpresa } from '../utils/classificacaoEmpresa.js';
 import { BotaoExportar } from '../componentes/BotaoExportar.jsx';
 import { normalizarTexto } from '../utils/normalizarTexto.js';
 
@@ -140,6 +140,11 @@ export function Empresas() {
   function formatarTelefoneParaLink(telefoneStr) {
     if (!telefoneStr) return '';
     return telefoneStr.replace(/[^0-9]/g, '');
+  }
+
+  function buscarCargoAssessorado(empresa) {
+    const scoring = resolverScoringEmpresa(empresa, [], []);
+    return scoring.classificacao === 'assessorada' ? scoring.cargoRef : null;
   }
 
   const renderStars = (rating, readonly = true) => {
@@ -482,7 +487,11 @@ export function Empresas() {
                       </td>
                       <td data-label="Classificação" onClick={() => abrirModalDetalhes(empresa)}>
                         <StatusBadge className={empresa.classificacao || 'nao_assessorada'}>
-                          {empresa.classificacao === 'assessorada' ? '👑 Assessorada' : empresa.classificacao === 'lead_quente' ? '🔥 Lead Quente' : '❄️ Frio'}
+                          {empresa.classificacao === 'assessorada'
+                            ? `👑 ${buscarCargoAssessorado(empresa) || 'Assessorada'}`
+                            : empresa.classificacao === 'lead_quente'
+                              ? '🔥 Lead Quente'
+                              : '❄️ Frio'}
                         </StatusBadge>
                       </td>
                       <td data-label="Temperatura" onClick={() => abrirModalDetalhes(empresa)}>

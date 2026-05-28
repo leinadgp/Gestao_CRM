@@ -32,31 +32,43 @@ export function normalizarClassificacoesPorCargo(dado) {
 export function resolverScoringEmpresa(empresa = {}, cargosAlvoCampanha = [], cargosContato = []) {
   const porCargo = normalizarClassificacoesPorCargo(empresa.classificacoes_por_cargo_json);
   const alvos = (cargosAlvoCampanha || []).map((c) => String(c).trim()).filter(Boolean);
-  const cargosLead = (cargosContato || []).map((c) => String(c).trim()).filter(Boolean);
 
-  const buscar = (nomeCargo) => porCargo.find((p) => p.cargo === nomeCargo);
+  const normalizeCargo = (value) => String(value || '').trim().toLowerCase();
+  const compararPrioridade = (a, b) => {
+    const pa = PESOS_CLASSIFICACAO[a.classificacao] || 1;
+    const pb = PESOS_CLASSIFICACAO[b.classificacao] || 1;
+    if (pb !== pa) return pb - pa;
+    return (b.estrelas || 0) - (a.estrelas || 0);
+  };
+
+  const cargoMap = porCargo.reduce((map, item) => {
+    const key = normalizeCargo(item.cargo);
+    if (!key) return map;
+    if (!map[key] || compararPrioridade(item, map[key]) > 0) {
+      map[key] = item;
+    }
+    return map;
+  }, {});
 
   if (alvos.length) {
-    for (const cargo of alvos) {
-      const match = buscar(cargo);
-      if (match) {
-        return { classificacao: match.classificacao, estrelas: match.estrelas, cargoRef: cargo };
-      }
+    const candidatos = alvos
+      .map(normalizeCargo)
+      .filter(Boolean)
+      .map((key) => cargoMap[key])
+      .filter(Boolean);
+
+    if (candidatos.length) {
+      candidatos.sort(compararPrioridade);
+      return {
+        classificacao: candidatos[0].classificacao,
+        estrelas: candidatos[0].estrelas,
+        cargoRef: candidatos[0].cargo,
+      };
     }
-    for (const cargo of cargosLead) {
-      if (!alvos.includes(cargo)) continue;
-      const match = buscar(cargo);
-      if (match) {
-        return { classificacao: match.classificacao, estrelas: match.estrelas, cargoRef: cargo };
-      }
-    }
-  } else if (porCargo.length) {
-    const melhor = [...porCargo].sort((a, b) => {
-      const pa = PESOS_CLASSIFICACAO[a.classificacao] || 1;
-      const pb = PESOS_CLASSIFICACAO[b.classificacao] || 1;
-      if (pb !== pa) return pb - pa;
-      return (b.estrelas || 0) - (a.estrelas || 0);
-    })[0];
+  }
+
+  if (porCargo.length) {
+    const melhor = [...porCargo].sort(compararPrioridade)[0];
     if (melhor) {
       return { classificacao: melhor.classificacao, estrelas: melhor.estrelas, cargoRef: melhor.cargo };
     }

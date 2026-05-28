@@ -7,7 +7,7 @@ import { BotaoExportar } from '../componentes/BotaoExportar.jsx';
 import { listarMinhasTarefas, classificarTarefa } from '../utils/tarefasService.js';
 
 import { normalizarCargosJson, normalizarListaJson, cargosParaTexto } from '../utils/jsonHelpers.js';
-import { resolverScoringEmpresa, PESOS_CLASSIFICACAO } from '../utils/classificacaoEmpresa.js';
+import { normalizarClassificacoesPorCargo, resolverScoringEmpresa, PESOS_CLASSIFICACAO } from '../utils/classificacaoEmpresa.js';
 import { InscritosOportunidadeEditor } from '../componentes/InscritosOportunidadeEditor.jsx';
 import {
   calcularTotaisPacote,
@@ -27,6 +27,12 @@ const parseJSONSeguro = (dado, fallback = []) => {
   if (dado == null || dado === '') return fallback;
   if (typeof dado !== 'string') return dado;
   try { return JSON.parse(dado); } catch { return fallback; }
+};
+
+const extrairCargosAssessorados = (dado) => {
+  return normalizarClassificacoesPorCargo(dado)
+    .filter((item) => item.classificacao === 'assessorada')
+    .map((item) => item.cargo);
 };
 
 export function Funil() {
@@ -116,6 +122,7 @@ export function Funil() {
   const [empresaTelefones, setEmpresaTelefones] = useState('');
   const [empresaClassificacao, setEmpresaClassificacao] = useState('nao_assessorada');
   const [empresaEstrelas, setEmpresaEstrelas] = useState(0);
+  const [empresaAssessoradasCargos, setEmpresaAssessoradasCargos] = useState([]);
 
   // --- AUTOCOMPLETES ---
   const [buscaEmpresaNoModal, setBuscaEmpresaNoModal] = useState('');
@@ -283,12 +290,14 @@ export function Funil() {
       }
       
       const todasCampanhas = resCamp.data;
-      setCampanhas(todasCampanhas); 
+      const campanhasAtivas = todasCampanhas.filter((camp) => camp.arquivada !== true);
+      setCampanhas(campanhasAtivas);
       setEquipe(resEquipe.data);
 
-      if (todasCampanhas.length > 0) {
-        const primeiraAtiva = todasCampanhas.find(c => c.arquivada !== true);
-        setFiltroCampanha(primeiraAtiva ? String(primeiraAtiva.id) : String(todasCampanhas[0].id));
+      if (campanhasAtivas.length > 0) {
+        setFiltroCampanha(String(campanhasAtivas[0].id));
+      } else {
+        setFiltroCampanha('');
       }
     } catch (erro) { 
       console.error('Erro ao buscar dados base do Funil:', erro); 
@@ -350,11 +359,13 @@ export function Funil() {
     const opsEnriquecidas = opsFiltradasEstado.map((op) => {
       const emp = empresas.find((e) => e.id === op.empresa_id) || {};
       const cargosCont = normalizarCargosJson(op.contato_cargos_json, []);
+      const classificacoesJson = op.empresa_classificacoes_por_cargo_json ?? emp.classificacoes_por_cargo_json;
+      const assessoradasCargos = extrairCargosAssessorados(classificacoesJson);
       const scoring = resolverScoringEmpresa(
         {
           classificacao: op.empresa_classificacao ?? emp.classificacao,
           estrelas: op.empresa_estrelas ?? emp.estrelas,
-          classificacoes_por_cargo_json: op.empresa_classificacoes_por_cargo_json ?? emp.classificacoes_por_cargo_json,
+          classificacoes_por_cargo_json: classificacoesJson,
         },
         cargosAlvoCampanha,
         cargosCont
@@ -364,6 +375,7 @@ export function Funil() {
         classificacao: scoring.classificacao,
         estrelas: scoring.estrelas,
         cargoPrioridade: scoring.cargoRef,
+        assessoradasCargos,
       };
     });
 
@@ -644,13 +656,25 @@ export function Funil() {
     const emp = empresas.find(e => e.id === parseInt(empresaId));
     if (!emp) return;
 
+    const classificacoesJson = emp.classificacoes_por_cargo_json;
+    const scoring = resolverScoringEmpresa(
+      {
+        classificacao: emp.classificacao,
+        estrelas: emp.estrelas,
+        classificacoes_por_cargo_json: classificacoesJson,
+      },
+      [],
+      []
+    );
+
     setEmpresaSelecionada(emp);
     setEmpresaNome(emp.nome || '');
     setEmpresaEstado(emp.estado || '');
     setEmpresaCidade(emp.cidade || '');
     setEmpresaTelefones(emp.telefones || '');
-    setEmpresaClassificacao(emp.classificacao || 'nao_assessorada');
-    setEmpresaEstrelas(emp.estrelas !== undefined ? emp.estrelas : 0);
+    setEmpresaClassificacao(scoring.classificacao || 'nao_assessorada');
+    setEmpresaEstrelas(scoring.estrelas !== undefined ? scoring.estrelas : 0);
+    setEmpresaAssessoradasCargos(extrairCargosAssessorados(classificacoesJson));
 
     setEditandoEmpresaRapida(false);
     setMostrarModalEmpresa(true);
@@ -1113,9 +1137,14 @@ export function Funil() {
                             {(op.qtd_inscritos > 0) && (
                               <span style={{ fontSize: '0.72rem', color: '#198754' }}>· {op.qtd_inscritos} insc.</span>
                             )}
-                            {op.classificacao === 'assessorada' && <span className="badge-vip" title="Prefeitura Assessorada VIP"><i className="fa-solid fa-crown"></i> VIP</span>}
-                            {op.classificacao === 'lead_quente' && <span className="badge-hot" title="Lead Quente e Engajado"><i className="fa-solid fa-fire"></i> Hot</span>}
-                            {(op.classificacao === 'nao_assessorada' || !op.classificacao) && <span className="badge-cold" title="Lead Frio"><i className="fa-solid fa-snowflake text-blue"></i> Frio</span>}
+                            {op.classificacao === 'assessorada' && (
+                              <span className="badge-vip" title={op.assessoradasCargos?.length ? `Assessorada em ${op.assessoradasCargos.join(', ')}` : 'Prefeitura Assessorada VIP'}>
+                                <i className="fa-solid fa-crown"></i>
+                                {op.assessoradasCargos?.length ? op.assessoradasCargos.join(', ') : 'Assessorada'}
+                              </span>
+                            )}
+                            {op.classificacao === 'lead_quente' && <span className="badge-hot" title="Lead Quente e Engajado"><i className="fa-solid fa-fire"></i></span>}
+                            {(op.classificacao === 'nao_assessorada' || !op.classificacao) && <span className="badge-cold" title="Lead Frio"><i className="fa-solid fa-snowflake text-blue"></i></span>}
                           </div>
                         )}
                         
@@ -1143,7 +1172,7 @@ export function Funil() {
 
       {/* MODAL DE EDIÇÃO DE OPORTUNIDADE E SUB-MODAIS */}
       {mostrarModal && (
-        <ModalOverlay onClick={() => setMostrarModal(false)}>
+        <ModalOverlay>
           <ModalContent onClick={e => e.stopPropagation()}>
             <ModalHeader>
               <div>
@@ -1578,7 +1607,7 @@ export function Funil() {
 
       {/* SUB-MODAL DE CONTATO RÁPIDO */}
       {mostrarModalContato && (
-        <ModalOverlay onClick={fecharModalContato} style={{zIndex: 9999}}>
+        <ModalOverlay style={{zIndex: 9999}}>
           <ModalContent $small onClick={e => e.stopPropagation()}>
             <ModalHeader $bg="#1F4E79" $color="#fff">
               <div>
@@ -1693,7 +1722,7 @@ export function Funil() {
 
       {/* MODAL NOVO CARGO (igual Contatos) */}
       {mostrarModalNovoCargo && (
-        <ModalOverlay style={{ zIndex: 10001 }} onClick={cancelarNovoCargoFunil}>
+        <ModalOverlay style={{ zIndex: 10001 }}>
           <ModalContent $small onClick={(e) => e.stopPropagation()}>
             <ModalHeader $bg="#f8f9fa" $color="#333">
               <h3 style={{ fontSize: '1.1rem', margin: 0 }}>
@@ -1726,7 +1755,7 @@ export function Funil() {
 
       {/* SUB-MODAL DE EMPRESA RÁPIDO */}
       {mostrarModalEmpresa && empresaSelecionada && (
-        <ModalOverlay onClick={() => setMostrarModalEmpresa(false)} style={{zIndex: 9999}}>
+        <ModalOverlay style={{zIndex: 9999}}>
           <ModalContent $small onClick={e => e.stopPropagation()}>
             <ModalHeader $bg="#1F4E79" $color="#fff">
               <div>
@@ -1764,9 +1793,15 @@ export function Funil() {
                     <InfoBox>
                       <label><i className="fa-solid fa-fire"></i> CLASSIFICAÇÃO</label>
                       <div style={{marginTop: '5px'}}>
-                        {empresaClassificacao === 'assessorada' ? <span style={{color: '#856404', fontWeight: 'bold'}}>👑 VIP (Assessorada)</span> : 
-                         empresaClassificacao === 'lead_quente' ? <span style={{color: '#dc3545', fontWeight: 'bold'}}>🔥 Lead Quente</span> : 
-                         <span style={{color: '#475569', fontWeight: 'bold'}}>❄️ Frio Padrão</span>}
+                        {empresaClassificacao === 'assessorada' ? (
+                          <span style={{color: '#856404', fontWeight: 'bold'}}>
+                            👑 Assessorada{empresaAssessoradasCargos.length ? ` (${empresaAssessoradasCargos.join(', ')})` : ''}
+                          </span>
+                        ) : empresaClassificacao === 'lead_quente' ? (
+                          <span style={{color: '#dc3545', fontWeight: 'bold'}}>🔥 Quente </span>
+                        ) : (
+                          <span style={{color: '#475569', fontWeight: 'bold'}}>❄️ Frio</span>
+                        )}
                       </div>
                     </InfoBox>
                     <InfoBox>
@@ -1821,9 +1856,9 @@ export function Funil() {
                             onChange={e => setEmpresaClassificacao(e.target.value)} 
                             $status={empresaClassificacao}
                           >
-                            <option value="nao_assessorada">❄️ Frio (Padrão)</option>
+                            <option value="nao_assessorada">❄️ Frio</option>
                             <option value="lead_quente">🔥 Quente</option>
-                            <option value="assessorada">👑 VIP (Assessorada)</option>
+                            <option value="assessorada">👑 Assessorada</option>
                           </Select>
                         </FormGroup>
                         <FormGroup>
@@ -2034,10 +2069,12 @@ const KanbanCard = styled.div`
 
   .card-value { color: ${props => props.$status.border}; font-weight: 800; font-size: 1.1rem; }
   
-  .card-company { font-size: 0.8rem; color: #6c757d; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;}
-  .badge-vip { background: #fff3cd; color: #856404; font-size: 0.65rem; padding: 2px 6px; border-radius: 10px; border: 1px solid #ffeeba;}
-  .badge-hot { background: #fdf2f2; color: #dc3545; font-size: 0.65rem; padding: 2px 6px; border-radius: 10px; border: 1px solid #f8d7da;}
-  .badge-cold { background: #f0f7ff; color: #1F4E79; font-size: 0.65rem; padding: 2px 6px; border-radius: 10px; border: 1px solid #b8daff;}
+  .card-company { font-size: 0.8rem; color: #6c757d; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .card-company span { display: inline-flex; align-items: center; gap: 4px; }
+  .badge-vip, .badge-hot, .badge-cold { display: inline-flex; align-items: center; gap: 4px; font-size: 0.65rem; padding: 2px 6px; border-radius: 10px; }
+  .badge-vip { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+  .badge-hot { background: #fdf2f2; color: #dc3545; border: 1px solid #f8d7da; }
+  .badge-cold { background: #f0f7ff; color: #1F4E79; border: 1px solid #b8daff; }
 `;
 
 const CardModules = styled.div`
