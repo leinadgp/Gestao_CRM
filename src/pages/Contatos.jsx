@@ -267,6 +267,19 @@ export function Contatos() {
     }
   };
 
+  const deletarContato = async (id) => {
+    if (!id) return;
+    if (!window.confirm('A exclusão é permanente e não poderá ser desfeita. Deseja continuar?')) return;
+    try {
+      await axios.delete(`${API_URL}/contatos/${id}`, getHeaders());
+      // Recarrega lista e fecha modal
+      await carregarDados();
+      setMostrarModalContato(false);
+    } catch (error) {
+      alert(error.response?.data?.erro || 'Falha ao excluir contato.');
+    }
+  };
+
   const abrirDetalhesOp = async (op) => {
     setOpSelecionada(op); setMostrarModalOp(true); setCarregandoNotas(true);
     try {
@@ -373,7 +386,10 @@ export function Contatos() {
                     return (
                       <ClickableRow key={c.id} onClick={() => abrirModalContatoDetalhes(c)} style={{ animationDelay: `${index * 0.05}s` }}>
                         <td data-label="Contato (Lead)">
-                          <div className="contact-name">{c.nome}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                            <div className="contact-name">{c.nome}</div>
+                            
+                          </div>
                           <div className="contact-meta">
                             <span className={hasEmailError ? 'text-red font-bold' : ''}>
                               <i className={hasEmailError ? "fa-solid fa-triangle-exclamation" : "fa-regular fa-envelope"}> </i> 
@@ -402,6 +418,9 @@ export function Contatos() {
                               <Badge key={idx} className="badge-gray">{cg}</Badge>
                             )) : '-'}
                           </div>
+                        </td>
+                        <td className="actions" data-label="Ações">
+                            <IconButton onClick={(e) => { e.stopPropagation(); deletarContato(c.id); }} className="danger" title="Excluir contato"><i className="fa-solid fa-trash"></i></IconButton>
                         </td>
                       </ClickableRow>
                     );
@@ -432,6 +451,7 @@ export function Contatos() {
                   {!modoEdicao && <div className="subtitle">{cargosParaTexto(cargos) || '—'} <br/> {buscaEmpresaNoForm}</div>}
                 </div>
                 <div className="actions">
+                   <DangerButton type="button" onClick={() => deletarContato(editandoId)}>Excluir Contato</DangerButton>
                   {!modoEdicao && <WarningButton onClick={() => setModoEdicao(true)}><i className="fa-solid fa-pen"></i> <span className="hide-mobile">Editar</span></WarningButton>}
                   <CloseButton $color={modoEdicao ? '#fff' : '#a0aec0'} onClick={() => setMostrarModalContato(false)}>&times;</CloseButton>
                 </div>
@@ -553,6 +573,10 @@ export function Contatos() {
                         <p style={{ margin: '8px 0 0 0' }}>{naoQuerLigacao ? 'Não deseja receber ligações' : 'Pode receber chamadas'}</p>
                       </InfoCard>
                     </ProfileGrid>
+
+                    <ModalFooter $justify="flex-end">
+                     
+                    </ModalFooter>
 
                     <FunnelHistoryCard>
                       {carregandoHistorico ? "Carregando..." : dadosHistorico?.oportunidades.map(op => (

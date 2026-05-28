@@ -466,9 +466,16 @@ export function Funil() {
     return contatos.filter((c) => Number(c.empresa_id) === Number(empresaId));
   }, [contatos, empresaId]);
 
+  const contatosDisponiveisDaEmpresa = useMemo(() => {
+    return contatosDaEmpresa.filter((contato) => {
+      if (!contato?.congelado_ate) return true;
+      return new Date(contato.congelado_ate) <= new Date();
+    });
+  }, [contatosDaEmpresa]);
+
   useEffect(() => {
     if (!empresaId || editandoId) return;
-    const idsAuto = contatosDaEmpresa
+    const idsAuto = contatosDisponiveisDaEmpresa
       .filter((c) => {
         if (!cargosAlvoCampanha.length) return true;
         const cargosCont = normalizarCargosJson(c.cargos_json, []);
@@ -477,7 +484,7 @@ export function Funil() {
       .map((c) => c.id);
     setContatosVinculadosIds(idsAuto);
     if (idsAuto.length && !contatoId) setContatoId(String(idsAuto[0]));
-  }, [empresaId, contatosDaEmpresa, cargosAlvoCampanha, editandoId]);
+  }, [empresaId, contatosDisponiveisDaEmpresa, cargosAlvoCampanha, editandoId]);
 
   const renderStarsLocal = (rating, readonly = true) => {
     const stars = [];
@@ -688,6 +695,24 @@ export function Funil() {
       }
     } catch (error) {
       alert(error.response?.data?.erro || 'Erro ao salvar contato.');
+    }
+  }
+
+  async function deletarContato(id) {
+    if (!id) return;
+    if (!window.confirm('A exclusão é permanente e não poderá ser desfeita. Deseja continuar?')) return;
+    try {
+      await axios.delete(`${API_URL}/contatos/${id}`, getHeaders());
+      setContatos((prev) => prev.filter((c) => Number(c.id) !== Number(id)));
+      setContatosVinculadosIds((prev) => prev.filter((cid) => Number(cid) !== Number(id)));
+      if (String(contatoId) === String(id)) setContatoId('');
+      if (contatoSelecionado && Number(contatoSelecionado.id) === Number(id)) {
+        fecharModalContato();
+      }
+      // Recarrega funil para refletir remoção em oportunidades vinculadas
+      if (filtroCampanha) carregarFunilDaCampanha(filtroCampanha);
+    } catch (error) {
+      alert(error.response?.data?.erro || 'Falha ao excluir contato.');
     }
   }
 
@@ -1365,11 +1390,20 @@ export function Funil() {
                       <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>Selecione a prefeitura para listar os contatos.</p>
                     ) : (
                       <>
-                        {contatosDaEmpresa.length === 0 ? (
-                          <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 8px' }}>Nenhum contato nesta prefeitura — cadastre abaixo.</p>
+                        {contatosDisponiveisDaEmpresa.length === 0 ? (
+                          <>
+                            <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 8px' }}>
+                              Nenhum contato disponível nesta prefeitura para vincular — todos os contatos estão congelados ou indisponíveis.
+                            </p>
+                            {contatosDaEmpresa.length > 0 && (
+                              <p style={{ fontSize: '0.8rem', color: '#475569', margin: '0' }}>
+                                {contatosDaEmpresa.length} contato(s) cadastrado(s), mas nenhum está disponível no momento.
+                              </p>
+                            )}
+                          </>
                         ) : (
                           <ContatosNegociacaoLista>
-                            {contatosDaEmpresa.map((cont) => {
+                            {contatosDisponiveisDaEmpresa.map((cont) => {
                               const vinculado = contatosVinculadosIds.includes(cont.id);
                               const isPrincipal = Number(contatoId) === cont.id;
                               const contatoNumeroPrincipal = cont.whatsapp_pessoal
@@ -1415,6 +1449,14 @@ export function Funil() {
                                       onClick={() => abrirEditarContato(cont)}
                                     >
                                       <i className="fa-solid fa-pen" />
+                                    </IconButton>
+                                    <IconButton
+                                      type="button"
+                                      className="danger"
+                                      title="Excluir contato"
+                                      onClick={() => deletarContato(cont.id)}
+                                    >
+                                      <i className="fa-solid fa-trash" />
                                     </IconButton>
                                     {vinculado && !isPrincipal && (
                                       <IconButton
@@ -1825,6 +1867,9 @@ export function Funil() {
                     <WarningButton type="button" onClick={() => { setModoContatoModal('editar'); setEditandoContatoRapido(true); }}>
                       <i className="fa-solid fa-pen"></i> Editar
                     </WarningButton>
+                    <DangerButton type="button" onClick={() => deletarContato(contatoSelecionado?.id)}>
+                      <i className="fa-solid fa-trash"></i> Excluir contato
+                    </DangerButton>
                   </ModalFooter>
                 </>
               ) : (
