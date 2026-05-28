@@ -51,6 +51,8 @@ export function Contatos() {
   const [emails, setEmails] = useState(['']);
   const [telefones, setTelefones] = useState(['']);
   const [emailsComErroForm, setEmailsComErroForm] = useState([]);
+  const [naoQuerEmail, setNaoQuerEmail] = useState(false);
+  const [naoQuerLigacao, setNaoQuerLigacao] = useState(false);
   
   // Autocomplete de Prefeituras
   const [buscaEmpresaNoForm, setBuscaEmpresaNoForm] = useState('');
@@ -177,6 +179,7 @@ export function Contatos() {
   const abrirModalNovo = () => {
     setEditandoId(null); setNome(''); setCargos(['']); setEmpresaId(''); setBuscaEmpresaNoForm('');
     setEmails(['']); setTelefones(['']); setEmailsComErroForm([]);
+    setNaoQuerEmail(false); setNaoQuerLigacao(false);
     setModoEdicao(true); setMostrarModalContato(true);
   };
 
@@ -189,6 +192,8 @@ export function Contatos() {
     setEmails(listaEmails.length ? listaEmails : ['']);
     const listaTels = normalizarListaJson(c.telefones_json, []);
     setTelefones(listaTels.length ? listaTels : ['']);
+    setNaoQuerEmail(!!c.nao_quero_email);
+    setNaoQuerLigacao(!!c.nao_quero_ligacao);
     setEmailsComErroForm(c.emails_com_erro || []);
     setModoEdicao(false); setMostrarModalContato(true); setCarregandoHistorico(true);
 
@@ -243,7 +248,9 @@ export function Contatos() {
       empresa_id: empresaId || null,
       cargos_json: cargos.filter(c => c.trim() !== ''),
       emails_json: emails.filter(em => em.trim() !== ''),
-      telefones_json: telefones.filter(t => t.trim() !== '')
+      telefones_json: telefones.filter(t => t.trim() !== ''),
+      nao_quero_email: naoQuerEmail,
+      nao_quero_ligacao: naoQuerLigacao,
     };
     try {
       if (editandoId) {
@@ -377,6 +384,12 @@ export function Contatos() {
                               <i className="fa-brands fa-whatsapp"> </i> {tels[0] || ' Sem Telefone'}
                               {tels.length > 1 && <span className="more-badge">+{tels.length - 1}</span>}
                             </span>
+                            {(c.nao_quero_email || c.nao_quero_ligacao) && (
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px' }}>
+                                {c.nao_quero_email && <Badge className="badge-warning">Não quer e-mail</Badge>}
+                                {c.nao_quero_ligacao && <Badge className="badge-danger">Não quer ligação</Badge>}
+                              </div>
+                            )}
                           </div>
                         </td>
                         <td data-label="Vínculo">
@@ -491,6 +504,20 @@ export function Contatos() {
                           </DynamicInputRow>
                         ))}
                       </DynamicInputBox>
+
+                      <FormGroup className="span-2">
+                        <label>Preferências de contato</label>
+                        <div style={{ display: 'grid', gap: '10px' }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                            <input type="checkbox" checked={naoQuerEmail} onChange={e => setNaoQuerEmail(e.target.checked)} />
+                            Não quer receber e-mails
+                          </label>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                            <input type="checkbox" checked={naoQuerLigacao} onChange={e => setNaoQuerLigacao(e.target.checked)} />
+                            Não quer receber ligações
+                          </label>
+                        </div>
+                      </FormGroup>
                     </FormGrid>
 
                     <ModalFooter $justify="flex-end">
@@ -520,10 +547,14 @@ export function Contatos() {
                           {telefones.map((tel, i) => <span key={i} className="phone-pill">{tel}</span>)}
                         </div>
                       </InfoCard>
+                      <InfoCard $borderTop="#f59e0b">
+                        <h4><i className="fa-solid fa-ban"></i> Preferências</h4>
+                        <p style={{ margin: 0 }}>{naoQuerEmail ? 'Não deseja receber e-mails' : 'Pode receber e-mails'}</p>
+                        <p style={{ margin: '8px 0 0 0' }}>{naoQuerLigacao ? 'Não deseja receber ligações' : 'Pode receber chamadas'}</p>
+                      </InfoCard>
                     </ProfileGrid>
 
                     <FunnelHistoryCard>
-                      <h4>Histórico de Negociações</h4>
                       {carregandoHistorico ? "Carregando..." : dadosHistorico?.oportunidades.map(op => (
                         <HistoryRow key={op.id} $borderColor="#007bff" onClick={() => abrirDetalhesOp(op)}>
                           <div className="info-main">
@@ -688,7 +719,7 @@ const ClickableRow = styled.tr`
   span { display: flex; align-items: center; gap: 5px;}
 `;
 
-const Badge = styled.span` padding: 4px 10px; border-radius: 10px; font-size: 0.75rem; font-weight: 700; &.badge-gray { background: #f1f5f9; color: #475569; } `;
+const Badge = styled.span` padding: 4px 10px; border-radius: 10px; font-size: 0.75rem; font-weight: 700; &.badge-gray { background: #f1f5f9; color: #475569; } &.badge-warning { background: #fff4e5; color: #b45309; } &.badge-danger { background: #ffe4e6; color: #991b1b; } `;
 
 const PaginationContainer = styled.div` padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; background: #fbfbfc; border-top: 1px solid #edf2f9; @media (max-width: 600px){ flex-direction: column; gap: 15px; } `;
 const PageButton = styled.button` padding: 8px 15px; cursor: pointer; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; color: #475569; font-weight: 600; transition: 0.2s; &:hover:not(:disabled) { background: #eef4fa; border-color: #007bff; color: #007bff; } &:disabled{ opacity: 0.4; cursor: not-allowed; } `;

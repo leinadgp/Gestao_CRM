@@ -109,8 +109,12 @@ export function Funil() {
   const [novoCargoNome, setNovoCargoNome] = useState('');
   const [cargoIndexAtual, setCargoIndexAtual] = useState(null);
   const [cargoAnteriorParaCancelamento, setCargoAnteriorParaCancelamento] = useState('');
-  const [contatoEmails, setContatoEmails] = useState('');
-  const [contatoTelefones, setContatoTelefones] = useState('');
+  const [contatoEmails, setContatoEmails] = useState(['']);
+  const [contatoTelefones, setContatoTelefones] = useState(['']);
+  const [contatoWhatsapp, setContatoWhatsapp] = useState('');
+  const [contatoNaoQuerEmail, setContatoNaoQuerEmail] = useState(false);
+  const [contatoNaoQuerLigacao, setContatoNaoQuerLigacao] = useState(false);
+  const [contatoCongeladoAte, setContatoCongeladoAte] = useState('');
 
   // --- ESTADOS DO SUB-MODAL DE EMPRESA ---
   const [mostrarModalEmpresa, setMostrarModalEmpresa] = useState(false);
@@ -524,9 +528,13 @@ export function Funil() {
     const listaCargosContato = normalizarCargosJson(contato?.cargos_json, []);
     setContatoCargos(listaCargosContato.length ? listaCargosContato : ['']);
     const emails = normalizarListaJson(contato?.emails_json, []);
-    setContatoEmails(emails.join(', '));
+    setContatoEmails(emails.length ? emails : ['']);
     const tels = normalizarListaJson(contato?.telefones_json, []);
-    setContatoTelefones(tels.join(', '));
+    setContatoTelefones(tels.length ? tels : ['']);
+    setContatoWhatsapp(contato?.whatsapp_pessoal || '');
+    setContatoNaoQuerEmail(!!contato?.nao_quero_email);
+    setContatoNaoQuerLigacao(!!contato?.nao_quero_ligacao);
+    setContatoCongeladoAte(contato?.congelado_ate ? String(contato.congelado_ate).slice(0,10) : '');
   }
 
   function abrirEditarContato(contato) {
@@ -544,8 +552,12 @@ export function Funil() {
     setContatoSelecionado(null);
     setContatoNome('');
     setContatoCargos(['']);
-    setContatoEmails('');
-    setContatoTelefones('');
+    setContatoEmails(['']);
+    setContatoTelefones(['']);
+    setContatoWhatsapp('');
+    setContatoNaoQuerEmail(false);
+    setContatoNaoQuerLigacao(false);
+    setContatoCongeladoAte('');
     setModoContatoModal('novo');
     setEditandoContatoRapido(true);
     setMostrarModalContato(true);
@@ -573,6 +585,30 @@ export function Funil() {
     if (acao === 'remove') setContatoCargos((prev) => prev.filter((_, i) => i !== index));
     if (acao === 'update') {
       setContatoCargos((prev) => {
+        const nova = [...prev];
+        nova[index] = valor;
+        return nova;
+      });
+    }
+  }
+
+  function gerenciarContatoEmails(acao, index, valor) {
+    if (acao === 'add') setContatoEmails((prev) => [...prev, '']);
+    if (acao === 'remove') setContatoEmails((prev) => prev.filter((_, i) => i !== index));
+    if (acao === 'update') {
+      setContatoEmails((prev) => {
+        const nova = [...prev];
+        nova[index] = valor;
+        return nova;
+      });
+    }
+  }
+
+  function gerenciarContatoTelefones(acao, index, valor) {
+    if (acao === 'add') setContatoTelefones((prev) => [...prev, '']);
+    if (acao === 'remove') setContatoTelefones((prev) => prev.filter((_, i) => i !== index));
+    if (acao === 'update') {
+      setContatoTelefones((prev) => {
         const nova = [...prev];
         nova[index] = valor;
         return nova;
@@ -616,8 +652,8 @@ export function Funil() {
 
   async function salvarContatoRapido(e) {
     e.preventDefault();
-    const emailsArr = contatoEmails.split(',').map(m => m.trim()).filter(m => m);
-    const telsArr = contatoTelefones.split(',').map(t => t.trim()).filter(t => t);
+    const emailsArr = contatoEmails.map((e) => String(e).trim()).filter(Boolean);
+    const telsArr = contatoTelefones.map((t) => String(t).trim()).filter(Boolean);
     const cargosArr = contatoCargos.map((c) => c.trim()).filter(Boolean);
     const payload = {
       nome: contatoNome,
@@ -625,6 +661,10 @@ export function Funil() {
       emails_json: emailsArr,
       telefones_json: telsArr,
       empresa_id: empresaId || contatoSelecionado?.empresa_id,
+      whatsapp_pessoal: contatoWhatsapp,
+      nao_quero_email: contatoNaoQuerEmail,
+      nao_quero_ligacao: contatoNaoQuerLigacao,
+      congelado_ate: contatoCongeladoAte || null,
     };
 
     try {
@@ -923,6 +963,54 @@ export function Funil() {
 
   const formatarMoeda = (v) => Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const formatarTelefoneParaLink = (t) => t ? t.replace(/[^0-9]/g, '') : '';
+  const formatarTelefoneParaExibir = (t) => {
+    const digits = t ? String(t).replace(/[^0-9]/g, '') : '';
+    if (digits.length === 11) return `(${digits.slice(0,2)}) ${digits.slice(2,7)}-${digits.slice(7)}`;
+    if (digits.length === 10) return `(${digits.slice(0,2)}) ${digits.slice(2,6)}-${digits.slice(6)}`;
+    if (digits.length > 0) return t.trim();
+    return '-';
+  };
+  const formatarData = (value) => {
+    if (!value) return '-';
+    const data = new Date(value);
+    if (Number.isNaN(data.getTime())) return value;
+    return data.toLocaleDateString('pt-BR');
+  };
+  const calcularDiasRestantes = (value) => {
+    if (!value) return null;
+    const hoje = new Date();
+    hoje.setHours(0,0,0,0);
+    const data = new Date(value);
+    data.setHours(0,0,0,0);
+    const diff = Math.ceil((data - hoje) / 86400000);
+    return Number.isFinite(diff) ? diff : null;
+  };
+  const adicionarDias = (dias) => {
+    const data = new Date();
+    data.setHours(0,0,0,0);
+    data.setDate(data.getDate() + dias);
+    return data.toISOString().slice(0,10);
+  };
+  const estaCongelado = (value) => {
+    if (!value) return false;
+    return new Date(value) > new Date();
+  };
+  const contatosComDescongelamentoProximo = useMemo(() => {
+    const hoje = new Date();
+    const limite = new Date();
+    limite.setDate(limite.getDate() + 7);
+    return contatos
+      .filter((contato) => contato.congelado_ate && contato.congelado_ate !== null)
+      .filter((contato) => {
+        const data = new Date(contato.congelado_ate);
+        return data > hoje && data <= limite && (contato.nao_quero_email || contato.nao_quero_ligacao);
+      })
+      .sort((a, b) => new Date(a.congelado_ate) - new Date(b.congelado_ate));
+  }, [contatos]);
+
+  const telefonePrincipalPrefeitura = empresaTelefones
+    ? empresaTelefones.split(',').map((tel) => tel.trim()).find(Boolean)
+    : '';
 
   return (
     <PageContainer>
@@ -1055,6 +1143,18 @@ export function Funil() {
             </PrimaryButton>
           )}
         </ActionsContainer>
+        {contatosComDescongelamentoProximo.length > 0 && (
+          <AlertBanner>
+            <strong>Alerta de descongelamento:</strong> {contatosComDescongelamentoProximo.length} cliente(s) marcaram que não querem e-mail ou ligação e estão prestes a sair do congelamento.
+            <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {contatosComDescongelamentoProximo.slice(0, 3).map((contato) => (
+                <span key={contato.id} style={{ background: '#f8fafc', color: '#0f172a', padding: '6px 10px', borderRadius: '999px', border: '1px solid #cbd5e1' }}>
+                  {contato.nome} &mdash; {formatarData(contato.congelado_ate)}
+                </span>
+              ))}
+            </div>
+          </AlertBanner>
+        )}
       </TopSection>
 
       {!filtroCampanha ? (
@@ -1217,7 +1317,7 @@ export function Funil() {
                 <FormGrid $columns="1fr 1fr">
                   <FormGroup>
                     <label><i className="fa-solid fa-building text-blue"></i> Empresa/Prefeitura Alvo</label>
-                    <div style={{ display: 'flex', gap: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                       <AutocompleteContainer ref={dropdownEmpresaRef} style={{ flex: 1 }}>
                         <Input 
                           type="text" 
@@ -1243,10 +1343,18 @@ export function Funil() {
                         )}
                       </AutocompleteContainer>
 
+                      
+
                       {empresaId && (
                         <IconButton type="button" onClick={abrirDetalheEmpresa} title="Visualizar ou Editar Empresa">
                           <i className="fa-solid fa-building-user"></i>
                         </IconButton>
+                      )}
+                      {empresaId && telefonePrincipalPrefeitura && (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#475569', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
+                          <i className="fa-solid fa-phone"></i>
+                          {formatarTelefoneParaExibir(telefonePrincipalPrefeitura)}
+                        </span>
                       )}
                     </div>
                   </FormGroup>
@@ -1264,22 +1372,42 @@ export function Funil() {
                             {contatosDaEmpresa.map((cont) => {
                               const vinculado = contatosVinculadosIds.includes(cont.id);
                               const isPrincipal = Number(contatoId) === cont.id;
+                              const contatoNumeroPrincipal = cont.whatsapp_pessoal
+                                ? cont.whatsapp_pessoal
+                                : (cont.telefones_json && cont.telefones_json.length ? cont.telefones_json[0] : '');
+                              const outrosTelefones = cont.telefones_json && cont.telefones_json.length > 1 ? cont.telefones_json.length - 1 : 0;
+
                               return (
                                 <ContatoNegociacaoRow key={cont.id} $vinculado={vinculado}>
-                                  <label className="check-wrap">
+                                  <label >
                                     <input
                                       type="checkbox"
                                       checked={vinculado}
                                       onChange={() => toggleContatoVinculado(cont.id)}
                                     />
-                                    <span className="info">
-                                      <strong>{cont.nome}</strong>
+                                    </label>
+                                    <span className="info check-wrap">
+                                      <div className="name-row">
+                                        <strong>{cont.nome}</strong>
+                                        
+                                        {contatoNumeroPrincipal && (
+                                          <small className="main-phone">
+                                            <i className="fa-solid fa-phone"> </i> {formatarTelefoneParaExibir(contatoNumeroPrincipal)}
+                                               <p>+ {outrosTelefones} outro(s)</p>
+                                          </small>
+                                        )}
+                                      </div>
                                       <small>{cargosParaTexto(cont.cargos_json) || 'Sem cargo'}</small>
+                                      {outrosTelefones > 0 && (
+                                        <small style={{ color: '#475569' }}>
+                                         
+                                        </small>
+                                      )}
                                       {isPrincipal && vinculado && (
                                         <span className="badge-principal"><i className="fa-solid fa-star" /> Principal</span>
                                       )}
                                     </span>
-                                  </label>
+                                  
                                   <ContatoNegociacaoAcoes>
                                     <IconButton
                                       type="button"
@@ -1619,7 +1747,7 @@ export function Funil() {
               <CloseButton $color="#fff" onClick={fecharModalContato}>&times;</CloseButton>
             </ModalHeader>
 
-            <div style={{ padding: '20px' }}>
+            <ModalBody>
               {modoContatoModal === 'ver' && contatoSelecionado && !editandoContatoRapido ? (
                 <>
                   <FormGrid $columns="1fr 1fr" style={{marginBottom: '20px'}}>
@@ -1637,18 +1765,60 @@ export function Funil() {
                     </InfoBox>
                     <InfoBox className="span-2">
                       <label><i className="fa-regular fa-envelope"></i> E-MAILS (Lista de Disparo)</label>
-                      <div className="text-blue">{contatoEmails || '-'}</div>
+                      <div style={{ display: 'grid', gap: '6px' }}>
+                        {contatoEmails.filter(Boolean).length > 0 ? contatoEmails.filter(Boolean).map((em, idx) => (
+                          <div key={idx} className="email-pill" style={{ padding: '8px 10px', borderRadius: 10, background: '#eef6ff', color: '#1e3a8a', fontWeight: 600 }}>{em}</div>
+                        )) : '-'}
+                      </div>
+                    </InfoBox>
+                    <InfoBox>
+                      <label><i className="fa-brands fa-whatsapp"></i> WhatsApp pessoal</label>
+                      <div>{contatoWhatsapp ? formatarTelefoneParaExibir(contatoWhatsapp) : '-'}</div>
                     </InfoBox>
                     <InfoBox className="span-2">
-                      <label><i className="fa-solid fa-phone"></i> TELEFONES (WhatsApp)</label>
+                      <label><i className="fa-solid fa-phone"></i> Telefones do contato</label>
                       <div className="phones">
-                        {contatoTelefones ? contatoTelefones.split(',').map((tel, idx) => (
+                        {contatoTelefones.filter(Boolean).length > 0 ? contatoTelefones.filter(Boolean).map((tel, idx) => (
                           <a key={idx} href={`tel:${formatarTelefoneParaLink(tel)}`} title="Clique para ligar" className="phone-pill">
-                            <i className="fa-solid fa-phone text-green"></i> {tel.trim()}
+                            <i className="fa-solid fa-phone text-green"></i> {formatarTelefoneParaExibir(tel)}
                           </a>
                         )) : '-'}
                       </div>
                     </InfoBox>
+                    {empresaTelefones && (
+                      <InfoBox className="span-2">
+                        <label><i className="fa-solid fa-building"></i> Telefones padrão da prefeitura</label>
+                        <div className="phones">
+                          {empresaTelefones.split(',').map((tel, idx) => (
+                            <a key={idx} href={`tel:${formatarTelefoneParaLink(tel)}`} className="phone-pill">
+                              <i className="fa-solid fa-phone text-green"></i> {formatarTelefoneParaExibir(tel)}
+                            </a>
+                          ))}
+                        </div>
+                      </InfoBox>
+                    )}
+                    {contatoCongeladoAte && (
+                      <InfoBox className="span-2">
+                        <label><i className="fa-solid fa-snowflake"></i> Congelado até</label>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <span style={{ fontWeight: 700 }}>{formatarData(contatoCongeladoAte)}</span>
+                          {estaCongelado(contatoCongeladoAte) ? (
+                            <span style={{ color: '#1e3a8a' }}>{`Faltam ${calcularDiasRestantes(contatoCongeladoAte)} dia(s) para descongelamento.`}</span>
+                          ) : (
+                            <span style={{ color: '#b45309' }}>Descongelamento expirado. Atualize o registro para reativar.</span>
+                          )}
+                        </div>
+                      </InfoBox>
+                    )}
+                    {(contatoNaoQuerEmail || contatoNaoQuerLigacao) && (
+                      <InfoBox className="span-2">
+                        <label>Preferências</label>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                          {contatoNaoQuerEmail && <span style={{ background: '#fff4e5', color: '#b45309', padding: '6px 10px', borderRadius: '999px', fontWeight: 700 }}>Não quer e-mail</span>}
+                          {contatoNaoQuerLigacao && <span style={{ background: '#ffe4e6', color: '#991b1b', padding: '6px 10px', borderRadius: '999px', fontWeight: 700 }}>Não quer ligação</span>}
+                        </div>
+                      </InfoBox>
+                    )}
                   </FormGrid>
                   <ModalFooter $justify="flex-end">
                     <SecondaryButton type="button" onClick={fecharModalContato}>Voltar</SecondaryButton>
@@ -1697,13 +1867,107 @@ export function Funil() {
                         </div>
                       </DynamicInputBox>
                     </FormGroup>
-                    <FormGroup>
-                      <label><i className="fa-regular fa-envelope"></i> E-mails (Separe por vírgula)</label>
-                      <Input type="text" value={contatoEmails} onChange={e => setContatoEmails(e.target.value)} placeholder="email1@teste.com, email2@teste.com" className="highlight-blue" />
+                    <FormGroup className="span-2">
+                      <label><i className="fa-regular fa-envelope"></i> E-mails</label>
+                      <DynamicInputBox>
+                        {contatoEmails.map((email, idx) => (
+                          <DynamicInputRow key={idx}>
+                            <Input
+                              type="email"
+                              value={email}
+                              onChange={(e) => gerenciarContatoEmails('update', idx, e.target.value)}
+                              placeholder="email@exemplo.com"
+                              className="highlight-blue"
+                            />
+                            <IconButton
+                              type="button"
+                              className="danger"
+                              onClick={() => gerenciarContatoEmails('remove', idx)}
+                              disabled={contatoEmails.length <= 1}
+                            >
+                              <i className="fa-solid fa-trash"></i>
+                            </IconButton>
+                          </DynamicInputRow>
+                        ))}
+                        <AddLinkBtn type="button" onClick={() => gerenciarContatoEmails('add')}>
+                          <i className="fa-solid fa-plus"></i> Novo e-mail
+                        </AddLinkBtn>
+                      </DynamicInputBox>
+                    </FormGroup>
+                    <FormGroup className="span-2">
+                      <label><i className="fa-solid fa-phone"></i> Telefones</label>
+                      <DynamicInputBox>
+                        {contatoTelefones.map((tel, idx) => (
+                          <DynamicInputRow key={idx}>
+                            <Input
+                              type="text"
+                              value={tel}
+                              onChange={(e) => gerenciarContatoTelefones('update', idx, e.target.value)}
+                              placeholder="51999999999"
+                              className="highlight-green"
+                            />
+                            <IconButton
+                              type="button"
+                              className="danger"
+                              onClick={() => gerenciarContatoTelefones('remove', idx)}
+                              disabled={contatoTelefones.length <= 1}
+                            >
+                              <i className="fa-solid fa-trash"></i>
+                            </IconButton>
+                          </DynamicInputRow>
+                        ))}
+                        <AddLinkBtn type="button" onClick={() => gerenciarContatoTelefones('add')}>
+                          <i className="fa-solid fa-plus"></i> Novo telefone
+                        </AddLinkBtn>
+                      </DynamicInputBox>
                     </FormGroup>
                     <FormGroup>
-                      <label><i className="fa-solid fa-phone"></i> Telefones (Separe por vírgula)</label>
-                      <Input type="text" value={contatoTelefones} onChange={e => setContatoTelefones(e.target.value)} placeholder="51999999999, 5133333333" className="highlight-green" />
+                      <label><i className="fa-brands fa-whatsapp"></i> WhatsApp pessoal</label>
+                      <Input type="text" value={contatoWhatsapp} onChange={e => setContatoWhatsapp(e.target.value)} placeholder="51999999999" className="highlight-green" />
+                    </FormGroup>
+                    <FormGroup className="span-2">
+                      <label>Congelamento de outreach</label>
+                      <div style={{ display: 'grid', gap: '10px' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={!!contatoCongeladoAte}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setContatoCongeladoAte(adicionarDias(90));
+                              } else {
+                                setContatoCongeladoAte('');
+                              }
+                            }}
+                          />
+                          Congelar por 3 meses
+                        </label>
+                        {contatoCongeladoAte && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+                            <span style={{ background: '#e2e8f0', color: '#0f172a', padding: '8px 12px', borderRadius: '999px', fontWeight: 700 }}>
+                              Descongelamento: {formatarData(contatoCongeladoAte)}
+                            </span>
+                            {estaCongelado(contatoCongeladoAte) ? (
+                              <span style={{ color: '#1d4ed8' }}>{`${calcularDiasRestantes(contatoCongeladoAte)} dia(s) restantes`}</span>
+                            ) : (
+                              <span style={{ color: '#b45309' }}>Descongelamento expirado. Atualize o registro.</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </FormGroup>
+                    <FormGroup className="span-2">
+                      <label>Preferências de contato</label>
+                      <div style={{ display: 'grid', gap: '10px' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                          <input type="checkbox" checked={contatoNaoQuerEmail} onChange={e => setContatoNaoQuerEmail(e.target.checked)} />
+                          Não quer receber e-mails
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                          <input type="checkbox" checked={contatoNaoQuerLigacao} onChange={e => setContatoNaoQuerLigacao(e.target.checked)} />
+                          Não quer receber ligações
+                        </label>
+                      </div>
                     </FormGroup>
                   </FormGrid>
 
@@ -1715,7 +1979,7 @@ export function Funil() {
                   </ModalFooter>
                 </form>
               )}
-            </div>
+            </ModalBody>
           </ModalContent>
         </ModalOverlay>
       )}
@@ -2012,6 +2276,11 @@ const CustomDropdownItem = styled.li`
 `;
 
 // --- STATUS E ESTADOS VAZIOS ---
+const AlertBanner = styled.div`
+  width: 100%; margin-top: 18px; padding: 18px 20px; border-radius: 12px; background: #fff8e1; color: #7c4d0d; border: 1px solid #f5deb3; box-shadow: inset 0 1px 0 rgba(255,255,255,0.5); font-size: 0.95rem;
+  strong { color: #5d4037; }
+`;
+
 const EmptyState = styled.div`
   text-align: center; padding: 80px 20px; background: #ffffff; border-radius: 12px; border: 2px dashed #cbd5e1; margin-top: 20px;
   i { font-size: 3rem; color: #a0aec0; margin-bottom: 15px; }
@@ -2113,6 +2382,12 @@ const ModalHeader = styled.div`
   @media (max-width: 600px) {
     h3 { font-size: 1.15rem; padding-right: 30px; }
   }
+`;
+
+const ModalBody = styled.div`
+  padding: 20px;
+  overflow-y: auto;
+  max-height: calc(90vh - 140px);
 `;
 
 const ModalFooter = styled.div`
@@ -2294,6 +2569,25 @@ const ContatoNegociacaoRow = styled.div`
     min-width: 0;
     strong { font-size: 0.88rem; color: #1e293b; }
     small { font-size: 0.75rem; color: #64748b; }
+  }
+  .name-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .main-phone {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #475569;
+    font-size: 0.75rem;
+    white-space: nowrap;
   }
   .badge-principal {
     display: inline-flex;
