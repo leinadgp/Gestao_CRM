@@ -1164,7 +1164,7 @@ export function Funil() {
                 if (e.key === 'Enter') {
                   e.preventDefault();
                   registrarBuscaGeral(buscaGeral);
-                  setMostrarSugestoesBusca(false);
+                  setMostrarSugestoesBusca(true);
                 }
               }}
             />
@@ -1182,7 +1182,7 @@ export function Funil() {
                         onClick={() => {
                           setBuscaGeral(termo);
                           registrarBuscaGeral(termo);
-                          setMostrarSugestoesBusca(false);
+                          setMostrarSugestoesBusca(true);
                         }}
                       >
                         <div className="linha1">
