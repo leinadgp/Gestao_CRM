@@ -268,13 +268,6 @@ export function Funil() {
   }, [empresaId, empresas]);
 
   useEffect(() => {
-    const scoring = resolverScoringEmpresa(
-      { classificacoes_por_cargo_json: empresaClassificacoesPorCargo },
-      [],
-      []
-    );
-    setEmpresaClassificacao(scoring.classificacao || 'nao_assessorada');
-    setEmpresaEstrelas(scoring.estrelas !== undefined ? scoring.estrelas : 0);
     setEmpresaAssessoradasCargos(
       empresaClassificacoesPorCargo
         .filter((item) => item.classificacao === 'assessorada')
@@ -808,14 +801,19 @@ export function Funil() {
       []
     );
 
+    const classificacaoPadrao = emp.classificacao || scoring.classificacao || 'nao_assessorada';
+    const estrelasPadrao = emp.estrelas != null && emp.estrelas !== ''
+      ? Number(emp.estrelas)
+      : (scoring.estrelas !== undefined ? scoring.estrelas : 0);
+
     setEmpresaSelecionada(emp);
     setEmpresaNome(emp.nome || '');
     setEmpresaEstado(emp.estado || '');
     setEmpresaCidade(emp.cidade || '');
     setEmpresaTelefones(emp.telefones || '');
     setEmpresaHorario(emp.horario_funcionamento || '');
-    setEmpresaClassificacao(scoring.classificacao || 'nao_assessorada');
-    setEmpresaEstrelas(scoring.estrelas !== undefined ? scoring.estrelas : 0);
+    setEmpresaClassificacao(classificacaoPadrao);
+    setEmpresaEstrelas(estrelasPadrao);
     setEmpresaAssessoradasCargos(
       classificacoesList.filter((item) => item.classificacao === 'assessorada').map((item) => item.cargo)
     );
@@ -853,8 +851,8 @@ export function Funil() {
         telefones: empresaTelefones,
         horario_funcionamento: empresaHorario,
         classificacoes_por_cargo_json: classificacoesPorCargo,
-        classificacao: scoring.classificacao,
-        estrelas: scoring.estrelas,
+        classificacao: empresaClassificacao,
+        estrelas: Number(empresaEstrelas) || 0,
       }, getHeaders());
 
       setMostrarModalEmpresa(false);
@@ -1401,7 +1399,7 @@ export function Funil() {
                             {(op.qtd_inscritos > 0) && (
                               <span style={{ fontSize: '0.72rem', color: '#198754' }}>· {op.qtd_inscritos} insc.</span>
                             )}
-                            {op.classificacao === 'assessorada' && (
+                            {(op.classificacao === 'assessorada' || (op.assessoradasCargos?.length > 0)) && (
                               <span className="badge-vip" title={op.assessoradasCargos?.length ? `Assessorada em ${op.assessoradasCargos.join(', ')}` : 'Prefeitura Assessorada VIP'}>
                                 <i className="fa-solid fa-crown"></i>
                                 {op.assessoradasCargos?.length ? op.assessoradasCargos.join(', ') : 'Assessorada'}
@@ -2310,6 +2308,25 @@ export function Funil() {
                       <label><i className="fa-solid fa-phone text-green"></i> Telefones</label>
                       <Input type="text" value={empresaTelefones} onChange={e => setEmpresaTelefones(e.target.value)} />
                     </FormGroup>
+                    <FormGroup>
+                      <label><i className="fa-solid fa-fire"></i> Classificação Geral</label>
+                      <Select value={empresaClassificacao} onChange={e => setEmpresaClassificacao(e.target.value)}>
+                        <option value="nao_assessorada">❄️ Frio</option>
+                        <option value="lead_quente">🔥 Quente</option>
+                        <option value="assessorada">👑 Assessorada</option>
+                      </Select>
+                    </FormGroup>
+                    <FormGroup>
+                      <label><i className="fa-solid fa-star"></i> Temperatura Geral</label>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="5"
+                        value={empresaEstrelas}
+                        onChange={e => setEmpresaEstrelas(Number(e.target.value))}
+                        placeholder="0 a 5"
+                      />
+                    </FormGroup>
                     <FormGroup className="span-2">
                       <label><i className="fa-solid fa-clock text-blue"></i> Horário de Funcionamento</label>
                       <Input type="text" value={empresaHorario} onChange={e => setEmpresaHorario(e.target.value)} placeholder="Ex: Seg a Sex, 08:00 - 17:00" />
@@ -2358,7 +2375,7 @@ export function Funil() {
                         </AddLinkBtn>
                       </DynamicInputBox>
                       <div style={{ marginTop: '10px', color: '#64748b', fontSize: '0.85rem' }}>
-                        A classificação geral acima é calculada automaticamente pelos cargos cadastrados.
+                        A classificação por cargo é independente da classificação geral e ajuda a manter detalhes por função.
                       </div>
                     </div>
 

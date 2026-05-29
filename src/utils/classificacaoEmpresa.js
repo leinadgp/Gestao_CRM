@@ -32,6 +32,8 @@ export function normalizarClassificacoesPorCargo(dado) {
 export function resolverScoringEmpresa(empresa = {}, cargosAlvoCampanha = [], cargosContato = []) {
   const porCargo = normalizarClassificacoesPorCargo(empresa.classificacoes_por_cargo_json);
   const alvos = (cargosAlvoCampanha || []).map((c) => String(c).trim()).filter(Boolean);
+  const classificacaoPadrao = String(empresa.classificacao || '').trim();
+  const estrelasPadrao = Number(empresa.estrelas) || 0;
 
   const normalizeCargo = (value) => String(value || '').trim().toLowerCase();
   const compararPrioridade = (a, b) => {
@@ -49,6 +51,14 @@ export function resolverScoringEmpresa(empresa = {}, cargosAlvoCampanha = [], ca
     }
     return map;
   }, {});
+
+  if (classificacaoPadrao && classificacaoPadrao !== 'nao_assessorada') {
+    return {
+      classificacao: classificacaoPadrao,
+      estrelas: estrelasPadrao,
+      cargoRef: null,
+    };
+  }
 
   if (alvos.length) {
     const candidatos = alvos
