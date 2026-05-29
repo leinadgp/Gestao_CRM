@@ -4,7 +4,7 @@ import styled, { keyframes } from 'styled-components';
 import { Header } from '../componentes/Header.jsx';
 
 // --- UTILITÁRIO DE SEGURANÇA PARA JSON ---
-import { normalizarListaJson, cargosParaTexto } from '../utils/jsonHelpers.js';
+import { normalizarCargosJson, normalizarListaJson, cargosParaTexto } from '../utils/jsonHelpers.js';
 import { normalizarClassificacoesPorCargo, labelClassificacao, resolverScoringEmpresa } from '../utils/classificacaoEmpresa.js';
 import { BotaoExportar } from '../componentes/BotaoExportar.jsx';
 import { normalizarTexto } from '../utils/normalizarTexto.js';
@@ -52,7 +52,7 @@ export function Empresas() {
   const [contatoSelecionado, setContatoSelecionado] = useState(null);
   const [editandoContatoRapido, setEditandoContatoRapido] = useState(false);
   const [contatoNome, setContatoNome] = useState('');
-  const [contatoCargo, setContatoCargo] = useState('');
+  const [contatoCargos, setContatoCargos] = useState([]);
   const [contatoEmails, setContatoEmails] = useState('');
   const [contatoTelefonesRapido, setContatoTelefonesRapido] = useState('');
 
@@ -238,14 +238,15 @@ export function Empresas() {
   function abrirDetalheContato(contato) {
     setContatoSelecionado(contato);
     setContatoNome(contato.nome || '');
-    setContatoCargo(cargosParaTexto(contato.cargos_json) || '');
-    
+    const cargosContato = normalizarCargosJson(contato.cargos_json, []);
+    setContatoCargos(cargosContato.length ? cargosContato : []);
+
     const emails = normalizarListaJson(contato.emails_json, []);
     setContatoEmails(emails.join(', '));
-    
+
     const tels = normalizarListaJson(contato.telefones_json, []);
     setContatoTelefonesRapido(tels.join(', '));
-    
+
     setEditandoContatoRapido(false);
     setMostrarModalContato(true);
   }
@@ -313,9 +314,7 @@ export function Empresas() {
     const emailsArr = contatoEmails.split(',').map(m => m.trim()).filter(m => m);
     const telsArr = contatoTelefonesRapido.split(',').map(t => t.trim()).filter(t => t);
     try {
-      const cargosArr = contatoCargo.trim()
-        ? contatoCargo.split('|').map((c) => c.trim()).filter(Boolean)
-        : [];
+      const cargosArr = Array.isArray(contatoCargos) ? contatoCargos.filter(Boolean) : [];
       await axios.put(`${API_URL}/contatos/${contatoSelecionado.id}`, {
         nome: contatoNome,
         cargos_json: cargosArr,
@@ -601,7 +600,21 @@ export function Empresas() {
                               </ul>
                             </div>
                           )}
-                          <div className="info-line"><strong>Telefone Geral:</strong> {detalhesEmpresa.empresa.telefones || '-'}</div>
+                          <div className="info-line"><strong>Telefone Geral:</strong>
+                            {detalhesEmpresa.empresa.telefones ? (
+                              <span style={{ display: 'inline-flex', gap: 8, marginLeft: 8, flexWrap: 'wrap' }}>
+                                {detalhesEmpresa.empresa.telefones.split(',').map((t, i) => {
+                                  const tel = t.trim();
+                                  if (!tel) return null;
+                                  return (
+                                    <a key={i} href={`tel:${formatarTelefoneParaLink(tel)}`} className="phone-pill">
+                                      <i className="fa-solid fa-phone text-green"></i> {tel}
+                                    </a>
+                                  );
+                                })}
+                              </span>
+                            ) : ' - '}
+                          </div>
                           <div className="info-line"><strong>Horário de Func.:</strong> {detalhesEmpresa.empresa.horario_funcionamento || '-'}</div>
                           <div className="info-line"><strong>Cadastrada em:</strong> {formatarData(detalhesEmpresa.empresa.criado_em)}</div>
                         </InfoCard>
@@ -789,8 +802,8 @@ export function Empresas() {
                         <div>{contatoNome}</div>
                       </InfoBox>
                       <InfoBox>
-                        <label>CARGO</label>
-                        <div>{contatoCargo || '-'}</div>
+                        <label>CARGOS</label>
+                        <div>{contatoCargos && contatoCargos.length ? contatoCargos.join(' · ') : '-'}</div>
                       </InfoBox>
                       <InfoBox className="span-2">
                         <label><i className="fa-regular fa-envelope"></i> E-MAILS (Lista de Disparo)</label>
@@ -816,7 +829,14 @@ export function Empresas() {
                   <form onSubmit={salvarContatoRapido}>
                     <FormGrid $columns="1fr" style={{marginBottom: '20px'}}>
                       <FormGroup><label>Nome *</label><Input type="text" required value={contatoNome} onChange={e => setContatoNome(e.target.value)} /></FormGroup>
-                      <FormGroup><label>Cargo</label><Input type="text" value={contatoCargo} onChange={e => setContatoCargo(e.target.value)} /></FormGroup>
+                      <FormGroup>
+                        <label>Cargo (selecione um ou mais)</label>
+                        <Select multiple value={contatoCargos} onChange={e => setContatoCargos(Array.from(e.target.selectedOptions).map(o => o.value))}>
+                          {listaCargos.map((cargo) => (
+                            <option key={cargo} value={cargo}>{cargo}</option>
+                          ))}
+                        </Select>
+                      </FormGroup>
                       <FormGroup><label><i className="fa-regular fa-envelope text-blue"></i> E-mails (Separe por vírgula)</label><Input type="text" value={contatoEmails} onChange={e => setContatoEmails(e.target.value)} className="highlight-blue" /></FormGroup>
                       <FormGroup><label><i className="fa-solid fa-phone text-green"></i> Telefones (Separe por vírgula)</label><Input type="text" value={contatoTelefonesRapido} onChange={e => setContatoTelefonesRapido(e.target.value)} className="highlight-green" /></FormGroup>
                     </FormGrid>

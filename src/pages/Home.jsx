@@ -89,11 +89,15 @@ export function Home() {
   // --- MEMOIZAÇÃO DE CÁLCULOS (PERFORMANCE) ---
   // O useMemo impede que o React refaça esses arrays e matemáticas em cada re-render (ex: quando digita algo num input hipotético ou modal)
 
+  const campanhasAtivas = useMemo(() => campanhas.filter(c => !c.arquivada), [campanhas]);
+  const campanhasAtivasIds = useMemo(() => new Set(campanhasAtivas.map(c => c.id)), [campanhasAtivas]);
+
   const opsFiltradas = useMemo(() => {
-    return perfilUsuario === 'vendedor' 
-      ? oportunidades.filter(op => op.vendedor_id === meuUsuarioId) 
+    const base = perfilUsuario === 'vendedor'
+      ? oportunidades.filter(op => op.vendedor_id === meuUsuarioId)
       : oportunidades;
-  }, [oportunidades, perfilUsuario, meuUsuarioId]);
+    return base.filter(op => campanhasAtivasIds.has(Number(op.campanha_id)));
+  }, [oportunidades, perfilUsuario, meuUsuarioId, campanhasAtivasIds]);
 
   const { negociosAbertos, negociosGanhos, negociosPerdidos } = useMemo(() => {
     const statusAndamento = ['aberto', 'tarefa', 'avaliar', 'interessada'];
@@ -185,7 +189,7 @@ export function Home() {
           <CardInfo 
             icone="fa-bullhorn" 
             label="Cursos / Campanhas" 
-            valor={carregando ? "..." : campanhas.length} 
+            valor={carregando ? "..." : campanhasAtivas.length} 
             cor="yellow" 
           />
           <CardInfo 

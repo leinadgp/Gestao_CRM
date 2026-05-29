@@ -75,8 +75,8 @@ export function resolverScoringEmpresa(empresa = {}, cargosAlvoCampanha = [], ca
   }
 
   return {
-    classificacao: empresa.classificacao || 'nao_assessorada',
-    estrelas: empresa.estrelas !== undefined ? Number(empresa.estrelas) : 0,
+    classificacao: 'nao_assessorada',
+    estrelas: 0,
     cargoRef: null,
   };
 }

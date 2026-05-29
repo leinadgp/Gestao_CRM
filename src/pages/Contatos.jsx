@@ -53,6 +53,7 @@ export function Contatos() {
   const [emailsComErroForm, setEmailsComErroForm] = useState([]);
   const [naoQuerEmail, setNaoQuerEmail] = useState(false);
   const [naoQuerLigacao, setNaoQuerLigacao] = useState(false);
+  const [contatoCongeladoAte, setContatoCongeladoAte] = useState('');
   
   // Autocomplete de Prefeituras
   const [buscaEmpresaNoForm, setBuscaEmpresaNoForm] = useState('');
@@ -179,7 +180,7 @@ export function Contatos() {
   const abrirModalNovo = () => {
     setEditandoId(null); setNome(''); setCargos(['']); setEmpresaId(''); setBuscaEmpresaNoForm('');
     setEmails(['']); setTelefones(['']); setEmailsComErroForm([]);
-    setNaoQuerEmail(false); setNaoQuerLigacao(false);
+    setNaoQuerEmail(false); setNaoQuerLigacao(false); setContatoCongeladoAte('');
     setModoEdicao(true); setMostrarModalContato(true);
   };
 
@@ -194,6 +195,7 @@ export function Contatos() {
     setTelefones(listaTels.length ? listaTels : ['']);
     setNaoQuerEmail(!!c.nao_quero_email);
     setNaoQuerLigacao(!!c.nao_quero_ligacao);
+    setContatoCongeladoAte(c.congelado_ate || '');
     setEmailsComErroForm(c.emails_com_erro || []);
     setModoEdicao(false); setMostrarModalContato(true); setCarregandoHistorico(true);
 
@@ -251,6 +253,7 @@ export function Contatos() {
       telefones_json: telefones.filter(t => t.trim() !== ''),
       nao_quero_email: naoQuerEmail,
       nao_quero_ligacao: naoQuerLigacao,
+      congelado_ate: contatoCongeladoAte || null,
     };
     try {
       if (editandoId) {
@@ -294,6 +297,16 @@ export function Contatos() {
 
   const formatarMoeda = (v) => Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const formatarData = (d) => d ? new Date(d).toLocaleDateString('pt-BR') : '-';
+
+  const calcularDiasRestantes = (value) => {
+    if (!value) return null;
+    const hoje = new Date();
+    hoje.setHours(0,0,0,0);
+    const data = new Date(value);
+    data.setHours(0,0,0,0);
+    const diff = Math.ceil((data - hoje) / 86400000);
+    return Number.isFinite(diff) ? diff : null;
+  };
 
   return (
     <>
@@ -538,6 +551,10 @@ export function Contatos() {
                           </label>
                         </div>
                       </FormGroup>
+                      <FormGroup>
+                        <label>Congelar contato até</label>
+                        <Input type="date" value={contatoCongeladoAte} onChange={e => setContatoCongeladoAte(e.target.value)} />
+                      </FormGroup>
                     </FormGrid>
 
                     <ModalFooter $justify="flex-end">
@@ -571,6 +588,28 @@ export function Contatos() {
                         <h4><i className="fa-solid fa-ban"></i> Preferências</h4>
                         <p style={{ margin: 0 }}>{naoQuerEmail ? 'Não deseja receber e-mails' : 'Pode receber e-mails'}</p>
                         <p style={{ margin: '8px 0 0 0' }}>{naoQuerLigacao ? 'Não deseja receber ligações' : 'Pode receber chamadas'}</p>
+                      </InfoCard>
+                      <InfoCard $borderTop="#38bdf8">
+                        <h4><i className="fa-solid fa-snowflake"></i> Congelamento</h4>
+                        {contatoCongeladoAte ? (
+                          <>
+                            <p style={{ margin: 0 }}>Congelado até <strong>{formatarData(contatoCongeladoAte)}</strong></p>
+                            <p style={{ margin: '8px 0 0 0', color: '#475569' }}>{calcularDiasRestantes(contatoCongeladoAte) >= 0 ? `Faltam ${calcularDiasRestantes(contatoCongeladoAte)} dia(s) para descongelamento.` : 'Contato pronto para ser reativado.'}</p>
+                          </>
+                        ) : (
+                          <p style={{ margin: 0 }}>Nenhum congelamento registrado.</p>
+                        )}
+                      </InfoCard>
+                      <InfoCard $borderTop="#38bdf8">
+                        <h4><i className="fa-solid fa-snowflake"></i> Congelamento</h4>
+                        {contatoCongeladoAte ? (
+                          <>
+                            <p style={{ margin: 0 }}>Congelado até <strong>{formatarData(contatoCongeladoAte)}</strong></p>
+                            <p style={{ margin: '8px 0 0 0', color: '#475569' }}>{calcularDiasRestantes(contatoCongeladoAte) >= 0 ? `Faltam ${calcularDiasRestantes(contatoCongeladoAte)} dia(s) para descongelamento.` : 'Contato pronto para ser reativado.'}</p>
+                          </>
+                        ) : (
+                          <p style={{ margin: 0 }}>Nenhum congelamento registrado.</p>
+                        )}
                       </InfoCard>
                     </ProfileGrid>
 

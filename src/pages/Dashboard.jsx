@@ -182,13 +182,17 @@ export function Dashboard() {
   
   const statusSucesso = useMemo(() => ['ganho', 'inscricao'], []);
   const statusPerdido = useMemo(() => ['perdido', 'naofunciona', 'naoatendeu'], []);
-  const statusAndamento = useMemo(() => ['aberto', 'tarefa', 'avaliar', 'interessada'], []);
+  const statusAndamento = useMemo(() => ['aberto', 'tarefa', 'avaliar', 'interessada', 'naofunciona', 'naoatendeu'], []);
+
+  const campanhasAtivas = useMemo(() => campanhas.filter(c => !c.arquivada), [campanhas]);
+  const campanhaIdsAtivas = useMemo(() => new Set(campanhasAtivas.map(c => c.id)), [campanhasAtivas]);
 
   const opsGeraisFiltradas = useMemo(() => {
+    const base = oportunidades.filter(op => campanhaIdsAtivas.has(Number(op.campanha_id)));
     return filtroCampanha 
-      ? oportunidades.filter(op => op.campanha_id === parseInt(filtroCampanha)) 
-      : oportunidades;
-  }, [oportunidades, filtroCampanha]);
+      ? base.filter(op => op.campanha_id === parseInt(filtroCampanha)) 
+      : base;
+  }, [oportunidades, filtroCampanha, campanhaIdsAtivas]);
 
   const vendasNoMes = useMemo(() => {
     let fracionadas = [];
@@ -363,7 +367,7 @@ export function Dashboard() {
     return rels.reduce((acc, r) => acc + (parseInt(r.total_cliques, 10) || 0), 0);
   }
 
-  const campanhaSelecionada = campanhas.find(c => c.id === parseInt(filtroCampanha));
+  const campanhaSelecionada = campanhasAtivas.find(c => c.id === parseInt(filtroCampanha));
 
   // --- RENDERIZAÇÃO ---
   if (erroGlobal) {
@@ -421,7 +425,7 @@ export function Dashboard() {
                 >
                   Visão Macro (Todos os Cursos)
                 </CustomDropdownItem>
-                {campanhas.map(c => (
+                {campanhasAtivas.map(c => (
                   <CustomDropdownItem 
                     key={c.id} 
                     $active={filtroCampanha === String(c.id)} 
