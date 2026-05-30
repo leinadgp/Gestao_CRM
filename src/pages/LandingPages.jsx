@@ -102,11 +102,12 @@ export function LandingPages() {
           const script = canvasDoc.createElement('script');
           Array.from(node.attributes).forEach(attr => script.setAttribute(attr.name, attr.value));
           script.textContent = node.textContent;
-          canvasDoc.body.appendChild(script);
-        } else if (tagName === 'link') {
-          const link = canvasDoc.createElement('link');
-          Array.from(node.attributes).forEach(attr => link.setAttribute(attr.name, attr.value));
-          canvasDoc.head.appendChild(link);
+          const target = node.getAttribute('src') ? canvasDoc.head : canvasDoc.body;
+          target.appendChild(script);
+        } else if (tagName === 'link' || tagName === 'meta' || tagName === 'base') {
+          const imported = canvasDoc.createElement(tagName);
+          Array.from(node.attributes).forEach(attr => imported.setAttribute(attr.name, attr.value));
+          canvasDoc.head.appendChild(imported);
         } else if (tagName === 'style') {
           const style = canvasDoc.createElement('style');
           Array.from(node.attributes).forEach(attr => style.setAttribute(attr.name, attr.value));
@@ -141,11 +142,27 @@ export function LandingPages() {
 
     allStyleTags.forEach((tag) => tag.remove());
 
-    const assetTags = Array.from(doc.querySelectorAll('head link[rel="stylesheet"], head script[src], head script:not([src]), body script[src], body script:not([src])'))
+    const assetSelectors = [
+      'head link',
+      'head meta',
+      'head base',
+      'head script[src]',
+      'head script:not([src])',
+      'body link',
+      'body meta',
+      'body base',
+      'body script[src]',
+      'body script:not([src])'
+    ].join(',');
+
+    const assetTags = Array.from(doc.querySelectorAll(assetSelectors))
+      .filter((tag) => tag.tagName.toLowerCase() !== 'title')
       .map((tag) => tag.outerHTML)
       .join('\n');
 
-    Array.from(doc.querySelectorAll('head link[rel="stylesheet"], head script[src], head script:not([src]), body script[src], body script:not([src])')).forEach((tag) => tag.remove());
+    Array.from(doc.querySelectorAll(assetSelectors))
+      .filter((tag) => tag.tagName.toLowerCase() !== 'title')
+      .forEach((tag) => tag.remove());
 
     const extraMarkup = `${tailwindStyleMarkup}${tailwindStyleMarkup && assetTags ? '\n' : ''}${assetTags}`;
     return { bodyHtml: doc.body.innerHTML, extraMarkup, plainCssText };
@@ -183,15 +200,13 @@ export function LandingPages() {
     if (mostrarModal && !editorRef.current) {
       const editor = grapesjs.init({
         container: '#gjs',
-        fromElement: true,
         height: '100%',
         width: 'auto',
-        storageManager: false, 
+        storageManager: false,
         plugins: ['gjs-preset-webpage'],
         pluginsOpts: {
           'gjs-preset-webpage': {}
         },
-        // 👇 ADICIONE ESTE BLOCO PARA O TAILWIND E ÍCONES DO LOVABLE FUNCIONAREM DENTRO DO EDITOR
         canvas: {
           scripts: ['https://cdn.tailwindcss.com', 'https://unpkg.com/lucide@latest']
         },
