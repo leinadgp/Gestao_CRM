@@ -38,7 +38,13 @@ export function LandingPages() {
   const [htmlInicial, setHtmlInicial] = useState('');
   const [cssInicial, setCssInicial] = useState('');
   const [extraHtmlHead, setExtraHtmlHead] = useState('');
+  const [extraBodyScripts, setExtraBodyScripts] = useState('');
+  const [htmlAttributes, setHtmlAttributes] = useState('');
+  const [bodyAttributes, setBodyAttributes] = useState('');
   const [importErro, setImportErro] = useState('');
+  const [mostrarHtmlBruto, setMostrarHtmlBruto] = useState(false);
+  const [htmlBruto, setHtmlBruto] = useState('');
+  const [cssBruto, setCssBruto] = useState('');
   const fileInputRef = useRef(null);
 
   const getMarkupFormularioCRM = () => `
@@ -94,53 +100,146 @@ export function LandingPages() {
     if (!extraHead || !editor) return;
     try {
       const canvasDoc = editor.Canvas.getDocument();
+      Array.from(canvasDoc.head.querySelectorAll('[data-lp-imported="true"]')).forEach((node) => node.remove());
       const wrapper = document.createElement('div');
       wrapper.innerHTML = extraHead;
+      let hasBase = Boolean(canvasDoc.head.querySelector('base'));
+
       Array.from(wrapper.children).forEach((node) => {
         const tagName = node.tagName.toLowerCase();
         if (tagName === 'script') {
           const script = canvasDoc.createElement('script');
           Array.from(node.attributes).forEach(attr => script.setAttribute(attr.name, attr.value));
+          script.setAttribute('data-lp-imported', 'true');
           script.textContent = node.textContent;
           const target = node.getAttribute('src') ? canvasDoc.head : canvasDoc.body;
           target.appendChild(script);
         } else if (tagName === 'link' || tagName === 'meta' || tagName === 'base') {
+          if (tagName === 'base') hasBase = true;
           const imported = canvasDoc.createElement(tagName);
           Array.from(node.attributes).forEach(attr => imported.setAttribute(attr.name, attr.value));
+          imported.setAttribute('data-lp-imported', 'true');
           canvasDoc.head.appendChild(imported);
         } else if (tagName === 'style') {
           const style = canvasDoc.createElement('style');
           Array.from(node.attributes).forEach(attr => style.setAttribute(attr.name, attr.value));
+          style.setAttribute('data-lp-imported', 'true');
           style.textContent = node.textContent;
           canvasDoc.head.appendChild(style);
         } else {
           const imported = canvasDoc.createElement(tagName);
           Array.from(node.attributes).forEach(attr => imported.setAttribute(attr.name, attr.value));
+          imported.setAttribute('data-lp-imported', 'true');
           imported.innerHTML = node.innerHTML;
           canvasDoc.head.appendChild(imported);
         }
       });
+
+      if (!hasBase) {
+        const base = canvasDoc.createElement('base');
+        base.setAttribute('href', '/');
+        base.setAttribute('data-lp-imported', 'true');
+        canvasDoc.head.insertBefore(base, canvasDoc.head.firstChild);
+      }
     } catch (err) {
       console.warn('Não foi possível injetar ativos no preview do GrapesJS.', err);
     }
   };
 
+  const injectBodyScriptsIntoCanvas = (editor, bodyScripts) => {
+    if (!bodyScripts || !editor) return;
+    try {
+      const canvasDoc = editor.Canvas.getDocument();
+      Array.from(canvasDoc.body.querySelectorAll('script[data-lp-imported="true"]')).forEach((node) => node.remove());
+      const wrapper = document.createElement('div');
+      wrapper.innerHTML = bodyScripts;
+      Array.from(wrapper.children).forEach((node) => {
+        if (node.tagName.toLowerCase() !== 'script') return;
+        const script = canvasDoc.createElement('script');
+        Array.from(node.attributes).forEach(attr => script.setAttribute(attr.name, attr.value));
+        script.setAttribute('data-lp-imported', 'true');
+        script.textContent = node.textContent;
+        canvasDoc.body.appendChild(script);
+      });
+    } catch (err) {
+      console.warn('Não foi possível injetar scripts do body no preview do GrapesJS.', err);
+    }
+  };
+
+  const injectCssIntoCanvas = (editor, cssText) => {
+    if (!cssText || !editor) return;
+    try {
+      const canvasDoc = editor.Canvas.getDocument();
+      Array.from(canvasDoc.head.querySelectorAll('style[data-lp-imported-css="true"]')).forEach((node) => node.remove());
+      const style = canvasDoc.createElement('style');
+      style.setAttribute('data-lp-imported-css', 'true');
+      style.textContent = cssText;
+      canvasDoc.head.appendChild(style);
+    } catch (err) {
+      console.warn('Não foi possível injetar CSS no preview do GrapesJS.', err);
+    }
+  };
+
+  const applyHtmlBodyAttributesToCanvas = (editor, htmlAttrs, bodyAttrs) => {
+    if (!editor) return;
+    try {
+      const canvasDoc = editor.Canvas.getDocument();
+      const htmlElement = canvasDoc.documentElement;
+      const bodyElement = canvasDoc.body;
+
+      Array.from(htmlElement.attributes).forEach((attr) => {
+        if (attr.name !== 'data-lp-imported' && attr.name !== 'style') htmlElement.removeAttribute(attr.name);
+      });
+      Array.from(bodyElement.attributes).forEach((attr) => {
+        if (attr.name !== 'data-lp-imported' && attr.name !== 'style') bodyElement.removeAttribute(attr.name);
+      });
+
+      if (htmlAttrs) {
+        htmlAttrs.split(/\s+(?=[a-zA-Z_:][-a-zA-Z0-9_:.]*=)/g).forEach((attrPair) => {
+          const parts = attrPair.split('=');
+          if (parts.length < 2) return;
+          const name = parts[0].trim();
+          const value = attrPair.slice(name.length + 1).replace(/^['"]|['"]$/g, '');
+          if (name) htmlElement.setAttribute(name, value);
+        });
+      }
+
+      if (bodyAttrs) {
+        bodyAttrs.split(/\s+(?=[a-zA-Z_:][-a-zA-Z0-9_:.]*=)/g).forEach((attrPair) => {
+          const parts = attrPair.split('=');
+          if (parts.length < 2) return;
+          const name = parts[0].trim();
+          const value = attrPair.slice(name.length + 1).replace(/^['"]|['"]$/g, '');
+          if (name) bodyElement.setAttribute(name, value);
+        });
+      }
+    } catch (err) {
+      console.warn('Não foi possível aplicar atributos de html/body no preview do GrapesJS.', err);
+    }
+  };
+
   const extractHtmlAssets = (htmlSource) => {
-    if (!htmlSource) return { bodyHtml: '', extraMarkup: '', plainCssText: '' };
+    if (!htmlSource) return { bodyHtml: '', extraMarkup: '', plainCssText: '', bodyScripts: '', htmlAttrs: '', bodyAttrs: '' };
     const parser = new DOMParser();
     const doc = parser.parseFromString(htmlSource, 'text/html');
 
+    const htmlAttrs = Array.from(doc.documentElement.attributes)
+      .map((attr) => `${attr.name}="${attr.value}"`)
+      .join(' ');
+    const bodyAttrs = Array.from(doc.body.attributes)
+      .map((attr) => `${attr.name}="${attr.value}"`)
+      .join(' ');
+
     const allStyleTags = Array.from(doc.querySelectorAll('head style, body style'));
-    const tailwindStyleMarkup = allStyleTags
-      .filter((tag) => (tag.getAttribute('type') || '').toLowerCase() === 'text/tailwindcss')
-      .map((tag) => tag.outerHTML)
-      .join('\n');
+    const bodyScriptTags = Array.from(doc.querySelectorAll('body script'));
+    const styleMarkup = allStyleTags.map((tag) => tag.outerHTML).join('\n');
     const plainCssText = allStyleTags
       .filter((tag) => (tag.getAttribute('type') || '').toLowerCase() !== 'text/tailwindcss')
       .map((tag) => tag.textContent || '')
       .join('\n');
 
     allStyleTags.forEach((tag) => tag.remove());
+    bodyScriptTags.forEach((tag) => tag.remove());
 
     const assetSelectors = [
       'head link',
@@ -150,9 +249,7 @@ export function LandingPages() {
       'head script:not([src])',
       'body link',
       'body meta',
-      'body base',
-      'body script[src]',
-      'body script:not([src])'
+      'body base'
     ].join(',');
 
     const assetTags = Array.from(doc.querySelectorAll(assetSelectors))
@@ -164,8 +261,9 @@ export function LandingPages() {
       .filter((tag) => tag.tagName.toLowerCase() !== 'title')
       .forEach((tag) => tag.remove());
 
-    const extraMarkup = `${tailwindStyleMarkup}${tailwindStyleMarkup && assetTags ? '\n' : ''}${assetTags}`;
-    return { bodyHtml: doc.body.innerHTML, extraMarkup, plainCssText };
+    const extraMarkup = `${styleMarkup}${styleMarkup && assetTags ? '\n' : ''}${assetTags}`;
+    const bodyScripts = bodyScriptTags.map((tag) => tag.outerHTML).join('\n');
+    return { bodyHtml: doc.body.innerHTML, extraMarkup, plainCssText, bodyScripts, htmlAttrs: htmlAttrs.trim(), bodyAttrs: bodyAttrs.trim() };
   };
 
   const getHeaders = useCallback(() => {
@@ -223,15 +321,65 @@ export function LandingPages() {
 
       editorRef.current = editor;
 
+      const addLinkEditorTraits = () => {
+        const linkType = editor.DomComponents.getType('link');
+        if (!linkType) return;
+
+        const defaultModel = linkType.model;
+        const origDefaults = (defaultModel && defaultModel.prototype && defaultModel.prototype.defaults) || {};
+        const origTraits = Array.isArray(origDefaults.traits) ? origDefaults.traits : [];
+        const existingTraitNames = new Set(origTraits.map((trait) => (typeof trait === 'string' ? trait : trait.name)));
+
+        const extraLinkTraits = [
+          { type: 'text', label: 'URL', name: 'href', placeholder: '#inscricao' },
+          { type: 'select', label: 'Destino', name: 'target', options: [{ id: '', name: 'mesma aba' }, { id: '_blank', name: 'nova aba' }] },
+          { type: 'text', label: 'Título', name: 'title' }
+        ].filter((trait) => !existingTraitNames.has(trait.name));
+
+        if (extraLinkTraits.length) {
+          editor.DomComponents.addType('link', {
+            model: defaultModel.extend({
+              defaults: {
+                ...origDefaults,
+                traits: [...origTraits, ...extraLinkTraits]
+              }
+            }, {
+              isComponent(el) {
+                return el.tagName === 'A' ? { type: 'link' } : null;
+              }
+            }),
+            view: linkType.view
+          });
+        }
+      };
+
+      const addCodePanelButton = () => {
+        if (!editor.Panels.getPanel('options')) {
+          editor.Panels.addPanel({ id: 'options', buttons: [] });
+        }
+
+        editor.Panels.addButton('options', [{
+          id: 'open-code',
+          className: 'fa fa-code',
+          command: 'export-template',
+          attributes: { title: 'Ver/editar HTML e CSS' }
+        }]);
+      };
+
+      addLinkEditorTraits();
+      addCodePanelButton();
+
       // Eventos de blindagem
       editor.on('load', () => {
         editor.Panels.removeButton('views', 'open-sm');
         editor.Panels.removeButton('views', 'open-tm');
         editor.Panels.removeButton('views', 'open-layers');
         editor.Panels.getButton('views', 'open-blocks').set('active', true);
-        if (extraHtmlHead) {
-          injectExtraHeadIntoCanvas(editor, extraHtmlHead);
-        }
+
+        if (extraHtmlHead) injectExtraHeadIntoCanvas(editor, extraHtmlHead);
+        if (extraBodyScripts) injectBodyScriptsIntoCanvas(editor, extraBodyScripts);
+        if (cssInicial) injectCssIntoCanvas(editor, cssInicial);
+        applyHtmlBodyAttributesToCanvas(editor, htmlAttributes, bodyAttributes);
       });
 
       // Abertura automática da galeria ao clicar numa imagem
@@ -525,9 +673,6 @@ export function LandingPages() {
       if (htmlInicial) {
         editor.setComponents(htmlInicial);
         if (cssInicial) editor.setStyle(cssInicial);
-        if (extraHtmlHead) {
-          setTimeout(() => injectExtraHeadIntoCanvas(editor, extraHtmlHead), 200);
-        }
       } else {
         editor.setComponents('<div style="padding: 50px; text-align: center; font-family: sans-serif; color: #999;"><h1>Seu Editor de Páginas Profissional</h1><p>Arraste a "Capa Autoridade" e o "Form. Inscrição" do menu lateral.</p></div>');
       }
@@ -539,7 +684,20 @@ export function LandingPages() {
         editorRef.current = null;
       }
     };
-  }, [mostrarModal, htmlInicial, cssInicial]); 
+  }, [mostrarModal, htmlInicial, cssInicial, extraHtmlHead, extraBodyScripts, htmlAttributes, bodyAttributes]);
+
+  useEffect(() => {
+    if (!mostrarModal || !editorRef.current) return;
+    const editor = editorRef.current;
+    if (htmlInicial) {
+      editor.setComponents(htmlInicial);
+      if (cssInicial) editor.setStyle(cssInicial);
+      if (extraHtmlHead) injectExtraHeadIntoCanvas(editor, extraHtmlHead);
+      if (extraBodyScripts) injectBodyScriptsIntoCanvas(editor, extraBodyScripts);
+      if (cssInicial) injectCssIntoCanvas(editor, cssInicial);
+      applyHtmlBodyAttributesToCanvas(editor, htmlAttributes, bodyAttributes);
+    }
+  }, [mostrarModal, htmlInicial, cssInicial, extraHtmlHead, extraBodyScripts, htmlAttributes, bodyAttributes]);
 
  // === A MÁGICA DA IA (GERAR COPY COMPLETA / PÁGINA LONGA) ===
   async function handleGerarComIA(e) {
@@ -747,8 +905,22 @@ export function LandingPages() {
     }
   }
 
+  function abrirEditorHtmlBruto() {
+    if (!editorRef.current) return;
+    setHtmlBruto(editorRef.current.getHtml() || '');
+    setCssBruto(editorRef.current.getCss() || '');
+    setMostrarHtmlBruto(true);
+  }
+
+  function aplicarHtmlBruto() {
+    if (!editorRef.current) return;
+    editorRef.current.setComponents(htmlBruto);
+    editorRef.current.setStyle(cssBruto);
+    setMostrarHtmlBruto(false);
+  }
+
   function abrirModalNovo() {
-    setEditandoId(null); setNome(''); setSlug(''); setStatusLP('rascunho'); setCampanhaId(''); setHtmlInicial(''); setCssInicial(''); setExtraHtmlHead(''); setImportErro(''); setMostrarModal(true);
+    setEditandoId(null); setNome(''); setSlug(''); setStatusLP('rascunho'); setCampanhaId(''); setHtmlInicial(''); setCssInicial(''); setExtraHtmlHead(''); setExtraBodyScripts(''); setHtmlAttributes(''); setBodyAttributes(''); setImportErro(''); setMostrarModal(true);
   }
 
   function selecionarArquivoLovable() {
@@ -770,7 +942,7 @@ export function LandingPages() {
         const text = e.target.result;
         const parser = new DOMParser();
         const doc = parser.parseFromString(text, 'text/html');
-        const { bodyHtml, extraMarkup, plainCssText } = extractHtmlAssets(text);
+        const { bodyHtml, extraMarkup, plainCssText, bodyScripts, htmlAttrs, bodyAttrs } = extractHtmlAssets(text);
 
         const pageTitle = doc.querySelector('title')?.textContent || file.name.replace(/\.[^.]+$/, '');
         const pageSlug = pageTitle.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
@@ -786,9 +958,12 @@ export function LandingPages() {
           placeholder.outerHTML = getMarkupFormularioCRM();
         }
 
-        setHtmlInicial(doc.body.innerHTML);
+        setHtmlInicial(bodyHtml);
         setCssInicial(plainCssText);
         setExtraHtmlHead(extraMarkup);
+        setExtraBodyScripts(bodyScripts);
+        setHtmlAttributes(htmlAttrs);
+        setBodyAttributes(bodyAttrs);
         setNome(pageTitle);
         setSlug(pageSlug);
         setStatusLP('rascunho');
@@ -819,6 +994,9 @@ export function LandingPages() {
     setHtmlInicial(parsed.bodyHtml || '');
     setCssInicial(`${parsed.plainCssText}${parsed.plainCssText && lp.css_content ? '\n' : ''}${lp.css_content || ''}`);
     setExtraHtmlHead(parsed.extraMarkup);
+    setExtraBodyScripts(parsed.bodyScripts || '');
+    setHtmlAttributes(parsed.htmlAttrs || '');
+    setBodyAttributes(parsed.bodyAttrs || '');
     setImportErro('');
     setMostrarModal(true);
   }
@@ -830,7 +1008,7 @@ export function LandingPages() {
     const slugFormatado = slug.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
     const htmlGerado = editorRef.current ? editorRef.current.getHtml() : htmlInicial;
     const cssGerado = editorRef.current ? editorRef.current.getCss() : cssInicial;
-    const htmlComExtras = `${htmlGerado}${extraHtmlHead || ''}`;
+    const htmlComExtras = `<!DOCTYPE html><html${htmlAttributes ? ` ${htmlAttributes}` : ''}><head>${extraHtmlHead || ''}</head><body${bodyAttributes ? ` ${bodyAttributes}` : ''}>${htmlGerado}${extraBodyScripts || ''}</body></html>`;
 
     const payload = { nome, slug: slugFormatado, status: statusLP, campanha_id: campanhaId || null, html_content: htmlComExtras, css_content: cssGerado };
 
@@ -848,7 +1026,7 @@ export function LandingPages() {
 
   async function deletarPagina(id) {
     if (!window.confirm("Deseja realmente apagar esta Landing Page? Isso removerá a página do ar.")) return;
-    try { await axios.delete(`${API_URL}/landing-pages/${id}`, getHeaders()); setMostrarModal(false); carregarDados(); } catch (err) { alert("Erro ao excluir página."); }
+    try { await axios.delete(`${API_URL}/landing-pages/${id}`, getHeaders()); setMostrarModal(false); carregarDados(); } catch { alert("Erro ao excluir página."); }
   }
 
   async function duplicarPagina(pagina) {
@@ -1103,6 +1281,9 @@ export function LandingPages() {
                     <i className="fa-solid fa-trash-can"></i>
                   </DangerButton>
                 )}
+                <SecondaryButton type="button" onClick={abrirEditorHtmlBruto} title="Editar HTML/CSS">
+                  <i className="fa-solid fa-code"></i> Editar HTML
+                </SecondaryButton>
                 <SecondaryButton type="button" onClick={() => setMostrarModal(false)}>Cancelar</SecondaryButton>
                 <PrimaryButton type="submit" form="lpForm"><i className="fa-solid fa-save"></i> Salvar</PrimaryButton>
               </div>
@@ -1113,6 +1294,34 @@ export function LandingPages() {
 
           </FullScreenContent>
         </FullScreenModalOverlay>
+      )}
+
+      {mostrarHtmlBruto && (
+        <ModalOverlay onClick={() => setMostrarHtmlBruto(false)}>
+          <WizardContent style={{ maxWidth: '980px', maxHeight: '90vh', width: '100%', overflow: 'hidden' }} onClick={(e) => e.stopPropagation()}>
+            <ModalHeader>
+              <div>
+                <h3><i className="fa-solid fa-code"></i> Editor HTML/CSS</h3>
+                <span className="subtitle">Edite diretamente o conteúdo e o estilo da página em texto.</span>
+              </div>
+              <CloseButton type="button" onClick={() => setMostrarHtmlBruto(false)}>×</CloseButton>
+            </ModalHeader>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '20px', height: '100%', boxSizing: 'border-box' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, minHeight: 0 }}>
+                <label style={{ fontWeight: 700 }}>HTML</label>
+                <CodeTextarea value={htmlBruto} onChange={(e) => setHtmlBruto(e.target.value)} style={{ flex: 1, minHeight: '250px' }} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, minHeight: 0 }}>
+                <label style={{ fontWeight: 700 }}>CSS</label>
+                <CodeTextarea value={cssBruto} onChange={(e) => setCssBruto(e.target.value)} style={{ flex: 1, minHeight: '180px' }} />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <SecondaryButton type="button" onClick={() => setMostrarHtmlBruto(false)}>Fechar</SecondaryButton>
+                <PrimaryButton type="button" onClick={aplicarHtmlBruto}>Aplicar</PrimaryButton>
+              </div>
+            </div>
+          </WizardContent>
+        </ModalOverlay>
       )}
     </>
   );
@@ -1289,6 +1498,20 @@ const FormGroup = styled.div`
 const Input = styled.input`
   padding: 10px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #2c3e50; outline: none; background: #f8fafc; transition: 0.2s; box-sizing: border-box; width: 100%;
   &:focus { border-color: #007bff; background: #fff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); }
+`;
+
+const CodeTextarea = styled.textarea`
+  width: 100%;
+  min-height: 220px;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #0f172a;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 0.9rem;
+  padding: 14px;
+  resize: vertical;
+  box-sizing: border-box;
 `;
 
 const Select = styled.select`
