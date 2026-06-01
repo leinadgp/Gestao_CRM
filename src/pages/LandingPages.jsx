@@ -45,6 +45,13 @@ export function LandingPages() {
   const [mostrarHtmlBruto, setMostrarHtmlBruto] = useState(false);
   const [htmlBruto, setHtmlBruto] = useState('');
   const [cssBruto, setCssBruto] = useState('');
+  const [idsList, setIdsList] = useState([]);
+  const [selectedLinkHref, setSelectedLinkHref] = useState('');
+  const [selectedLinkTarget, setSelectedLinkTarget] = useState('');
+  const [selectedLinkComponentCid, setSelectedLinkComponentCid] = useState('');
+  const [selectedComponentId, setSelectedComponentId] = useState('');
+  const [selectedComponentType, setSelectedComponentType] = useState('');
+  const [mostrarLinkModal, setMostrarLinkModal] = useState(false);
   const fileInputRef = useRef(null);
 
   const getMarkupFormularioCRM = () => `
@@ -96,6 +103,75 @@ export function LandingPages() {
     </section>
   `;
 
+  const updateSelectedLinkInfo = (component) => {
+    if (!component) {
+      setSelectedLinkHref('');
+      setSelectedLinkTarget('');
+      setSelectedLinkComponentCid('');
+      setSelectedComponentId('');
+      setSelectedComponentType('');
+      return;
+    }
+
+    const tagName = component.get('tagName');
+    const type = component.get('type');
+    const attrs = component.getAttributes();
+    setSelectedComponentId(attrs.id || '');
+    setSelectedComponentType(tagName || type || 'component');
+
+    if (tagName === 'a' || type === 'link' || attrs.href) {
+      setSelectedLinkHref(attrs.href || '');
+      setSelectedLinkTarget(attrs.target || '');
+      setSelectedLinkComponentCid(component.cid);
+    } else {
+      setSelectedLinkHref('');
+      setSelectedLinkTarget('');
+      setSelectedLinkComponentCid('');
+    }
+  };
+
+  const scanIdsFromCanvas = (editor) => {
+    if (!editor) return;
+    try {
+      const canvasDoc = editor.Canvas.getDocument();
+      if (!canvasDoc) return;
+      const ids = Array.from(canvasDoc.querySelectorAll('[id]'))
+        .map((el) => el.id)
+        .filter(Boolean)
+        .filter((id, index, arr) => arr.indexOf(id) === index)
+        .sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
+      setIdsList(ids);
+    } catch (err) {
+      console.warn('Não foi possível capturar os ids do canvas do GrapesJS.', err);
+    }
+  };
+
+  const updateSelectedLinkHref = (value) => {
+    setSelectedLinkHref(value);
+    const editor = editorRef.current;
+    if (!editor) return;
+    const component = editor.getSelected();
+    if (!component) return;
+    const tagName = component.get('tagName');
+    const type = component.get('type');
+    if (tagName === 'a' || type === 'link') {
+      component.addAttributes({ href: value });
+    }
+  };
+
+  const updateSelectedLinkTarget = (value) => {
+    setSelectedLinkTarget(value);
+    const editor = editorRef.current;
+    if (!editor) return;
+    const component = editor.getSelected();
+    if (!component) return;
+    const tagName = component.get('tagName');
+    const type = component.get('type');
+    if (tagName === 'a' || type === 'link') {
+      component.addAttributes({ target: value });
+    }
+  };
+
   const injectExtraHeadIntoCanvas = (editor, extraHead) => {
     if (!extraHead || !editor) return;
     try {
@@ -143,6 +219,31 @@ export function LandingPages() {
       }
     } catch (err) {
       console.warn('Não foi possível injetar ativos no preview do GrapesJS.', err);
+    }
+  };
+
+  const allowAnchorScrollInCanvas = (editor) => {
+    if (!editor) return;
+    try {
+      const canvasWindow = editor.Canvas.getWindow();
+      const canvasDoc = editor.Canvas.getDocument();
+      if (!canvasWindow || !canvasDoc) return;
+
+      canvasWindow.addEventListener('click', (event) => {
+        const anchor = event.target.closest && event.target.closest('a[href^="#"]');
+        if (!anchor) return;
+        const href = anchor.getAttribute('href');
+        if (!href || !href.startsWith('#')) return;
+        const target = canvasDoc.querySelector(href);
+        if (!target) return;
+        event.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (canvasWindow.history && canvasWindow.history.pushState) {
+          try { canvasWindow.history.pushState(null, '', href); } catch (err) { }
+        }
+      });
+    } catch (err) {
+      console.warn('Não foi possível habilitar âncoras no preview do GrapesJS.', err);
     }
   };
 
@@ -380,14 +481,41 @@ export function LandingPages() {
         if (extraBodyScripts) injectBodyScriptsIntoCanvas(editor, extraBodyScripts);
         if (cssInicial) injectCssIntoCanvas(editor, cssInicial);
         applyHtmlBodyAttributesToCanvas(editor, htmlAttributes, bodyAttributes);
+        allowAnchorScrollInCanvas(editor);
+        scanIdsFromCanvas(editor);
+        updateSelectedLinkInfo(editor.getSelected());
       });
 
       // Abertura automática da galeria ao clicar numa imagem
       editor.on('component:selected', (component) => {
+        updateSelectedLinkInfo(component);
         if (component.get('type') === 'image') {
           editor.runCommand('open-assets', { target: component });
         }
       });
+
+      editor.on('load', () => {
+        const canvasDoc = editor.Canvas.getDocument();
+        if (canvasDoc) {
+          canvasDoc.addEventListener('dblclick', () => {
+            const selected = editor.getSelected();
+            if (!selected) return;
+            const tagName = selected.get('tagName');
+            const attrs = selected.getAttributes();
+            if (tagName === 'a' || selected.get('type') === 'link' || attrs.href) {
+              setMostrarLinkModal(true);
+            }
+          });
+        }
+      });
+
+      editor.on('component:update:attributes', () => {
+        scanIdsFromCanvas(editor);
+        updateSelectedLinkInfo(editor.getSelected());
+      });
+
+      editor.on('component:add', () => scanIdsFromCanvas(editor));
+      editor.on('component:remove', () => scanIdsFromCanvas(editor));
 
       // BLOCO 1: CAPA AUTORIDADE
       editor.BlockManager.add('autoridade-hero', {
@@ -696,6 +824,8 @@ export function LandingPages() {
       if (extraBodyScripts) injectBodyScriptsIntoCanvas(editor, extraBodyScripts);
       if (cssInicial) injectCssIntoCanvas(editor, cssInicial);
       applyHtmlBodyAttributesToCanvas(editor, htmlAttributes, bodyAttributes);
+      scanIdsFromCanvas(editor);
+      updateSelectedLinkInfo(editor.getSelected());
     }
   }, [mostrarModal, htmlInicial, cssInicial, extraHtmlHead, extraBodyScripts, htmlAttributes, bodyAttributes]);
 
@@ -949,11 +1079,7 @@ export function LandingPages() {
 
         const hasCrmForm = !!doc.querySelector('#formInscricaoCRM, #formInscricaoLP, form[id*="Inscricao" i], form[class*="Inscricao" i]');
         const hasCrmPlaceholder = !!doc.querySelector('#CRM_FORM_INJECT_ZONE');
-        if (!hasCrmForm && !hasCrmPlaceholder) {
-          const wrapper = doc.createElement('div');
-          wrapper.innerHTML = getMarkupFormularioCRM();
-          doc.body.appendChild(wrapper);
-        } else if (hasCrmPlaceholder) {
+        if (hasCrmPlaceholder) {
           const placeholder = doc.querySelector('#CRM_FORM_INJECT_ZONE');
           placeholder.outerHTML = getMarkupFormularioCRM();
         }
@@ -1323,6 +1449,36 @@ export function LandingPages() {
           </WizardContent>
         </ModalOverlay>
       )}
+      {mostrarLinkModal && (
+        <ModalOverlay onClick={() => setMostrarLinkModal(false)}>
+          <WizardContent style={{ maxWidth: '560px', width: '100%', overflow: 'hidden' }} onClick={(e) => e.stopPropagation()}>
+            <ModalHeader $bg="#f8fafc" $color="#1f2937">
+              <div>
+                <h3><i className="fa-solid fa-link"></i> Editar link</h3>
+                <span className="subtitle">Atualize o destino do botão ou âncora selecionado.</span>
+              </div>
+              <CloseButton type="button" onClick={() => setMostrarLinkModal(false)}>×</CloseButton>
+            </ModalHeader>
+            <div style={{ padding: '20px', display: 'grid', gap: '18px' }}>
+              <FormGroup>
+                <label>Href</label>
+                <LinkInput value={selectedLinkHref} onChange={(e) => updateSelectedLinkHref(e.target.value)} placeholder="#inscricao ou /outra-pagina" />
+              </FormGroup>
+              <FormGroup>
+                <label>Target</label>
+                <Select value={selectedLinkTarget} onChange={(e) => updateSelectedLinkTarget(e.target.value)}>
+                  <option value="">mesma aba</option>
+                  <option value="_blank">nova aba</option>
+                </Select>
+              </FormGroup>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
+                <SecondaryButton type="button" onClick={() => setMostrarLinkModal(false)}>Cancelar</SecondaryButton>
+                <PrimaryButton type="button" onClick={() => setMostrarLinkModal(false)}>Salvar</PrimaryButton>
+              </div>
+            </div>
+          </WizardContent>
+        </ModalOverlay>
+      )}
     </>
   );
 }
@@ -1421,6 +1577,73 @@ const StatusBadge = styled.span`
   &.draft { background: #fff3cd; color: #856404; }
 `;
 
+const IdsBar = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 25px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  flex-wrap: wrap;
+  color: #475569;
+  font-size: 0.95rem;
+
+  strong { margin-right: 10px; color: #2c3e50; }
+
+  @media (max-width: 900px) { flex-direction: column; align-items: stretch; }
+`;
+
+const IdBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  color: #1f2937;
+  border-radius: 999px;
+  padding: 6px 10px;
+  margin: 4px 4px 0 0;
+  font-size: 0.9rem;
+`;
+
+const SelectedInfo = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex: 1;
+  flex-wrap: wrap;
+  min-width: 0;
+
+  > div {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  strong {
+    color: #334155;
+  }
+
+  span {
+    color: #64748b;
+    font-size: 0.92rem;
+  }
+`;
+
+const LinkEditor = styled.div`
+  display: grid;
+  gap: 10px;
+  min-width: 320px;
+  width: min(100%, 420px);
+`;
+
+const LinkInput = styled.input`
+  width: 100%;
+  min-width: 0;
+`;
+
 const LinkButton = styled.a`
   background: #f1f5f9; color: #007bff; border: none; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; transition: 0.2s;
   &:hover { background: #e7f3ff; }
@@ -1440,7 +1663,7 @@ const AiButton = styled(ButtonBase)`background: linear-gradient(135deg, #8b5cf6,
 
 // --- MODAIS GERAIS ---
 const ModalOverlay = styled.div`
-  position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh; background: rgba(0,0,0,0.6); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; z-index: 9998; padding: 20px; padding-bottom: calc(20px + env(safe-area-inset-bottom)); box-sizing: border-box;
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh; background: rgba(0,0,0,0.6); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; z-index: 10001; padding: 20px; padding-bottom: calc(20px + env(safe-area-inset-bottom)); box-sizing: border-box;
 `;
 
 const WizardContent = styled.div`
