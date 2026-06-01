@@ -138,16 +138,12 @@ export function Dashboard() {
   
   const formatarData = (dataIso) => {
     if (!dataIso) return '-';
-    const data = new Date(dataIso);
-    data.setMinutes(data.getMinutes() + data.getTimezoneOffset());
-    return data.toLocaleDateString('pt-BR');
+    return new Date(dataIso).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
   };
 
   const formatarDataHora = (dataIso) => {
     if (!dataIso) return '-';
-    const data = new Date(dataIso);
-    data.setMinutes(data.getMinutes() + data.getTimezoneOffset());
-    return data.toLocaleString('pt-BR');
+    return new Date(dataIso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
   };
 
   const formatarMesApresentacao = (yyyyMM) => {
@@ -184,6 +180,16 @@ export function Dashboard() {
   const statusPerdido = useMemo(() => ['perdido', 'naofunciona', 'naoatendeu'], []);
   const statusAndamento = useMemo(() => ['aberto', 'tarefa', 'avaliar', 'interessada', 'naofunciona', 'naoatendeu'], []);
 
+  const obterDataCompetencia = (op, idMod) => {
+    const infoMod = idMod ? todosModulos.find((m) => Number(m.id) === Number(idMod)) : null;
+    return infoMod?.data_evento
+      || infoMod?.data_evento_fim
+      || infoMod?.data_inicio_vendas
+      || op.atualizado_em
+      || op.criado_em
+      || null;
+  };
+
   const campanhasAtivas = useMemo(() => campanhas.filter(c => !c.arquivada), [campanhas]);
   const campanhaIdsAtivas = useMemo(() => new Set(campanhasAtivas.map(c => c.id)), [campanhasAtivas]);
 
@@ -194,31 +200,40 @@ export function Dashboard() {
       : base;
   }, [oportunidades, filtroCampanha, campanhaIdsAtivas]);
 
-  const vendasNoMes = useMemo(() => {
-    let fracionadas = [];
-    opsGeraisFiltradas.forEach(op => {
-      if (!statusSucesso.includes(op.status)) return; 
-      
+  const opsPorCompetencia = useMemo(() => {
+    const itens = [];
+    opsGeraisFiltradas.forEach((op) => {
       const idsMods = parseJSONSeguro(op.modulos_ids, []);
-
       if (idsMods.length > 0) {
         const valorPorModulo = Number(op.valor) / idsMods.length;
-        idsMods.forEach(idMod => {
-          const infoMod = todosModulos.find(m => m.id === idMod);
-          const dataCompetencia = infoMod?.data_evento || infoMod?.data_inicio_vendas || op.atualizado_em || op.criado_em;
-          fracionadas.push({ ...op, valorContabil: valorPorModulo, dataCompetencia, modulo_id_fracionado: idMod });
+        idsMods.forEach((idMod) => {
+          itens.push({
+            ...op,
+            valorContabil: valorPorModulo,
+            dataCompetencia: obterDataCompetencia(op, idMod),
+            modulo_id_fracionado: idMod,
+          });
         });
       } else {
-        fracionadas.push({ ...op, valorContabil: Number(op.valor), dataCompetencia: op.atualizado_em || op.criado_em, modulo_id_fracionado: null });
+        itens.push({
+          ...op,
+          valorContabil: Number(op.valor),
+          dataCompetencia: obterDataCompetencia(op, null),
+          modulo_id_fracionado: null,
+        });
       }
     });
+    return itens;
+  }, [opsGeraisFiltradas, todosModulos]);
 
-    return fracionadas.filter(venda => {
+  const vendasNoMes = useMemo(() => {
+    return opsPorCompetencia.filter((venda) => {
+      if (!statusSucesso.includes(venda.status)) return false;
       if (!mesFiltro) return true;
       const mesAnoVenda = venda.dataCompetencia ? venda.dataCompetencia.substring(0, 7) : '';
       return mesAnoVenda === mesFiltro;
     });
-  }, [opsGeraisFiltradas, statusSucesso, todosModulos, mesFiltro]);
+  }, [opsPorCompetencia, statusSucesso, mesFiltro]);
 
   const kpis = useMemo(() => {
     let totalGanho = 0;
@@ -227,15 +242,17 @@ export function Dashboard() {
     let totalAberto = 0, qtdAberto = 0;
     let totalPerdido = 0, qtdPerdido = 0;
 
-    opsGeraisFiltradas.forEach(op => {
-      let passaMes = true;
+    opsPorCompetencia.forEach((op) => {
       if (mesFiltro) {
-        const dataOp = op.atualizado_em || op.criado_em;
-        passaMes = dataOp ? dataOp.substring(0, 7) === mesFiltro : false;
+        const mesAno = op.dataCompetencia ? op.dataCompetencia.substring(0, 7) : '';
+        if (mesAno !== mesFiltro) return;
       }
-      if (passaMes) {
-        if (statusAndamento.includes(op.status)) { totalAberto += Number(op.valor) || 0; qtdAberto++; } 
-        else if (statusPerdido.includes(op.status)) { totalPerdido += Number(op.valor) || 0; qtdPerdido++; }
+      if (statusAndamento.includes(op.status)) {
+        totalAberto += Number(op.valorContabil) || 0;
+        qtdAberto += 1;
+      } else if (statusPerdido.includes(op.status)) {
+        totalPerdido += Number(op.valorContabil) || 0;
+        qtdPerdido += 1;
       }
     });
 
@@ -248,7 +265,7 @@ export function Dashboard() {
       qtdPerdido,
       ticketMedio: vendasNoMes.length > 0 ? (totalGanho / vendasNoMes.length) : 0
     };
-  }, [vendasNoMes, opsGeraisFiltradas, mesFiltro, statusAndamento, statusPerdido]);
+  }, [vendasNoMes, opsPorCompetencia, mesFiltro, statusAndamento, statusPerdido]);
 
   const dadosPizza = useMemo(() => {
     return [
@@ -287,12 +304,22 @@ export function Dashboard() {
       }
       let passaMes = true;
       if (mesFiltro) {
-        const dataInsc = inscrito.data_inscricao ? inscrito.data_inscricao.substring(0, 7) : '';
-        if (dataInsc !== mesFiltro) passaMes = false;
+        const idsMods = parseJSONSeguro(inscrito.modulos_ids, []);
+        const mesesCompetencia = idsMods
+          .map((idMod) => {
+            const infoMod = todosModulos.find((m) => Number(m.id) === Number(idMod));
+            const dataCompetencia = infoMod?.data_evento || infoMod?.data_evento_fim || infoMod?.data_inicio_vendas || inscrito.data_inscricao;
+            return dataCompetencia ? dataCompetencia.substring(0, 7) : '';
+          })
+          .filter(Boolean);
+        if (!mesesCompetencia.length && inscrito.data_inscricao) {
+          mesesCompetencia.push(inscrito.data_inscricao.substring(0, 7));
+        }
+        if (!mesesCompetencia.includes(mesFiltro)) passaMes = false;
       }
       return passaCampanha && passaMes;
     });
-  }, [inscritos, filtroCampanha, campanhas, mesFiltro]);
+  }, [inscritos, filtroCampanha, campanhas, mesFiltro, todosModulos]);
 
   function recarregarInscritos() {
     const config = getHeaders();

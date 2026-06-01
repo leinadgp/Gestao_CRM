@@ -193,7 +193,7 @@ export function ChatFlutuante() {
                       <MessageBubble key={idx} $souEu={souEu}>
                         {msg.mensagem}
                         <span className="time">
-                          {new Date(msg.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                          {new Date(msg.criado_em).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </MessageBubble>
                     )

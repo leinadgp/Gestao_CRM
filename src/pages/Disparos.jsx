@@ -445,9 +445,7 @@ export function Disparos() {
 
   function formatarDataHora(dataIso) {
     if (!dataIso) return '-';
-    const data = new Date(dataIso);
-    data.setMinutes(data.getMinutes() + data.getTimezoneOffset());
-    return data.toLocaleString('pt-BR');
+    return new Date(dataIso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
   }
 
   // ==========================================

@@ -296,7 +296,7 @@ export function Contatos() {
   };
 
   const formatarMoeda = (v) => Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  const formatarData = (d) => d ? new Date(d).toLocaleDateString('pt-BR') : '-';
+  const formatarData = (d) => d ? new Date(d).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '-';
 
   const calcularDiasRestantes = (value) => {
     if (!value) return null;
@@ -670,7 +670,7 @@ export function Contatos() {
               <ModalBody>
                 {carregandoNotas ? "Buscando notas..." : notasOp.map(n => (
                   <div key={n.id} style={{ padding: '10px', borderBottom: '1px solid #eee' }}>
-                    <strong>{n.usuario_nome}</strong> - {new Date(n.criado_em).toLocaleString()}<br />
+                    <strong>{n.usuario_nome}</strong> - {new Date(n.criado_em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}<br />
                     {n.nota}
                   </div>
                 ))}

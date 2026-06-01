@@ -565,7 +565,11 @@ export function Funil() {
   async function adicionarNota() {
     if (!novaNota.trim() || !editandoId) return;
     try {
-      const res = await axios.post(`${API_URL}/oportunidades/${editandoId}/notas`, { nota: novaNota }, getHeaders());
+      const res = await axios.post(
+        `${API_URL}/oportunidades/${editandoId}/notas`,
+        { nota: novaNota, criado_em: new Date().toISOString() },
+        getHeaders()
+      );
       setNotas([res.data, ...notas]);
       setNovaNota('');
     } catch (e) { alert('Erro ao adicionar nota.'); }
@@ -1105,7 +1109,7 @@ export function Funil() {
     if (!value) return '-';
     const data = new Date(value);
     if (Number.isNaN(data.getTime())) return value;
-    return data.toLocaleDateString('pt-BR');
+    return data.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
   };
   const calcularDiasRestantes = (value) => {
     if (!value) return null;
@@ -1877,7 +1881,7 @@ export function Funil() {
                                 <NoteHeader>
                                   <strong className="user"><i className="fa-solid fa-user-circle"></i> {n.usuario_nome}</strong>
                                   <div className="meta">
-                                    <span>{new Date(n.criado_em).toLocaleString('pt-BR')}</span>
+                                    <span>{new Date(n.criado_em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span>
                                     <button type="button" className="btn-edit" onClick={() => iniciarEdicaoNota(n)}><i className="fa-solid fa-pen"></i></button>
                                   </div>
                                 </NoteHeader>

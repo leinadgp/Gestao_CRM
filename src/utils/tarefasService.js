@@ -196,6 +196,7 @@ export function tarefasQuePrecisamAlerta(tarefas, agora = Date.now()) {
 export function formatarDataHoraTarefa(isoString) {
   if (!isoString) return '';
   return new Date(isoString).toLocaleString('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -207,8 +208,22 @@ export function formatarDataHoraTarefa(isoString) {
 export function paraInputDatetimeLocal(isoString) {
   if (!isoString) return '';
   const d = new Date(isoString);
-  const pad = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const formatter = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  const parts = formatter.formatToParts(d);
+  const pad = (str) => String(str).padStart(2, '0');
+  const year = parts.find(p => p.type === 'year')?.value;
+  const month = parts.find(p => p.type === 'month')?.value;
+  const day = parts.find(p => p.type === 'day')?.value;
+  const hour = parts.find(p => p.type === 'hour')?.value;
+  const minute = parts.find(p => p.type === 'minute')?.value;
+  return `${year}-${pad(month)}-${pad(day)}T${pad(hour)}:${pad(minute)}`;
 }
 
 export function deInputDatetimeLocal(valor) {

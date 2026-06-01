@@ -96,9 +96,7 @@ export function Campanhas() {
 
   function formatarDataBR(dataIso) {
     if (!dataIso) return '-';
-    const data = new Date(dataIso);
-    data.setMinutes(data.getMinutes() + data.getTimezoneOffset());
-    return data.toLocaleDateString('pt-BR');
+    return new Date(dataIso).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
   }
 
   function abrirModalNovo() {

@@ -125,12 +125,12 @@ export function Empresas() {
   // --- FUNÇÕES DE FORMATAÇÃO E UI ---
   function formatarData(dataIso) {
     if (!dataIso) return '-';
-    return new Date(dataIso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    return new Date(dataIso).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric' });
   }
 
   function formatarDataHora(dataIso) {
     if (!dataIso) return '-';
-    return new Date(dataIso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return new Date(dataIso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   }
 
   function formatarMoeda(valor) {
