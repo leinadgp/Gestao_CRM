@@ -278,8 +278,10 @@ export function Dashboard() {
   const dadosEquipe = useMemo(() => {
     const ranking = {};
     vendasNoMes.forEach(v => {
-      let nomeVendedor = v.vendedor_nome || 'Não Atribuído';
-      if (v.origem_venda === 'landing_page') nomeVendedor = 'Automático (Landing Page)';
+      // Atribui ao vendedor quando houver, caso contrário considera como venda via landing page
+      const nomeVendedor = (v.vendedor_nome && String(v.vendedor_nome).trim())
+        ? v.vendedor_nome
+        : 'Automático (Landing Page)';
       if (!ranking[nomeVendedor]) ranking[nomeVendedor] = { nome: nomeVendedor, total: 0, quantidade: 0 };
       
       ranking[nomeVendedor].total += v.valorContabil;
@@ -629,7 +631,7 @@ export function Dashboard() {
                           </td>
                           <td data-label="Vendedor">
                             <Badge className="badge-blue">
-                              {op.origem_venda === 'landing_page' ? '🤖 Landing Page' : (op.vendedor_nome || 'Equipe')}
+                              {op.vendedor_nome ? op.vendedor_nome : '🤖 Landing Page'}
                             </Badge>
                           </td>
                           <td data-label="Valor" className="text-right text-green font-bold large-text">
