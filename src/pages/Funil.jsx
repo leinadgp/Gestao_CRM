@@ -49,6 +49,7 @@ export function Funil() {
 
   // --- CONTROLES DE TELA E BUSCA ---
   const [carregando, setCarregando] = useState(false);
+  const [ultimaAtualizacaoFunil, setUltimaAtualizacaoFunil] = useState(null);
   const [filtroCampanha, setFiltroCampanha] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('');
   const [buscaGeral, setBuscaGeral] = useState('');
@@ -223,6 +224,17 @@ export function Funil() {
   }, [filtroCampanha]);
 
   useEffect(() => {
+    if (!filtroCampanha) return;
+    const intervalo = setInterval(() => {
+      if (!mostrarModal && !carregando) {
+        carregarFunilDaCampanha(filtroCampanha, true);
+      }
+    }, 2 * 60 * 1000);
+
+    return () => clearInterval(intervalo);
+  }, [filtroCampanha, mostrarModal, carregando]);
+
+  useEffect(() => {
     const handleClickFora = (event) => {
       if (dropdownEmpresaRef.current && !dropdownEmpresaRef.current.contains(event.target)) {
         setMostrarDropdownEmpresa(false);
@@ -279,7 +291,7 @@ export function Funil() {
     const lidarComBotaoVoltar = () => {
       // Se apertar voltar no celular, a gente apenas fecha o modal que estiver aberto
       if (mostrarModal) {
-        setMostrarModal(false);
+        fecharModalPrincipal(false);
       } else if (mostrarModalContato) {
         fecharModalContato();
       } else if (mostrarModalEmpresa) {
@@ -355,8 +367,8 @@ export function Funil() {
     }
   }
 
-  async function carregarFunilDaCampanha(campanhaId) {
-    setCarregando(true);
+  async function carregarFunilDaCampanha(campanhaId, quiet = false) {
+    if (!quiet) setCarregando(true);
     try {
       const config = getHeaders();
       const [resEtapas, resOps] = await Promise.all([
@@ -367,10 +379,11 @@ export function Funil() {
       setEtapas(resEtapas.data);
       const opsDestaCampanha = resOps.data.filter(op => Number(op.campanha_id) === Number(campanhaId));
       setOportunidades(opsDestaCampanha);
+      setUltimaAtualizacaoFunil(new Date());
     } catch (erro) {
       console.error(erro);
     } finally {
-      setCarregando(false);
+      if (!quiet) setCarregando(false);
     }
   }
 
@@ -964,6 +977,20 @@ export function Funil() {
     setMostrarModal(true);
   }
 
+  function fecharModalPrincipal(recarregar = true) {
+    setMostrarModal(false);
+    setEditandoId(null);
+    setTitulo(''); setValor(''); setEmpresaId(''); setEmpresaTelefones(''); setEmpresaHorario(''); setContatoId(''); setObservacoes('');
+    setContatosVinculadosIds([]); setQtdInscritos(0); setInscritos([]);
+    setModoPacoteInscricao('igual');
+    setStatusOp('aberto'); setEtapaId('');
+    setVendedorId(''); setVendedorOriginal('');
+    setDesconto(0); setDescontoReais(0);
+    setModulosSelecionados([]);
+    setBuscaEmpresaNoModal(''); setBuscaContatoNoModal(''); setNotas([]); setNovaNota(''); cancelarEdicaoNota();
+    if (recarregar && filtroCampanha) carregarFunilDaCampanha(filtroCampanha, true);
+  }
+
   function abrirModalEdicao(op) {
     setEditandoId(op.id); setTitulo(op.titulo); setValor(op.valor);
     setEmpresaId(op.empresa_id || '');
@@ -1081,8 +1108,7 @@ export function Funil() {
       } else {
         await axios.post(`${API_URL}/oportunidades`, dados, getHeaders());
       }
-      setMostrarModal(false);
-      carregarFunilDaCampanha(filtroCampanha);
+      fecharModalPrincipal();
     } catch (erro) {
       alert(erro.response?.data?.erro || 'Erro ao salvar oportunidade.');
     }
@@ -1092,7 +1118,7 @@ export function Funil() {
     if (!window.confirm('Excluir este negócio? O histórico de notas também será apagado.')) return;
     try {
       await axios.delete(`${API_URL}/oportunidades/${editandoId}`, getHeaders());
-      setMostrarModal(false); carregarFunilDaCampanha(filtroCampanha);
+      fecharModalPrincipal();
     } catch (error) { alert("Falha ao excluir o negócio."); }
   }
 
@@ -1924,7 +1950,7 @@ export function Funil() {
               <ModalFooter>
                 {editandoId ? <DangerButton type="button" onClick={deletarOportunidade}><i className="fa-solid fa-trash-can"></i> Excluir</DangerButton> : <div></div>}
                 <div style={{ display: 'flex', gap: '10px' }}>
-                  <SecondaryButton type="button" onClick={() => setMostrarModal(false)}>Cancelar</SecondaryButton>
+                  <SecondaryButton type="button" onClick={() => fecharModalPrincipal()}>Cancelar</SecondaryButton>
                   <PrimaryButton type="submit"><i className="fa-solid fa-save"></i> Salvar Negócio</PrimaryButton>
                 </div>
               </ModalFooter>
