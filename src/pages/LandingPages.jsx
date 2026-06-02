@@ -472,8 +472,7 @@ export function LandingPages() {
 
       // Eventos de blindagem
       editor.on('load', () => {
-        editor.Panels.removeButton('views', 'open-sm');
-        editor.Panels.removeButton('views', 'open-tm');
+        // Mantém a visualização desktop/tablet/mobile ativa para ajustes responsivos
         editor.Panels.removeButton('views', 'open-layers');
         editor.Panels.getButton('views', 'open-blocks').set('active', true);
 
