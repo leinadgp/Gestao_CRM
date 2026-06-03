@@ -33,6 +33,7 @@ export function LandingPages() {
   });
 
   const API_URL = import.meta.env?.VITE_API_URL || 'https://server-js-gestao.onrender.com';
+  const LANDING_DOMAIN = import.meta.env?.VITE_LANDING_DOMAIN || 'https://conteudo2.gestao.srv.br';
   
   const editorRef = useRef(null);
   const [htmlInicial, setHtmlInicial] = useState('');
@@ -64,28 +65,46 @@ export function LandingPages() {
         </div>
 
         <div style="background: rgba(15, 25, 48, 0.92); border: 1px solid rgba(245, 158, 11, 0.18); border-radius: 24px; padding: 36px; box-shadow: 0 30px 60px -30px rgba(0,0,0,0.45);">
-          <form id="formInscricaoCRM" style="display: grid; gap: 18px;">
+          <form id="formInscricaoCRM" style="display: grid; gap: 18px;" autocomplete="on">
+            <div style="display: grid; gap: 18px; grid-template-columns: repeat(2, minmax(0, 1fr));">
+              <div>
+                <label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Nome completo*</label>
+                <input type="text" id="nome" name="nome" autocomplete="name" required placeholder="Seu nome completo" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" />
+              </div>
+              <div>
+                <label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Telefone*</label>
+                <input type="tel" id="telefone" name="telefone" autocomplete="tel" required placeholder="(00) 00000-0000" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" />
+              </div>
+            </div>
             <div style="display: grid; gap: 18px; grid-template-columns: repeat(2, minmax(0, 1fr));">
               <div>
                 <label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Formação*</label>
-                <input type="text" id="formacao" name="formacao" required placeholder="Sua formação acadêmica" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" />
+                <input type="text" id="formacao" name="formacao" autocomplete="organization-title" required placeholder="Sua formação acadêmica" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" />
               </div>
               <div>
                 <label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Cargo*</label>
-                <input type="text" id="cargo" name="cargo" required placeholder="Seu cargo atual" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" />
+                <input type="text" id="cargo" name="cargo" autocomplete="job-title" required placeholder="Seu cargo atual" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" />
               </div>
             </div>
-            <div>
-              <label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Município*</label>
-              <input type="text" id="cidade" name="cidade" required placeholder="Cidade / Estado" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" />
+            <div style="display: grid; gap: 18px; grid-template-columns: repeat(2, minmax(0, 1fr));">
+              <div>
+                <label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Estado*</label>
+                <input type="text" id="uf" name="uf" autocomplete="address-level1" required placeholder="Ex: RS" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" />
+              </div>
+              <div>
+                <label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Município*</label>
+                <input type="text" id="cidade" name="cidade" autocomplete="address-level2" required placeholder="Cidade" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" />
+              </div>
             </div>
-            <div>
-              <label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Email*</label>
-              <input type="email" id="email" name="email" required placeholder="seu@email.com" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" />
-            </div>
-            <div>
-              <label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">WhatsApp*</label>
-              <input type="tel" id="whatsapp" name="whatsapp" required placeholder="(00) 00000-0000" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" />
+            <div style="display: grid; gap: 18px; grid-template-columns: repeat(2, minmax(0, 1fr));">
+              <div>
+                <label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Email*</label>
+                <input type="email" id="email" name="email" autocomplete="email" required placeholder="seu@email.com" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" />
+              </div>
+              <div>
+                <label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">WhatsApp*</label>
+                <input type="tel" id="whatsapp" name="whatsapp" autocomplete="tel" required placeholder="(00) 00000-0000" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" />
+              </div>
             </div>
             <div id="containerModulos" style="border-radius: 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(248,250,252,0.12); padding: 18px; color: #f8fafc;"> 
               <p style="margin: 0; font-size: 0.95rem; color: #f8fafc; opacity: 0.9;">(Os módulos definidos na campanha aparecerão automaticamente aqui quando a página estiver publicada)</p>
@@ -97,6 +116,19 @@ export function LandingPages() {
             <button type="submit" id="btnSubmit" style="width:100%; padding: 16px 20px; border-radius: 14px; border: none; font-weight: 700; font-size: 1rem; color: #0B192C; background: linear-gradient(90deg, #FCD34D 0%, #F59E0B 100%); cursor:pointer;">Enviar meus dados</button>
             <div id="feedback" style="display:none; padding: 14px 16px; border-radius: 12px; text-align:center; font-weight:700;"></div>
             <p style="margin: 0; font-size: 0.82rem; color: rgba(248,250,252,0.72); text-align:center;">Seus dados estão protegidos conosco.</p>
+            <div style="margin-top: 24px; border-radius: 30px; background: linear-gradient(90deg, #FCD34D 0%, #F59E0B 100%); padding: 15px 28px; text-align: center; box-shadow: 0 25px 50px -25px rgba(0,0,0,0.35);">
+              <p style="margin: 0; font-size: 0.95rem; font-weight: 700; color: #0B192C;">Consulte o conteúdo programático do curso.</p>
+              <a href="https://drive.google.com/file/d/1y6HPl8eV1tm0kckkYCoKnexFIOJOoeqi/view?usp=drive_link" target="_blank" rel="noopener noreferrer" style="display:inline-flex; align-items:center; justify-content:center; gap:10px; margin-top: 18px; padding: 16px 24px; min-width: 260px; border-radius: 14px; background: #0B192C; color: #ffffff; text-decoration: none; font-weight: 700; text-transform: uppercase; font-size: 0.9rem; box-shadow: 0 15px 30px rgba(0,0,0,0.18);">
+                <span style="display: inline-flex; align-items: center; gap: 10px;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">
+                    <path d="M12 16.5V3" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M6 10.5L12 16.5L18 10.5" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M6 20.5H18" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  BAIXAR FOLDER DO CURSO (PDF)
+                </span>
+              </a>
+            </div>
           </form>
         </div>
       </div>
@@ -635,7 +667,20 @@ export function LandingPages() {
                             </button>
                             <div id="feedback" style="display:none; padding: 15px; border-radius: 5px; text-align: center; margin-top: 15px; font-weight: bold;"></div>
                             <p style="margin-top: 16px; font-size: 12px; color: rgba(248,250,252,0.6);">Seus dados estão protegidos conosco.</p>
-                        </div>
+                              <div style="margin-top: 24px; border-radius: 30px; background: linear-gradient(90deg, #FCD34D 0%, #F59E0B 100%); padding: 15px 28px; text-align: center; box-shadow: 0 25px 50px -25px rgba(0,0,0,0.35);">
+              <p style="margin: 0; font-size: 0.95rem; font-weight: 700; color: #0B192C;">Consulte o conteúdo programático do curso.</p>
+              <a href="https://drive.google.com/file/d/1y6HPl8eV1tm0kckkYCoKnexFIOJOoeqi/view?usp=drive_link" target="_blank" rel="noopener noreferrer" style="display:inline-flex; align-items:center; justify-content:center; gap:10px; margin-top: 18px; padding: 16px 24px; min-width: 260px; border-radius: 14px; background: #0B192C; color: #ffffff; text-decoration: none; font-weight: 700; text-transform: uppercase; font-size: 0.9rem; box-shadow: 0 15px 30px rgba(0,0,0,0.18);">
+                <span style="display: inline-flex; align-items: center; gap: 10px;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">
+                    <path d="M12 16.5V3" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M6 10.5L12 16.5L18 10.5" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M6 20.5H18" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  BAIXAR FOLDER DO CURSO (PDF)
+                </span>
+              </a>
+            </div>
+                            </div>
 
                     </form>
                 </div>
@@ -788,7 +833,20 @@ export function LandingPages() {
                                       Enviar meus dados
                                   </button>
                                   <div id="feedback" style="display:none; padding: 15px; border-radius: 5px; text-align: center; margin-top: 15px; font-weight: bold;"></div>
-                              </div>
+                              <div style="margin-top: 24px; border-radius: 30px; background: linear-gradient(90deg, #FCD34D 0%, #F59E0B 100%); padding: 15px 28px; text-align: center; box-shadow: 0 25px 50px -25px rgba(0,0,0,0.35);">
+              <p style="margin: 0; font-size: 0.95rem; font-weight: 700; color: #0B192C;">Consulte o conteúdo programático do curso.</p>
+              <a href="https://drive.google.com/file/d/1y6HPl8eV1tm0kckkYCoKnexFIOJOoeqi/view?usp=drive_link" target="_blank" rel="noopener noreferrer" style="display:inline-flex; align-items:center; justify-content:center; gap:10px; margin-top: 18px; padding: 16px 24px; min-width: 260px; border-radius: 14px; background: #0B192C; color: #ffffff; text-decoration: none; font-weight: 700; text-transform: uppercase; font-size: 0.9rem; box-shadow: 0 15px 30px rgba(0,0,0,0.18);">
+                <span style="display: inline-flex; align-items: center; gap: 10px;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">
+                    <path d="M12 16.5V3" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M6 10.5L12 16.5L18 10.5" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M6 20.5H18" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  BAIXAR FOLDER DO CURSO (PDF)
+                </span>
+              </a>
+            </div>
+                                  </div>
                           </form>
                       </div>
                   </div>
@@ -1270,7 +1328,7 @@ export function LandingPages() {
                         </StatusBadge>
                       </td>
                       <td data-label="Ações" className="text-center actions-cell">
-                        <LinkButton href={`${API_URL}/lp/${p.slug}`} target="_blank" rel="noreferrer" title="Abrir página online" onClick={(e) => e.stopPropagation()}>
+                        <LinkButton href={`${LANDING_DOMAIN}/lp/${p.slug}`} target="_blank" rel="noreferrer" title="Abrir página online" onClick={(e) => e.stopPropagation()}>
                           <i className="fa-solid fa-arrow-up-right-from-square"></i> Visitar
                         </LinkButton>
                         <ActionButton type="button" onClick={(e) => { e.stopPropagation(); duplicarPagina(p); }} title="Duplicar página">
