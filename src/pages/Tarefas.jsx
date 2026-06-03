@@ -28,6 +28,7 @@ export function Tarefas() {
   const [editDataHora, setEditDataHora] = useState('');
   const [filtroUsuario, setFiltroUsuario] = useState('todos');
   const [filtroStatus, setFiltroStatus] = useState('pendentes');
+  const [mostrarModalNova, setMostrarModalNova] = useState(false);
 
   const carregarTarefas = useCallback(async () => {
     setCarregando(true);
@@ -54,10 +55,7 @@ export function Tarefas() {
     tarefas.forEach((t) => {
       const id = String(t.criado_por_id || '');
       if (!mapa[id]) {
-        mapa[id] = {
-          id,
-          nome: t.criado_por_nome || 'Usuário',
-        };
+        mapa[id] = { id, nome: t.criado_por_nome || 'Usuário' };
       }
     });
     return Object.values(mapa);
@@ -66,14 +64,27 @@ export function Tarefas() {
   const tarefasFiltradas = useMemo(() => {
     return tarefas.filter((t) => {
       const usuarioMatch = filtroUsuario === 'todos' || String(t.criado_por_id) === String(filtroUsuario);
-      const statusMatch = filtroStatus === 'todos'
-        || (filtroStatus === 'pendentes' ? !t.concluida : t.concluida);
+      const statusMatch = filtroStatus === 'todos' || (filtroStatus === 'pendentes' ? !t.concluida : t.concluida);
       return usuarioMatch && statusMatch;
     });
   }, [tarefas, filtroUsuario, filtroStatus]);
 
   const pendentes = tarefasFiltradas.filter((t) => !t.concluida);
   const concluidas = tarefasFiltradas.filter((t) => t.concluida);
+
+  function abrirModalNova() {
+    setTitulo('');
+    setDescricao('');
+    setDataHora('');
+    setMostrarModalNova(true);
+  }
+
+  function fecharModalNova() {
+    setMostrarModalNova(false);
+    setTitulo('');
+    setDescricao('');
+    setDataHora('');
+  }
 
   async function handleCriar() {
     if (!titulo.trim() || !dataHora) {
@@ -94,9 +105,7 @@ export function Tarefas() {
         descricao,
         data_hora: iso,
       });
-      setTitulo('');
-      setDescricao('');
-      setDataHora('');
+      fecharModalNova();
       await carregarTarefas();
     } catch (erro) {
       const mensagem = erro.response?.data?.erro || erro.message || 'Não foi possível criar a tarefa.';
@@ -154,7 +163,7 @@ export function Tarefas() {
       await concluirTarefa(id);
       if (editandoId === id) cancelarEdicao();
       await carregarTarefas();
-    } catch (erro) {
+    } catch {
       alert('Erro ao concluir tarefa.');
     }
   }
@@ -165,7 +174,7 @@ export function Tarefas() {
       await excluirTarefa(id);
       if (editandoId === id) cancelarEdicao();
       await carregarTarefas();
-    } catch (erro) {
+    } catch {
       alert('Erro ao excluir tarefa.');
     }
   }
@@ -190,18 +199,14 @@ export function Tarefas() {
               onChange={(e) => setEditDescricao(e.target.value)}
               placeholder="Descrição opcional"
             />
-            <input
-              type="datetime-local"
-              value={editDataHora}
-              onChange={(e) => setEditDataHora(e.target.value)}
-            />
+            <input type="datetime-local" value={editDataHora} onChange={(e) => setEditDataHora(e.target.value)} />
             <FormEdicaoAcoes>
               <BtnSalvar type="button" onClick={handleSalvarEdicao} disabled={salvando}>
                 <i className="fa-solid fa-check" /> {salvando ? 'Salvando...' : 'Salvar'}
               </BtnSalvar>
-              <BtnCancelar type="button" onClick={cancelarEdicao} disabled={salvando}>
+              <BtnCancelar2 type="button" onClick={cancelarEdicao} disabled={salvando}>
                 Cancelar
-              </BtnCancelar>
+              </BtnCancelar2>
             </FormEdicaoAcoes>
           </FormEdicao>
         </TarefaItem>
@@ -223,7 +228,7 @@ export function Tarefas() {
               </span>
             ) : (
               <span>
-                <i className="fa-solid fa-user-tie" /> Tarefa geral
+                <i className="fa-solid fa-star" /> Tarefa geral
               </span>
             )}
             {isAdmin && tarefa.criado_por_nome && (
@@ -233,7 +238,6 @@ export function Tarefas() {
             )}
           </Meta>
         </TarefaInfo>
-
         <Acoes>
           {!tarefa.concluida && (
             <>
@@ -256,40 +260,20 @@ export function Tarefas() {
   return (
     <PageContainer>
       <TopHeader>
-        <Title>Painel de Tarefas</Title>
-        <SubTitle>
-          {isAdmin
-            ? 'Veja as tarefas do seu time e acompanhe quem está trabalhando nas atividades.'
-            : 'Crie lembretes e tarefas que não precisam estar vinculadas a uma negociação.'}
-        </SubTitle>
+        <HeaderContent>
+          <div>
+            <Title>Painel de Tarefas</Title>
+            <SubTitle>
+              {isAdmin
+                ? 'Veja as tarefas do seu time e acompanhe o progresso.'
+                : 'Crie lembretes e tarefas que não precisam estar vinculadas a uma negociação.'}
+            </SubTitle>
+          </div>
+          <BtnNovaTarefa onClick={abrirModalNova}>
+            <i className="fa-solid fa-plus" /> NOVA TAREFA
+          </BtnNovaTarefa>
+        </HeaderContent>
       </TopHeader>
-
-      <Card>
-        <SectionTitle>Nova tarefa</SectionTitle>
-        <FormNova>
-          <input
-            type="text"
-            value={titulo}
-            onChange={(e) => setTitulo(e.target.value)}
-            placeholder="Ex: Ligar para o parceiro sobre relatório"
-          />
-          <textarea
-            value={descricao}
-            onChange={(e) => setDescricao(e.target.value)}
-            placeholder="Descrição opcional"
-          />
-          <FormGrid>
-            <input
-              type="datetime-local"
-              value={dataHora}
-              onChange={(e) => setDataHora(e.target.value)}
-            />
-            <button type="button" onClick={handleCriar} disabled={salvando}>
-              <i className="fa-solid fa-plus" /> {salvando ? 'Salvando...' : 'Criar tarefa'}
-            </button>
-          </FormGrid>
-        </FormNova>
-      </Card>
 
       <Filtros>
         <FiltroGrupo>
@@ -335,10 +319,51 @@ export function Tarefas() {
           )}
         </TarefasLista>
       )}
+
+      {mostrarModalNova && (
+        <ModalOverlay onClick={fecharModalNova}>
+          <ModalContent onClick={(e) => e.stopPropagation()}>
+            <ModalHeader>
+              <h2>Nova Tarefa</h2>
+              <BtnClose onClick={fecharModalNova}>&times;</BtnClose>
+            </ModalHeader>
+            <ModalBody>
+              <FormField>
+                <input
+                  type="text"
+                  value={titulo}
+                  onChange={(e) => setTitulo(e.target.value)}
+                  placeholder="Ex: Ligar para o parceiro"
+                  autoFocus
+                />
+              </FormField>
+              <FormField>
+                <textarea
+                  value={descricao}
+                  onChange={(e) => setDescricao(e.target.value)}
+                  placeholder="Descrição opcional"
+                />
+              </FormField>
+              <FormField>
+                <input type="datetime-local" value={dataHora} onChange={(e) => setDataHora(e.target.value)} />
+              </FormField>
+            </ModalBody>
+            <ModalFooter>
+              <BtnCancel onClick={fecharModalNova} disabled={salvando}>
+                Cancelar
+              </BtnCancel>
+              <BtnCriar type="button" onClick={handleCriar} disabled={salvando}>
+                <i className="fa-solid fa-plus" /> {salvando ? 'Salvando...' : 'Criar tarefa'}
+              </BtnCriar>
+            </ModalFooter>
+          </ModalContent>
+        </ModalOverlay>
+      )}
     </PageContainer>
   );
 }
 
+// ESTILOS
 const PageContainer = styled.div`
   padding: 24px 30px;
   max-width: 1100px;
@@ -347,6 +372,17 @@ const PageContainer = styled.div`
 
 const TopHeader = styled.div`
   margin-bottom: 24px;
+`;
+
+const HeaderContent = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  @media (max-width: 720px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
 `;
 
 const Title = styled.h1`
@@ -361,71 +397,21 @@ const SubTitle = styled.p`
   max-width: 780px;
 `;
 
-const Card = styled.div`
-  background: #ffffff;
-  border-radius: 20px;
-  padding: 22px;
-  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.06);
-  margin-bottom: 24px;
-`;
-
-const SectionTitle = styled.h2`
-  margin: 0 0 18px;
-  font-size: 1.1rem;
-  color: #0f172a;
-`;
-
-const FormNova = styled.div`
-  display: grid;
-  gap: 16px;
-
-  input,
-  textarea {
-    width: 100%;
-    border: 1px solid #cbd5e1;
-    border-radius: 12px;
-    padding: 14px 16px;
-    font-size: 0.95rem;
-    color: #0f172a;
-    background: #f8fafc;
-  }
-
-  textarea {
-    min-height: 100px;
-    resize: vertical;
-  }
-`;
-
-const FormGrid = styled.div`
-  display: grid;
-  grid-template-columns: 1.5fr 0.8fr;
-  gap: 14px;
-
-  button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    border: none;
-    border-radius: 12px;
-    background: #2563eb;
-    color: white;
-    font-weight: 700;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-  }
-
-  button:hover:not(:disabled) {
+const BtnNovaTarefa = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 22px;
+  border: none;
+  border-radius: 14px;
+  background: #2563eb;
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  white-space: nowrap;
+  &:hover {
     background: #1d4ed8;
-  }
-
-  button:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-  }
-
-  @media (max-width: 720px) {
-    grid-template-columns: 1fr;
   }
 `;
 
@@ -434,7 +420,6 @@ const Filtros = styled.div`
   grid-template-columns: repeat(2, minmax(220px, 1fr));
   gap: 16px;
   margin: 24px 0;
-
   @media (max-width: 720px) {
     grid-template-columns: 1fr;
   }
@@ -444,13 +429,11 @@ const FiltroGrupo = styled.div`
   display: flex;
   flex-direction: column;
   gap: 8px;
-
   label {
     color: #334155;
     font-weight: 700;
     font-size: 0.85rem;
   }
-
   select {
     width: 100%;
     border-radius: 12px;
@@ -485,17 +468,10 @@ const TarefaItem = styled.div`
   grid-template-columns: 1fr auto;
   gap: 18px;
   align-items: center;
-  padding: 18px 18px;
+  padding: 18px;
   border-radius: 18px;
   background: #f8fafc;
   border: 1px solid rgba(148, 163, 184, 0.16);
-  transition: transform 0.2s ease, border-color 0.2s ease;
-
-  &:hover {
-    transform: translateY(-1px);
-    border-color: rgba(37, 99, 235, 0.25);
-  }
-
   ${(props) => props.$status === 'vencida' && `border-color: #dc2626; background: rgba(254, 226, 226, 0.9);`}
   ${(props) => props.$status === 'proxima' && `border-color: #f59e0b; background: rgba(254, 243, 199, 0.9);`}
   ${(props) => props.$status === 'concluida' && `opacity: 0.75;`}
@@ -505,12 +481,10 @@ const TarefaInfo = styled.div`
   display: flex;
   flex-direction: column;
   gap: 10px;
-
   strong {
     font-size: 1rem;
     color: #0f172a;
   }
-
   p {
     margin: 0;
     color: #334155;
@@ -524,32 +498,22 @@ const Meta = styled.div`
   gap: 12px;
   color: #64748b;
   font-size: 0.9rem;
-
   span {
     display: inline-flex;
     gap: 8px;
     align-items: center;
   }
-
-  i {
-    width: 16px;
-    text-align: center;
-  }
 `;
 
 const Acoes = styled.div`
   display: flex;
-  align-items: center;
   gap: 10px;
-  justify-content: flex-end;
 `;
 
 const FormEdicao = styled.div`
   display: grid;
   gap: 12px;
-
-  input,
-  textarea {
+  input, textarea {
     width: 100%;
     border: 1px solid #cbd5e1;
     border-radius: 12px;
@@ -557,7 +521,6 @@ const FormEdicao = styled.div`
     background: #fff;
     color: #0f172a;
   }
-
   textarea {
     min-height: 90px;
   }
@@ -566,48 +529,174 @@ const FormEdicao = styled.div`
 const FormEdicaoAcoes = styled.div`
   display: flex;
   gap: 10px;
-  flex-wrap: wrap;
 `;
 
-const BotaoBase = styled.button`
+const BtnSalvar = styled.button`
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 14px;
   border: none;
   border-radius: 12px;
-  padding: 10px 14px;
-  cursor: pointer;
-  font-size: 0.95rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-`;
-
-const BtnSalvar = styled(BotaoBase)`
   background: #16a34a;
   color: white;
+  font-weight: 700;
+  cursor: pointer;
+  &:disabled { opacity: 0.7; }
 `;
 
-const BtnCancelar = styled(BotaoBase)`
+const BtnCancelar2 = styled.button`
+  padding: 10px 14px;
+  border: none;
+  border-radius: 12px;
   background: #e2e8f0;
   color: #334155;
+  font-weight: 700;
+  cursor: pointer;
+  &:disabled { opacity: 0.7; }
 `;
 
-const BtnEditar = styled(BotaoBase)`
+const BtnEditar = styled.button`
+  padding: 10px 14px;
+  border: none;
+  border-radius: 12px;
   background: #2563eb;
   color: white;
+  cursor: pointer;
 `;
 
-const BtnConcluir = styled(BotaoBase)`
+const BtnConcluir = styled.button`
+  padding: 10px 14px;
+  border: none;
+  border-radius: 12px;
   background: #0ea5e9;
   color: white;
+  cursor: pointer;
 `;
 
-const BtnExcluir = styled(BotaoBase)`
+const BtnExcluir = styled.button`
+  padding: 10px 14px;
+  border: none;
+  border-radius: 12px;
   background: #ef4444;
   color: white;
+  cursor: pointer;
 `;
 
 const EmptyMsg = styled.div`
   padding: 40px 0;
   text-align: center;
   color: #64748b;
-  font-size: 1rem;
+`;
+
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1001;
+  padding: 20px;
+`;
+
+const ModalContent = styled.div`
+  background: white;
+  border-radius: 20px;
+  max-width: 600px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+`;
+
+const ModalHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px;
+  border-bottom: 1px solid #e2e8f0;
+  h2 {
+    margin: 0;
+    font-size: 1.3rem;
+    color: #0f172a;
+  }
+`;
+
+const BtnClose = styled.button`
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: #64748b;
+  cursor: pointer;
+  padding: 0;
+  &:hover { color: #0f172a; }
+`;
+
+const ModalBody = styled.div`
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+`;
+
+const FormField = styled.div`
+  input, textarea {
+    width: 100%;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 0.95rem;
+    color: #0f172a;
+    background: #f8fafc;
+    font-family: inherit;
+    &:focus {
+      outline: none;
+      border-color: #2563eb;
+      background: white;
+    }
+  }
+  textarea {
+    min-height: 100px;
+    resize: vertical;
+  }
+`;
+
+const ModalFooter = styled.div`
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding: 20px 24px;
+  border-top: 1px solid #e2e8f0;
+`;
+
+const BtnCancel = styled.button`
+  padding: 10px 20px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #334155;
+  font-weight: 700;
+  cursor: pointer;
+  &:hover:not(:disabled) { background: #e2e8f0; }
+  &:disabled { opacity: 0.7; }
+`;
+
+const BtnCriar = styled.button`
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 12px;
+  background: #16a34a;
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+  &:hover:not(:disabled) { background: #15803d; }
+  &:disabled { opacity: 0.7; }
 `;
