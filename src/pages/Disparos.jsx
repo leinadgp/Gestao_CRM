@@ -65,6 +65,11 @@ export function Disparos() {
   const [leadsExpandidos, setLeadsExpandidos] = useState([]);
   const [editandoEmailId, setEditandoEmailId] = useState(null);
 
+  // MODAL DE INSERÇÃO DE BOTÃO/LINK RASTREADO
+  const [mostrarModalBotaoRastreado, setMostrarModalBotaoRastreado] = useState(false);
+  const [tipoElemento, setTipoElemento] = useState('botao'); // 'botao' ou 'link'
+  const [dadosBotao, setDadosBotao] = useState({ nome: '', url: '', descricao: '', originalHtml: null });
+
   const preparacaoRef = useRef(null);
 
   const editorOptions = {
@@ -184,14 +189,33 @@ export function Disparos() {
   }
   
   function inserirBotaoRastreado() {
-    const textoBotao = window.prompt('Texto do botão:', 'Selecionar os temas prioritários');
-    if (!textoBotao) return;
-    const urlDestino = window.prompt('URL de destino:', 'https://www.gestao.srv.br');
-    if (!urlDestino) return;
-    const descricao = window.prompt('Descrição do clique:', 'Botão Principal') || 'Botão Principal';
-    const linkRastreado = montarUrlRastreada({ redirect: urlDestino, descricao, etapaAtual: ordemEtapa, cursoId: cursoAlvo, tipoF: tipoFunil });
+    setTipoElemento('botao');
+    setDadosBotao({ nome: 'Selecionar os temas prioritários', url: 'https://www.gestao.srv.br', descricao: 'Botão Principal', originalHtml: null });
+    setMostrarModalBotaoRastreado(true);
+  }
+
+  function inserirAvisoSeguranca() {
+    inserirSnippet(`\n<table width="100%" border="0" cellspacing="0" cellpadding="0"><tr><td align="center" style="text-align: center;"><p style="margin: 0 0 15px 0; color: #1F4E79; font-size: 13px;">Obs: O link acima é oficial e 100% seguro.</p></td></tr></table>\n`);
+  }
+
+  function inserirLinkTextoRastreado() {
+    setTipoElemento('link');
+    setDadosBotao({ nome: 'Programa Avançado', url: 'https://www.gestao.srv.br', descricao: 'Link no Texto', originalHtml: null });
+    setMostrarModalBotaoRastreado(true);
+  }
+
+  function salvarBotaoRastreado() {
+    const { nome, url, descricao } = dadosBotao;
     
-    const htmlBotao = `
+    if (!nome || !url) {
+      alert('Por favor, preencha nome e URL.');
+      return;
+    }
+
+    const linkRastreado = montarUrlRastreada({ redirect: url, descricao: descricao || 'Link', etapaAtual: ordemEtapa, cursoId: cursoAlvo, tipoF: tipoFunil });
+
+    if (tipoElemento === 'botao') {
+      const htmlBotao = `
 <table width="100%" border="0" cellspacing="0" cellpadding="0" style="width: 100%; margin: 15px 0;">
   <tr>
     <td align="center" style="text-align: center;">
@@ -199,7 +223,7 @@ export function Disparos() {
         <tr>
           <td align="center"  border-radius: 6px;">
             <a href="${linkRastreado}" target="_blank" style="display: inline-block; padding: 14px 26px; background-color: #218553; color: #ffffff; font-weight: bold; text-decoration: none; font-size: 14px; border-radius: 6px; border: 1px solid #1a6b42; font-family: Arial, sans-serif;">
-              ${textoBotao}
+              ${nome}
             </a>
             \n<table width="100%" border="0" cellspacing="0" cellpadding="0"><tr><td align="center" style="text-align: center;"><p style="margin: 15px 0 15px 0; color: #1F4E79; font-size: 13px;">Obs: O link acima é oficial e 100% seguro.</p></td></tr></table>\n
           </td>
@@ -208,22 +232,56 @@ export function Disparos() {
     </td>
   </tr>
 </table>`;
-    
-    inserirSnippet(htmlBotao);
+      if (dadosBotao.originalHtml) {
+        setEmailCru(prev => prev.replace(dadosBotao.originalHtml, htmlBotao));
+      } else {
+        inserirSnippet(htmlBotao);
+      }
+    } else {
+      const novoLink = `<a href="${linkRastreado}" target="_blank" style="color:#1F4E79;text-decoration:underline;">${escapeHtml(nome)}</a>`;
+      if (dadosBotao.originalHtml) {
+        setEmailCru(prev => prev.replace(dadosBotao.originalHtml, novoLink));
+      } else {
+        inserirSnippet(novoLink);
+      }
+    }
+
+    setMostrarModalBotaoRastreado(false);
+    setDadosBotao({ nome: '', url: '', descricao: '', originalHtml: null });
   }
 
-  function inserirAvisoSeguranca() {
-    inserirSnippet(`\n<table width="100%" border="0" cellspacing="0" cellpadding="0"><tr><td align="center" style="text-align: center;"><p style="margin: 0 0 15px 0; color: #1F4E79; font-size: 13px;">Obs: O link acima é oficial e 100% seguro.</p></td></tr></table>\n`);
-  }
+  function handleEditorClick(e) {
+    try {
+      const anchor = e.target.closest && e.target.closest('a');
+      if (!anchor) return;
+      const outer = anchor.outerHTML;
+      const texto = (anchor.textContent || '').trim();
+      const href = anchor.getAttribute('href') || '';
 
-  function inserirLinkTextoRastreado() {
-    const textoLink = window.prompt('Texto do link:', 'Programa Avançado');
-    if (!textoLink) return;
-    const urlDestino = window.prompt('URL de destino:', 'https://www.gestao.srv.br');
-    if (!urlDestino) return;
-    const descricao = window.prompt('Descrição do clique:', 'Link no Texto') || 'Link no Texto';
-    const linkRastreado = montarUrlRastreada({ redirect: urlDestino, descricao, etapaAtual: ordemEtapa, cursoId: cursoAlvo, tipoF: tipoFunil });
-    inserirSnippet(`<a href="${linkRastreado}" target="_blank" style="color:#1F4E79;text-decoration:underline;">${escapeHtml(textoLink)}</a>`);
+      // tentar extrair redirect e descricao de querystring
+      let destino = href;
+      let descricao = '';
+      try {
+        const u = new URL(href);
+        const redirect = u.searchParams.get('redirect');
+        const desc = u.searchParams.get('descricao') || u.searchParams.get('desc');
+        if (redirect) destino = decodeURIComponent(redirect);
+        if (desc) descricao = decodeURIComponent(desc);
+      } catch (err) {
+        // se URL inválida, tentar extrair manualmente
+        const m = href.match(/redirect=([^&]+)/);
+        if (m) destino = decodeURIComponent(m[1]);
+        const m2 = href.match(/descricao=([^&]+)/);
+        if (m2) descricao = decodeURIComponent(m2[1]);
+      }
+
+      const isBotao = !!anchor.closest('table');
+      setTipoElemento(isBotao ? 'botao' : 'link');
+      setDadosBotao({ nome: texto || (isBotao ? 'Botão' : 'Link'), url: destino || href, descricao: descricao || '', originalHtml: outer });
+      setMostrarModalBotaoRastreado(true);
+    } catch (err) {
+      // ignore
+    }
   }
 
   function montarHtmlFinal({ titulo = tituloemail, cabecalho = cabecalhoEmail, conteudo = emailCru, etapaEmail = ordemEtapa, cursoId = cursoAlvo, tipoF = tipoFunil } = {}) {
@@ -697,7 +755,7 @@ export function Disparos() {
 
         <EditorPanel ref={preparacaoRef} $visible={!!cursoAlvo}>
           <div className="editor-header">
-            <h2>{editandoEmailId ? `Editando E-mail (Ordem ${ordemEtapa})` : '2. Adicionar Novo E-mail ao Funil'}</h2>
+            <h2>{editandoEmailId ? `Editando E-mail (Ordem ${ordemEtapa})` : '2. Salvar Novo E-mail ao Funil'}</h2>
             {editandoEmailId && (
               <button onClick={limparFormularioEmail} className="cancel-btn">
                 <i className="fa-solid fa-times"></i> Cancelar Edição
@@ -751,7 +809,7 @@ export function Disparos() {
             </FormGrid>
 
             <FormGroup style={{marginBottom: '20px'}}>
-              <label className="text-dark-blue"><i className="fa-solid fa-window-maximize"></i> Texto da Faixa Azul Superior (Opcional)</label>
+              <label className="text-dark-blue"><i className="fa-solid fa-window-maximize"></i> Cabeçalho (Opcional)</label>
               <input type="text" className="bg-light-blue" value={cabecalhoEmail} onChange={e => setCabecalhoEmail(e.target.value)} placeholder="Ex: Não seguimos tendências genéricas. Queremos realizar capacitações que resolvam problemas reais." />
             </FormGroup>
 
@@ -777,7 +835,7 @@ export function Disparos() {
               </div>
 
               {modoVisual ? (
-                <div style={{ background: '#fff', border: '1px solid #ccc', borderRadius: '4px' }}>
+                <div style={{ background: '#fff', border: '1px solid #ccc', borderRadius: '4px' }} onClick={handleEditorClick}>
                   <SunEditor setOptions={editorOptions} setContents={emailCru} onChange={setEmailCru} />
                 </div>
               ) : (
@@ -790,7 +848,7 @@ export function Disparos() {
                 <i className="fa-solid fa-paper-plane"></i> Disparo de Teste
               </ActionButton>
               <ActionButton className="primary" type="submit" disabled={salvandoConfig}>
-                <i className={`fa-solid ${editandoEmailId ? 'fa-save' : 'fa-plus'}`}></i> {editandoEmailId ? 'Salvar Alterações' : 'Adicionar à Sequência'}
+                <i className={`fa-solid ${editandoEmailId ? 'fa-save' : 'fa-plus'}`}></i> {editandoEmailId ? 'Salvar Alterações' : 'Salvar Novo Email'}
               </ActionButton>
             </div>
           </form>
@@ -946,6 +1004,68 @@ export function Disparos() {
                     </div>
                   </Grid3Col>
                 )}
+              </div>
+            </ModalContent>
+          </ModalOverlay>
+        )}
+
+        {/* MODAL: INSERIR BOTÃO/LINK RASTREADO */}
+        {mostrarModalBotaoRastreado && (
+          <ModalOverlay onClick={() => setMostrarModalBotaoRastreado(false)}>
+            <ModalContent onClick={e => e.stopPropagation()}>
+              <ModalHeader $bg={tipoElemento === 'botao' ? '#218553' : '#007bff'} $color="#fff">
+                <h3>
+                  <i className={`fa-solid ${tipoElemento === 'botao' ? 'fa-square' : 'fa-link'}`}></i>
+                  {tipoElemento === 'botao' ? 'Inserir Botão Verde Rastreado' : 'Inserir Link Rastreado'}
+                </h3>
+                <p className="subtitle">Preencha as informações necessárias</p>
+              </ModalHeader>
+              
+              <div style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <FormGroup>
+                  <label>Nome {tipoElemento === 'botao' ? 'do Botão' : 'do Link'} *</label>
+                  <input 
+                    type="text" 
+                    value={dadosBotao.nome} 
+                    onChange={e => setDadosBotao({...dadosBotao, nome: e.target.value})}
+                    placeholder={tipoElemento === 'botao' ? 'Ex: Selecionar os temas prioritários' : 'Ex: Programa Avançado'}
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <label>URL de Destino *</label>
+                  <input 
+                    type="url" 
+                    value={dadosBotao.url} 
+                    onChange={e => setDadosBotao({...dadosBotao, url: e.target.value})}
+                    placeholder="https://www.gestao.srv.br"
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <label>Descrição do Clique (para rastreamento)</label>
+                  <input 
+                    type="text" 
+                    value={dadosBotao.descricao} 
+                    onChange={e => setDadosBotao({...dadosBotao, descricao: e.target.value})}
+                    placeholder={tipoElemento === 'botao' ? 'Ex: Botão Principal' : 'Ex: Link no Texto'}
+                  />
+                </FormGroup>
+
+                <div style={{ display: 'flex', gap: '10px', marginTop: '20px', justifyContent: 'flex-end' }}>
+                  <ActionButton 
+                    className="secondary"
+                    onClick={() => setMostrarModalBotaoRastreado(false)}
+                  >
+                    <i className="fa-solid fa-times"></i> Cancelar
+                  </ActionButton>
+                  <ActionButton 
+                    className="primary"
+                    onClick={salvarBotaoRastreado}
+                  >
+                    <i className="fa-solid fa-check"></i> Inserir {tipoElemento === 'botao' ? 'Botão' : 'Link'}
+                  </ActionButton>
+                </div>
               </div>
             </ModalContent>
           </ModalOverlay>
