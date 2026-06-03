@@ -166,6 +166,31 @@ export function Disparos() {
     return String(valor).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
   }
 
+  function escapeRegExp(valor = '') {
+    return String(valor).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  function replaceHtmlFragment(prevHtml, originalHtml, newHtml) {
+    if (!originalHtml) return prevHtml;
+    const exactReplace = prevHtml.replace(originalHtml, newHtml);
+    if (exactReplace !== prevHtml) return exactReplace;
+
+    const tolerantPattern = escapeRegExp(originalHtml).replace(/\s+/g, '\\s+');
+    const regex = new RegExp(tolerantPattern, 'g');
+    return prevHtml.replace(regex, newHtml);
+  }
+
+  function replaceAnchorByHref(prevHtml, anchorHtml, newHtml) {
+    if (!anchorHtml) return prevHtml;
+    const hrefMatch = anchorHtml.match(/href=(['"])(.*?)\1/);
+    if (!hrefMatch) return prevHtml;
+    const anchorText = anchorHtml.replace(/<[^>]+>/g, '').trim();
+    const href = escapeRegExp(hrefMatch[2]);
+    const text = escapeRegExp(anchorText).replace(/\s+/g, '\\s+');
+    const regex = new RegExp(`<a[^>]*href=(?:"|')${href}(?:"|')[^>]*>${text}<\/a>`, 'g');
+    return prevHtml.replace(regex, newHtml);
+  }
+
   function getEmailPadrao() {
     return `<p style="margin:0 0 15px 0;">Prezado(a),</p><p style="margin:0 0 15px 0;">O cotidiano do <strong>Controle Interno Municipal</strong> exige muito mais do que conhecimento teórico. Exige soluções práticas, segurança jurídica e aderência à realidade de cada município.</p>`.trim();
   }
@@ -214,6 +239,8 @@ export function Disparos() {
 
     const linkRastreado = montarUrlRastreada({ redirect: url, descricao: descricao || 'Link', etapaAtual: ordemEtapa, cursoId: cursoAlvo, tipoF: tipoFunil });
 
+    const novoAnchorHtml = `<a href="${linkRastreado}" target="_blank" style="color:#1F4E79;text-decoration:underline;">${escapeHtml(nome)}</a>`;
+
     if (tipoElemento === 'botao') {
       const htmlBotao = `
 <table width="100%" border="0" cellspacing="0" cellpadding="0" style="width: 100%; margin: 15px 0;">
@@ -221,11 +248,17 @@ export function Disparos() {
     <td align="center" style="text-align: center;">
       <table border="0" cellspacing="0" cellpadding="0" align="center" style="margin: 0 auto;">
         <tr>
-          <td align="center"  border-radius: 6px;">
+          <td align="center" style="border-radius: 6px;">
             <a href="${linkRastreado}" target="_blank" style="display: inline-block; padding: 14px 26px; background-color: #218553; color: #ffffff; font-weight: bold; text-decoration: none; font-size: 14px; border-radius: 6px; border: 1px solid #1a6b42; font-family: Arial, sans-serif;">
               ${nome}
             </a>
-            \n<table width="100%" border="0" cellspacing="0" cellpadding="0"><tr><td align="center" style="text-align: center;"><p style="margin: 15px 0 15px 0; color: #1F4E79; font-size: 13px;">Obs: O link acima é oficial e 100% seguro.</p></td></tr></table>\n
+            <table width="100%" border="0" cellspacing="0" cellpadding="0">
+              <tr>
+                <td align="center" style="text-align: center;">
+                  <p style="margin: 15px 0 15px 0; color: #1F4E79; font-size: 13px;">Obs: O link acima é oficial e 100% seguro.</p>
+                </td>
+              </tr>
+            </table>
           </td>
         </tr>
       </table>
@@ -233,14 +266,30 @@ export function Disparos() {
   </tr>
 </table>`;
       if (dadosBotao.originalHtml) {
-        setEmailCru(prev => prev.replace(dadosBotao.originalHtml, htmlBotao));
+        setEmailCru(prev => {
+          const updated = replaceHtmlFragment(prev, dadosBotao.originalHtml, htmlBotao);
+          if (updated !== prev) return updated;
+          if (dadosBotao.originalAnchorHtml) {
+            const anchorUpdated = replaceAnchorByHref(prev, dadosBotao.originalAnchorHtml, novoAnchorHtml);
+            if (anchorUpdated !== prev) return anchorUpdated;
+          }
+          return prev;
+        });
       } else {
         inserirSnippet(htmlBotao);
       }
     } else {
-      const novoLink = `<a href="${linkRastreado}" target="_blank" style="color:#1F4E79;text-decoration:underline;">${escapeHtml(nome)}</a>`;
+      const novoLink = novoAnchorHtml;
       if (dadosBotao.originalHtml) {
-        setEmailCru(prev => prev.replace(dadosBotao.originalHtml, novoLink));
+        setEmailCru(prev => {
+          const updated = replaceHtmlFragment(prev, dadosBotao.originalHtml, novoLink);
+          if (updated !== prev) return updated;
+          if (dadosBotao.originalAnchorHtml) {
+            const anchorUpdated = replaceAnchorByHref(prev, dadosBotao.originalAnchorHtml, novoLink);
+            if (anchorUpdated !== prev) return anchorUpdated;
+          }
+          return prev;
+        });
       } else {
         inserirSnippet(novoLink);
       }
@@ -275,9 +324,16 @@ export function Disparos() {
         if (m2) descricao = decodeURIComponent(m2[1]);
       }
 
-      const isBotao = !!anchor.closest('table');
+      const tableWrapper = anchor.closest('table[width="100%"]');
+      const isBotao = !!tableWrapper;
       setTipoElemento(isBotao ? 'botao' : 'link');
-      setDadosBotao({ nome: texto || (isBotao ? 'Botão' : 'Link'), url: destino || href, descricao: descricao || '', originalHtml: outer });
+      setDadosBotao({
+        nome: texto || (isBotao ? 'Botão' : 'Link'),
+        url: destino || href,
+        descricao: descricao || '',
+        originalHtml: isBotao ? tableWrapper.outerHTML : outer,
+        originalAnchorHtml: outer
+      });
       setMostrarModalBotaoRastreado(true);
     } catch (err) {
       // ignore
@@ -422,7 +478,8 @@ export function Disparos() {
       dias_expiracao: MULTIPLOS_FUNIS_DISPARO && tipoFunil === 'POS_CLIQUE' && diasExpiracao ? parseInt(diasExpiracao) : null,
       cargo_alvo: 'Todos', 
       titulo_email: tituloemail, 
-      cabecalho_email: cabecalhoEmail, 
+      cabecalho_email: cabecalhoEmail,
+      nome_cliente_var: '{{$json.nome}}',
       html_email: htmlCorrigido,
       ativo: emailAtivo
     };
@@ -464,7 +521,7 @@ export function Disparos() {
     setHorasEspera(emailConfig.horas_espera || ''); 
     setDiasExpiracao(emailConfig.dias_expiracao || '');
     setTituloemail(emailConfig.titulo_email || '');
-    setCabecalhoEmail(emailConfig.cabecalho_email || ''); 
+    setCabecalhoEmail(emailConfig.cabecalho_email || '');
     setEmailCru(emailConfig.html_email || '');
     setEmailAtivo(emailConfig.ativo === false ? false : true);
     if (preparacaoRef.current) preparacaoRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -484,7 +541,8 @@ export function Disparos() {
         body: JSON.stringify({ 
           emailCru: emailCruTeste, 
           cabecalhoEmail, 
-          tituloemail, 
+          tituloemail,
+          nome_cliente_var: '{{$json.nome}}',
           etapa: ordemEtapa, 
           curso: cursoAlvo,
           email_remetente: sender // <--- Envia para o n8n qual conta usar
@@ -813,6 +871,12 @@ export function Disparos() {
               <input type="text" className="bg-light-blue" value={cabecalhoEmail} onChange={e => setCabecalhoEmail(e.target.value)} placeholder="Ex: Não seguimos tendências genéricas. Queremos realizar capacitações que resolvam problemas reais." />
             </FormGroup>
 
+            <FormGroup style={{marginBottom: '20px'}}>
+              <small style={{color: '#49607b', display: 'block', marginTop: '5px', lineHeight: 1.5}}>
+                Se quiser usar o primeiro nome do cliente no email, escreva assim no conteúdo: <strong>{'{{$json.nome}}'}</strong>
+              </small>
+            </FormGroup>
+
             <div style={{ marginBottom: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '10px', gap: '10px', flexWrap: 'wrap' }}>
                 <label style={{ fontWeight: 'bold', fontSize: '0.9rem', color: '#333' }}>Conteúdo do E-mail (Miolo) *</label>
@@ -1016,7 +1080,7 @@ export function Disparos() {
               <ModalHeader $bg={tipoElemento === 'botao' ? '#218553' : '#007bff'} $color="#fff">
                 <h3>
                   <i className={`fa-solid ${tipoElemento === 'botao' ? 'fa-square' : 'fa-link'}`}></i>
-                  {tipoElemento === 'botao' ? 'Inserir Botão Verde Rastreado' : 'Inserir Link Rastreado'}
+                  {dadosBotao.originalHtml ? (tipoElemento === 'botao' ? 'Editar Botão Rastreado' : 'Editar Link Rastreado') : (tipoElemento === 'botao' ? 'Inserir Botão Verde Rastreado' : 'Inserir Link Rastreado')}
                 </h3>
                 <p className="subtitle">Preencha as informações necessárias</p>
               </ModalHeader>
@@ -1063,7 +1127,7 @@ export function Disparos() {
                     className="primary"
                     onClick={salvarBotaoRastreado}
                   >
-                    <i className="fa-solid fa-check"></i> Inserir {tipoElemento === 'botao' ? 'Botão' : 'Link'}
+                    <i className="fa-solid fa-check"></i> {dadosBotao.originalHtml ? 'Salvar Alterações' : `Inserir ${tipoElemento === 'botao' ? 'Botão' : 'Link'}`}
                   </ActionButton>
                 </div>
               </div>
