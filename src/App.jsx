@@ -17,6 +17,7 @@ import { Disparos } from './pages/Disparos.jsx';
 import { Campanhas } from './pages/Campanhas.jsx';
 import { Dashboard } from './pages/Dashboard.jsx';
 import { LandingPages } from './pages/LandingPages.jsx';
+import { Tarefas } from './pages/Tarefas.jsx';
 import { Configuracoes } from './pages/Configuracoes.jsx';
 import { AlertasTarefas } from './componentes/AlertasTarefas.jsx';
 import { NotificacaoLanding } from './componentes/NotificacaoLanding.jsx';
@@ -88,6 +89,7 @@ export function App() {
           <Route path="/contatos" element={<RotaProtegida titulo="Base de Contatos"><Contatos /></RotaProtegida>} />
           <Route path="/campanhas" element={<RotaProtegida titulo="Cursos e Campanhas"><Campanhas /></RotaProtegida>} />
           <Route path="/funil" element={<RotaProtegida titulo="Funil de Vendas"><Funil /></RotaProtegida>} />
+          <Route path="/tarefas" element={<RotaProtegida titulo="Tarefas"><Tarefas /></RotaProtegida>} />
           <Route path="/dashboard" element={<RotaProtegida titulo="Métricas Globais"><Dashboard /></RotaProtegida>} />
           <Route path="/empresas" element={<RotaProtegida titulo="Prefeituras / Empresas"><Empresas /></RotaProtegida>} />
           <Route path="/disparos" element={<RotaProtegida titulo="Máquina de Disparos"><Disparos /></RotaProtegida>} />

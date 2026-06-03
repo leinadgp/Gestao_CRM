@@ -2,6 +2,7 @@ export const MODULOS_CRM = [
   { id: 'home', label: 'Home', path: '/' },
   { id: 'dashboard', label: 'Dashboard', path: '/dashboard' },
   { id: 'funil', label: 'Funil de Vendas', path: '/funil' },
+  { id: 'tarefas', label: 'Tarefas', path: '/tarefas' },
   { id: 'contatos', label: 'Contatos', path: '/contatos' },
   { id: 'empresas', label: 'Prefeituras / Empresas', path: '/empresas' },
   { id: 'campanhas', label: 'Cursos e Campanhas', path: '/campanhas' },

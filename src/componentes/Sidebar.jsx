@@ -13,7 +13,8 @@ const MENU_CONFIG = [
     items: [
       { label: 'Home', path: '/', icon: 'fa-house', modulo: 'home' },
       { label: 'Dashboard', path: '/dashboard', icon: 'fa-chart-pie', modulo: 'dashboard' },
-      { label: 'Funil de Vendas', path: '/funil', icon: 'fa-layer-group', modulo: 'funil' }
+      { label: 'Funil de Vendas', path: '/funil', icon: 'fa-layer-group', modulo: 'funil' },
+      { label: 'Tarefas', path: '/tarefas', icon: 'fa-list-check', modulo: 'tarefas' }
     ]
   },
   {

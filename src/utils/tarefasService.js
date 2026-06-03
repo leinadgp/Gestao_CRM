@@ -80,35 +80,55 @@ export async function criarTarefa({
   data_hora,
 }) {
   const payload = {
-    oportunidade_id: Number(oportunidade_id),
-    oportunidade_titulo,
     titulo: titulo.trim(),
     descricao: descricao.trim(),
     data_hora,
   };
 
+  const temOportunidade = oportunidade_id !== undefined && oportunidade_id !== null && String(oportunidade_id).trim() !== '';
+  if (temOportunidade) {
+    payload.oportunidade_id = Number(oportunidade_id);
+    payload.oportunidade_titulo = oportunidade_titulo;
+  }
+
   try {
-    const res = await axios.post(
-      `${getApiUrl()}/oportunidades/${payload.oportunidade_id}/tarefas`,
-      payload,
-      getHeaders()
-    );
+    const endpoint = temOportunidade
+      ? `${getApiUrl()}/oportunidades/${payload.oportunidade_id}/tarefas`
+      : `${getApiUrl()}/tarefas`;
+
+    const res = await axios.post(endpoint, payload, getHeaders());
     window.dispatchEvent(new CustomEvent('tarefasAtualizadas'));
     return res.data;
   } catch (erro) {
     if (erro.response?.status === 404) {
-    const nova = {
-      id: gerarId(),
-      ...payload,
-      criado_por_id: Number(localStorage.getItem('usuarioId')) || null,
-      criado_por_nome: localStorage.getItem('nome') || 'Usuário',
-      concluida: false,
-      criado_em: new Date().toISOString(),
-    };
-    const todas = lerLocal();
-    todas.push(nova);
-    salvarLocal(todas);
-    return nova;
+      const nova = {
+        id: gerarId(),
+        oportunidade_id: temOportunidade ? Number(oportunidade_id) : null,
+        oportunidade_titulo: temOportunidade ? oportunidade_titulo : '',
+        titulo: payload.titulo,
+        descricao: payload.descricao,
+        data_hora,
+        criado_por_id: Number(localStorage.getItem('usuarioId')) || null,
+        criado_por_nome: localStorage.getItem('nome') || 'Usuário',
+        concluida: false,
+        criado_em: new Date().toISOString(),
+      };
+      const todas = lerLocal();
+      todas.push(nova);
+      salvarLocal(todas);
+      return nova;
+    }
+    throw erro;
+  }
+}
+
+export async function listarTodasTarefas() {
+  try {
+    const res = await axios.get(`${getApiUrl()}/tarefas`, getHeaders());
+    return res.data;
+  } catch (erro) {
+    if (erro.response?.status === 404) {
+      return lerLocal().sort((a, b) => new Date(a.data_hora) - new Date(b.data_hora));
     }
     throw erro;
   }
