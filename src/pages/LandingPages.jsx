@@ -106,7 +106,20 @@ export function LandingPages() {
                 <input type="tel" id="whatsapp" name="whatsapp" autocomplete="tel" required placeholder="(00) 00000-0000" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" />
               </div>
             </div>
-            <div id="containerModulos" style="border-radius: 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(248,250,252,0.12); padding: 18px; color: #f8fafc;"> 
+            <div>
+              <label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Como você nos conheceu?*</label>
+              <select id="origem" name="origem" required style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;">
+                <option value="" style="background:#0f1930; color:#f8fafc;">Selecione...</option>
+                <option value="Instagram" style="background:#0f1930; color:#f8fafc;">Instagram</option>
+                <option value="Facebook" style="background:#0f1930; color:#f8fafc;">Facebook</option>
+                <option value="Indicação" style="background:#0f1930; color:#f8fafc;">Indicação</option>
+                <option value="Ligação" style="background:#0f1930; color:#f8fafc;">Ligação</option>
+                <option value="Whatsapp" style="background:#0f1930; color:#f8fafc;">Whatsapp</option>
+                <option value="E-mail" style="background:#0f1930; color:#f8fafc;">E-mail</option>
+                <option value="LinkedIn" style="background:#0f1930; color:#f8fafc;">LinkedIn</option>
+              </select>
+            </div>
+            <div id="containerModulos" style="border-radius: 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(248,250,252,0.12); padding: 18px; color: #f8fafc;">
               <p style="margin: 0; font-size: 0.95rem; color: #f8fafc; opacity: 0.9;">(Os módulos definidos na campanha aparecerão automaticamente aqui quando a página estiver publicada)</p>
             </div>
             <div>
@@ -654,6 +667,20 @@ export function LandingPages() {
                                   (Os módulos definidos na campanha aparecerão automaticamente aqui quando a página for publicada)
                                 </div>
                             </div>
+                        </div>
+
+                        <div style="flex: 1 1 100%;">
+                            <label for="origem" style="display: block; font-size: 14px; font-weight: 500; color: #f8fafc; margin-bottom: 5px;">Como você nos conheceu?*</label>
+                            <select id="origem" name="origem" required style="width: 100%; border-radius: 6px; border: 1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding: 12px 16px; font-size: 14px; color: #ffffff; outline: none;">
+                                <option value="" style="background:#0f1930; color:#fff;">Selecione...</option>
+                                <option value="Instagram" style="background:#0f1930; color:#fff;">Instagram</option>
+                                <option value="Facebook" style="background:#0f1930; color:#fff;">Facebook</option>
+                                <option value="Indicação" style="background:#0f1930; color:#fff;">Indicação</option>
+                                <option value="Ligação" style="background:#0f1930; color:#fff;">Ligação</option>
+                                <option value="Whatsapp" style="background:#0f1930; color:#fff;">Whatsapp</option>
+                                <option value="E-mail" style="background:#0f1930; color:#fff;">E-mail</option>
+                                <option value="LinkedIn" style="background:#0f1930; color:#fff;">LinkedIn</option>
+                            </select>
                         </div>
 
                         <div style="flex: 1 1 100%;">

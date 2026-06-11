@@ -8,7 +8,6 @@ import { listarMinhasTarefas, classificarTarefa } from '../utils/tarefasService.
 
 import { normalizarCargosJson, normalizarListaJson, cargosParaTexto } from '../utils/jsonHelpers.js';
 import { normalizarClassificacoesPorCargo, resolverScoringEmpresa, PESOS_CLASSIFICACAO } from '../utils/classificacaoEmpresa.js';
-import { InscritosOportunidadeEditor } from '../componentes/InscritosOportunidadeEditor.jsx';
 import {
   calcularTotaisPacote,
   inscritosUsamModulosPorPessoa,
@@ -1928,21 +1927,12 @@ export function Funil() {
                   </SectionCard>
 
                   {editandoId && (
-                    <>
-                      <SectionCard $bgColor="#faf5ff" $borderColor="#d6bcfa">
-                        <TarefasOportunidade
-                          oportunidadeId={editandoId}
-                          oportunidadeTitulo={titulo}
-                        />
-                      </SectionCard>
-                      <SectionCard $bgColor="#f0fdf4" $borderColor="#86efac">
-                        <InscritosOportunidadeEditor
-                          oportunidadeId={editandoId}
-                          titulo="Inscritos no curso (esta negociação)"
-                          compact
-                        />
-                      </SectionCard>
-                    </>
+                    <SectionCard $bgColor="#faf5ff" $borderColor="#d6bcfa">
+                      <TarefasOportunidade
+                        oportunidadeId={editandoId}
+                        oportunidadeTitulo={titulo}
+                      />
+                    </SectionCard>
                   )}
                 </FormGrid>
               </ModalBody>

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { temPermissao, pathParaModulo, primeiraRotaPermitida } from './utils/permissoes'; 
+import { temPermissao, pathParaModulo, primeiraRotaPermitida } from './utils/permissoes';
 import styled, { createGlobalStyle } from 'styled-components';
+import { ToastProvider } from './componentes/Toast.jsx';
 
 // Importação dos Componentes de Layout
 import { Sidebar } from './componentes/Sidebar.jsx';
@@ -77,9 +78,29 @@ function RotaProtegida({ children, titulo, modulo }) {
   );
 }
 
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { erro: null }; }
+  static getDerivedStateFromError(erro) { return { erro }; }
+  render() {
+    if (this.state.erro) {
+      return (
+        <div style={{ padding: 40, textAlign: 'center', color: '#e74c3c', fontFamily: 'Inter, sans-serif' }}>
+          <h2>Algo deu errado.</h2>
+          <p style={{ color: '#555', fontSize: 14 }}>{this.state.erro.message}</p>
+          <button onClick={() => window.location.reload()} style={{ marginTop: 16, padding: '10px 20px', cursor: 'pointer' }}>
+            Recarregar página
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export function App() {
   return (
-    <>
+    <ErrorBoundary>
+      <ToastProvider>
       <GlobalStyle />
       <BrowserRouter>
         <Routes>
@@ -97,7 +118,8 @@ export function App() {
           <Route path="/configuracoes" element={<RotaProtegida titulo="Configurações"><Configuracoes /></RotaProtegida>} />
         </Routes>
       </BrowserRouter>
-    </>
+      </ToastProvider>
+    </ErrorBoundary>
   );
 }
 

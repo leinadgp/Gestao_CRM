@@ -753,6 +753,10 @@ export function Dashboard() {
                     <label>Quantidade de inscritos</label>
                     <div><strong>{qtd}</strong></div>
                   </DetalheItem>
+                  <DetalheItem>
+                    <label>Canal de aquisição</label>
+                    <div>{inscritoDetalhe.origem_lead || '—'}</div>
+                  </DetalheItem>
                 </DetalheResumoGrid>
 
                 {listaInsc.length > 0 && (
