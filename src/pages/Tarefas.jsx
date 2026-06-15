@@ -16,6 +16,7 @@ import {
 export function Tarefas() {
   const perfilUsuario = localStorage.getItem('perfil');
   const isAdmin = perfilUsuario === 'admin';
+  const meuId = String(localStorage.getItem('usuarioId') || '');
   const [tarefas, setTarefas] = useState([]);
   const [carregando, setCarregando] = useState(false);
   const [titulo, setTitulo] = useState('');
@@ -26,7 +27,7 @@ export function Tarefas() {
   const [editTitulo, setEditTitulo] = useState('');
   const [editDescricao, setEditDescricao] = useState('');
   const [editDataHora, setEditDataHora] = useState('');
-  const [filtroUsuario, setFiltroUsuario] = useState('todos');
+  const [filtroUsuario, setFiltroUsuario] = useState(isAdmin ? 'todos' : meuId);
   const [filtroStatus, setFiltroStatus] = useState('pendentes');
   const [mostrarModalNova, setMostrarModalNova] = useState(false);
 
@@ -231,7 +232,7 @@ export function Tarefas() {
                 <i className="fa-solid fa-star" /> Tarefa geral
               </span>
             )}
-            {isAdmin && tarefa.criado_por_nome && (
+            {tarefa.criado_por_nome && (
               <span>
                 <i className="fa-solid fa-user" /> {tarefa.criado_por_nome}
               </span>
@@ -263,11 +264,7 @@ export function Tarefas() {
         <HeaderContent>
           <div>
             <Title>Painel de Tarefas</Title>
-            <SubTitle>
-              {isAdmin
-                ? 'Veja as tarefas do seu time e acompanhe o progresso.'
-                : 'Crie lembretes e tarefas que não precisam estar vinculadas a uma negociação.'}
-            </SubTitle>
+            <SubTitle>Gerencie suas tarefas e acompanhe o progresso do time.</SubTitle>
           </div>
           <BtnNovaTarefa onClick={abrirModalNova}>
             <i className="fa-solid fa-plus" /> NOVA TAREFA
@@ -284,19 +281,20 @@ export function Tarefas() {
             <option value="todos">Todas</option>
           </select>
         </FiltroGrupo>
-        {isAdmin && (
-          <FiltroGrupo>
-            <label>Colaborador</label>
-            <select value={filtroUsuario} onChange={(e) => setFiltroUsuario(e.target.value)}>
-              <option value="todos">Todos</option>
-              {colaboradores.map((user) => (
+        <FiltroGrupo>
+          <label>Responsável</label>
+          <select value={filtroUsuario} onChange={(e) => setFiltroUsuario(e.target.value)}>
+            <option value={meuId}>Minhas tarefas</option>
+            <option value="todos">Todos</option>
+            {colaboradores
+              .filter((u) => u.id && u.id !== meuId)
+              .map((user) => (
                 <option key={user.id} value={user.id}>
                   {user.nome}
                 </option>
               ))}
-            </select>
-          </FiltroGrupo>
-        )}
+          </select>
+        </FiltroGrupo>
       </Filtros>
 
       {carregando ? (
