@@ -69,20 +69,23 @@ export function Disparos() {
   const [mostrarModalBotaoRastreado, setMostrarModalBotaoRastreado] = useState(false);
   const [tipoElemento, setTipoElemento] = useState('botao'); // 'botao' ou 'link'
   const [dadosBotao, setDadosBotao] = useState({ nome: '', url: '', descricao: '', originalHtml: null });
+  const [copiadoVar, setCopiadoVar] = useState(false);
 
   const preparacaoRef = useRef(null);
 
   const editorOptions = {
     buttonList: [
-      ['undo', 'redo'], ['font', 'fontSize', 'formatBlock'],
-      ['bold', 'underline', 'italic', 'strike', 'subscript', 'superscript'],
-      ['fontColor', 'hiliteColor', 'textStyle'], ['removeFormat'],
-      ['outdent', 'indent'], ['align', 'horizontalRule', 'list', 'lineHeight'],
-      ['link'], ['fullScreen', 'showBlocks', 'codeView']
+      ['undo', 'redo'],
+      ['font', 'fontSize', 'formatBlock'],
+      ['bold', 'underline', 'italic', 'strike', 'removeFormat'],
+      ['fontColor', 'hiliteColor'],
+      ['align', 'list'],
+      ['link'],
+      ['codeView'],
     ],
     defaultTag: 'p',
     minHeight: '300px',
-    attributesWhitelist: { all: 'style', a: 'href|target|style|class|rel' }
+    attributesWhitelist: { all: 'style', a: 'href|target|style|class|rel' },
   };
 
   const getHeaders = useCallback(() => {
@@ -201,26 +204,10 @@ export function Disparos() {
     return `${base}?redirect=${encodeURIComponent(redirect)}&email=${emailPlaceholder}&descricao=${encodeURIComponent(descricao || '')}&etapa=${encodeURIComponent(String(etapaAtual || ''))}&tipo=${encodeURIComponent(tipoF || tipoFunilPadrao())}&curso=${encodeURIComponent(cursoId || '')}`;
   }
 
-  function inserirSnippet(snippet) { setEmailCru(prev => `${prev || ''}${snippet}`); }
-  function inserirParagrafo() { inserirSnippet(`\n<p style="margin:0 0 15px 0;color:#1F4E79;">Novo parágrafo aqui.</p>\n`); }
-  function inserirTituloSecundario() { inserirSnippet(`\n<h2 style="margin:0 0 15px 0;font-size:18px;color:#1F4E79;">Título da seção</h2>\n`); }
-  function inserirLinhaSeparadora() { inserirSnippet(`\n<div style="height:1px;background:#e5e5e5;margin:20px 0;"></div>\n`); }
-  
-  function inserirListaNaoOrdenada() {
-    inserirSnippet(`\n<ul style="margin: 0 0 15px 20px; padding: 0; color: #1F4E79; font-size: 14px; line-height: 1.6;">\n  <li style="margin-bottom: 8px;">Primeiro benefício aqui</li>\n  <li style="margin-bottom: 8px;">Segundo benefício aqui</li>\n  <li style="margin-bottom: 8px;">Terceiro benefício aqui</li>\n</ul>\n`);
-  }
-  function inserirListaOrdenada() {
-    inserirSnippet(`\n<ol style="margin: 0 0 15px 20px; padding: 0; color: #1F4E79; font-size: 14px; line-height: 1.6;">\n  <li style="margin-bottom: 8px;">Passo 1 aqui</li>\n  <li style="margin-bottom: 8px;">Passo 2 aqui</li>\n  <li style="margin-bottom: 8px;">Passo 3 aqui</li>\n</ol>\n`);
-  }
-  
   function inserirBotaoRastreado() {
     setTipoElemento('botao');
     setDadosBotao({ nome: 'Selecionar os temas prioritários', url: 'https://www.gestao.srv.br', descricao: 'Botão Principal', originalHtml: null });
     setMostrarModalBotaoRastreado(true);
-  }
-
-  function inserirAvisoSeguranca() {
-    inserirSnippet(`\n<table width="100%" border="0" cellspacing="0" cellpadding="0"><tr><td align="center" style="text-align: center;"><p style="margin: 0 0 15px 0; color: #1F4E79; font-size: 13px;">Obs: O link acima é oficial e 100% seguro.</p></td></tr></table>\n`);
   }
 
   function inserirLinkTextoRastreado() {
@@ -463,6 +450,7 @@ export function Disparos() {
     setSalvandoConfig(true);
 
     let htmlCorrigido = emailCru;
+    htmlCorrigido = htmlCorrigido.replace(/&nbsp;/g, ' ');
     htmlCorrigido = htmlCorrigido.replace(/([?&]|&amp;)etapa=[^&"']*/g, `$1etapa=${ordemEtapa}`);
     htmlCorrigido = htmlCorrigido.replace(/([?&]|&amp;)tipo=[^&"']*/g, `$1tipo=${tipoSalvar}`);
     htmlCorrigido = htmlCorrigido.replace(/([?&]|&amp;)curso=[^&"']*/g, `$1curso=${cursoAlvo}`);
@@ -871,10 +859,21 @@ export function Disparos() {
               <input type="text" className="bg-light-blue" value={cabecalhoEmail} onChange={e => setCabecalhoEmail(e.target.value)} placeholder="Ex: Não seguimos tendências genéricas. Queremos realizar capacitações que resolvam problemas reais." />
             </FormGroup>
 
-            <FormGroup style={{marginBottom: '20px'}}>
-              <small style={{color: '#49607b', display: 'block', marginTop: '5px', lineHeight: 1.5}}>
-                Se quiser usar o primeiro nome do cliente no email, escreva assim no conteúdo: <strong>{'{{$json.nome}}'}</strong>
+            <FormGroup style={{ marginBottom: '20px' }}>
+              <small style={{ color: '#49607b', display: 'block', marginTop: '5px', marginBottom: '8px', lineHeight: 1.5 }}>
+                Para usar o primeiro nome do cliente no email, clique para copiar e cole onde quiser:
               </small>
+              <VarChip
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText('{{$json.nome}}');
+                  setCopiadoVar(true);
+                  setTimeout(() => setCopiadoVar(false), 2000);
+                }}
+              >
+                <i className={copiadoVar ? 'fa-solid fa-check' : 'fa-solid fa-copy'} />
+                {copiadoVar ? 'Copiado!' : '{{$json.nome}}'}
+              </VarChip>
             </FormGroup>
 
             <div style={{ marginBottom: '20px' }}>
@@ -887,15 +886,8 @@ export function Disparos() {
               </div>
 
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                <SmallButton type="button" onClick={inserirParagrafo}>+ Parágrafo</SmallButton>
-                <SmallButton type="button" onClick={inserirTituloSecundario}>+ Título</SmallButton>
-                <SmallButton type="button" onClick={inserirListaNaoOrdenada}>+ Lista (Bolinhas)</SmallButton>
-                <SmallButton type="button" onClick={inserirListaOrdenada}>+ Lista (Números)</SmallButton>
-                <SmallButton type="button" onClick={inserirLinhaSeparadora}>+ Linha</SmallButton>
-                <SmallButton type="button" className="text-blue font-bold border-blue" onClick={inserirLinkTextoRastreado}>+ Link rastreado</SmallButton>
-                <SmallButton type="button" className="text-green font-bold border-green" onClick={inserirBotaoRastreado}>+ Botão Verde</SmallButton>
-                <SmallButton type="button" className="text-cyan font-bold border-cyan" onClick={inserirAvisoSeguranca}>+ Aviso de Segurança</SmallButton>
-                <SmallButton type="button" className="text-red font-bold border-red" onClick={() => setEmailCru(getEmailPadrao())}>Restaurar modelo</SmallButton>
+                <SmallButton type="button" className="text-blue font-bold border-blue" onClick={inserirLinkTextoRastreado}><i className="fa-solid fa-link"></i> Link Rastreado</SmallButton>
+                <SmallButton type="button" className="text-green font-bold border-green" onClick={inserirBotaoRastreado}><i className="fa-solid fa-square-arrow-up-right"></i> Botão Verde</SmallButton>
               </div>
 
               {modoVisual ? (
@@ -1308,6 +1300,15 @@ const ActionButton = styled.button`
   &.success { background: #d4edda; color: #155724; &:hover { background: #c3e6cb; } }
   &.warning { background: #fff3cd; color: #856404; &:hover { background: #ffeeba; } }
   &:disabled { opacity: 0.6; cursor: not-allowed; }
+`;
+
+const VarChip = styled.button`
+  display: inline-flex; align-items: center; gap: 7px; padding: 6px 14px; border-radius: 20px;
+  background: #f1f5f9; border: 1px solid #cbd5e1; color: #334155;
+  font-family: monospace; font-size: 0.88rem; font-weight: 600; cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  &:hover { background: #dbeafe; border-color: #93c5fd; color: #1d4ed8; }
+  i { font-size: 0.8rem; }
 `;
 
 const SmallButton = styled.button`

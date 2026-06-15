@@ -16,6 +16,7 @@ import {
 } from '../utils/calculoPacote.js';
 import { UFS_BRASIL } from '../constants/ufsBrasil.js';
 import { normalizarTexto } from '../utils/normalizarTexto.js';
+import { exportarLinhasComoCsv } from '../utils/exportarCsv.js';
 
 const inscritoVazio = (modulosPadrao = []) => ({
   nome: '', email: '', telefone: '', formacao: '', cargo: '', contato_id: null,
@@ -51,6 +52,13 @@ export function Funil() {
   const [ultimaAtualizacaoFunil, setUltimaAtualizacaoFunil] = useState(null);
   const [filtroCampanha, setFiltroCampanha] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('');
+  const [sortPorColuna, setSortPorColuna] = useState({});
+  const [mostrarModalDiagnostico, setMostrarModalDiagnostico] = useState(false);
+  const [diagnostico, setDiagnostico] = useState({ com_negociacao: [], sem_negociacao: [] });
+  const [carregandoDiagnostico, setCarregandoDiagnostico] = useState(false);
+  const [abaDiagnostico, setAbaDiagnostico] = useState('criadas');
+  const [buscaDiagnostico, setBuscaDiagnostico] = useState('');
+  const [estadoDiagnostico, setEstadoDiagnostico] = useState('');
   const [buscaGeral, setBuscaGeral] = useState('');
   const [mostrarSugestoesBusca, setMostrarSugestoesBusca] = useState(false);
   const [ultimasBuscasGeral, setUltimasBuscasGeral] = useState(() => {
@@ -393,6 +401,49 @@ export function Funil() {
     } catch (e) { console.error('Erro ao buscar módulos', e); }
   }
 
+  async function carregarDiagnostico(estadoFiltro) {
+    setCarregandoDiagnostico(true);
+    try {
+      const uf = estadoFiltro !== undefined ? estadoFiltro : estadoDiagnostico;
+      const params = uf ? `?estado=${uf}` : '';
+      const res = await axios.get(`${API_URL}/campanhas/${filtroCampanha}/diagnostico-negociacoes${params}`, getHeaders());
+      setDiagnostico(res.data);
+    } catch {
+      alert('Erro ao carregar diagnóstico.');
+    } finally {
+      setCarregandoDiagnostico(false);
+    }
+  }
+
+  function motivoDiagnostico(row) {
+    if (row.total_contatos === 0) return 'Sem contatos cadastrados';
+    if (row.contatos_com_cargo === 0) return 'Sem contato com cargo alvo';
+    if (row.contatos_disponiveis === 0) return 'Contatos congelados';
+    return '—';
+  }
+
+  function exportarDiagnosticoCsv() {
+    const aba = abaDiagnostico === 'criadas' ? diagnostico.com_negociacao : diagnostico.sem_negociacao;
+    if (!aba.length) return alert('Nenhum dado para exportar.');
+    if (abaDiagnostico === 'criadas') {
+      exportarLinhasComoCsv(aba.map(r => ({
+        empresa: r.empresa_nome,
+        estado: r.estado,
+        status: r.status,
+        etapa: r.etapa_nome,
+        valor: r.valor,
+      })), 'diagnostico_criadas');
+    } else {
+      exportarLinhasComoCsv(aba.map(r => ({
+        empresa: r.empresa_nome,
+        estado: r.estado,
+        total_contatos: r.total_contatos,
+        contatos_com_cargo: r.contatos_com_cargo,
+        motivo: motivoDiagnostico(r),
+      })), 'diagnostico_nao_criadas');
+    }
+  }
+
   const campanhaSelecionadaObj = useMemo(() => {
     return campanhas.find(c => c.id === parseInt(filtroCampanha));
   }, [campanhas, filtroCampanha]);
@@ -451,8 +502,18 @@ export function Funil() {
       if (!mapa[op.etapa_id]) mapa[op.etapa_id] = [];
       mapa[op.etapa_id].push(op);
     });
+
+    for (const etapaId of Object.keys(mapa)) {
+      const sort = sortPorColuna[etapaId] || 'padrao';
+      if (sort === 'az') {
+        mapa[etapaId].sort((a, b) => (a.titulo || '').localeCompare(b.titulo || '', 'pt-BR', { sensitivity: 'base' }));
+      } else if (sort === 'za') {
+        mapa[etapaId].sort((a, b) => (b.titulo || '').localeCompare(a.titulo || '', 'pt-BR', { sensitivity: 'base' }));
+      }
+    }
+
     return mapa;
-  }, [etapas, oportunidades, filtroEstado, empresas, cargosAlvoCampanha]);
+  }, [etapas, oportunidades, filtroEstado, empresas, cargosAlvoCampanha, sortPorColuna]);
 
   const sugestoesBusca = useMemo(() => {
     const termo = normalizarTexto(buscaGeral);
@@ -1326,7 +1387,12 @@ export function Funil() {
               label="Exportar "
             />
           )}
-          
+
+          {filtroCampanha && (
+            <DiagnosticoBtn onClick={() => { setMostrarModalDiagnostico(true); carregarDiagnostico(); }}>
+              <i className="fa-solid fa-chart-pie"></i> Diagnóstico
+            </DiagnosticoBtn>
+          )}
 
           {filtroCampanha && (
             <PrimaryButton onClick={abrirModalNovo} className="btn-novo">
@@ -1367,7 +1433,22 @@ export function Funil() {
               <KanbanColumn key={etapa.id}>
                 <ColumnHeader>
                   <span className="title">{etapa.nome}</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <SortBtn
+                      $active={!sortPorColuna[etapa.id] || sortPorColuna[etapa.id] === 'padrao'}
+                      title="Ordenação padrão (estrelas)"
+                      onClick={() => setSortPorColuna(prev => ({ ...prev, [etapa.id]: 'padrao' }))}
+                    ><i className="fa-solid fa-star" /></SortBtn>
+                    <SortBtn
+                      $active={sortPorColuna[etapa.id] === 'az'}
+                      title="Ordenar A→Z"
+                      onClick={() => setSortPorColuna(prev => ({ ...prev, [etapa.id]: 'az' }))}
+                    >A-Z</SortBtn>
+                    <SortBtn
+                      $active={sortPorColuna[etapa.id] === 'za'}
+                      title="Ordenar Z→A"
+                      onClick={() => setSortPorColuna(prev => ({ ...prev, [etapa.id]: 'za' }))}
+                    >Z-A</SortBtn>
                     <BotaoExportar
                       compact
                       tipo="oportunidades"
@@ -1459,6 +1540,127 @@ export function Funil() {
             )
           })}
         </KanbanBoard>
+      )}
+
+      {/* MODAL DIAGNÓSTICO DE NEGOCIAÇÕES */}
+      {mostrarModalDiagnostico && (
+        <ModalOverlay onClick={() => setMostrarModalDiagnostico(false)}>
+          <ModalContent $small onClick={e => e.stopPropagation()} style={{ maxWidth: 780 }}>
+            <ModalHeader>
+              <h3><i className="fa-solid fa-chart-pie" style={{ color: '#3b82f6' }}></i> Diagnóstico de Negociações — {campanhaSelecionadaObj?.nome}</h3>
+              <CloseButton onClick={() => setMostrarModalDiagnostico(false)}>&times;</CloseButton>
+            </ModalHeader>
+
+            <ModalBody style={{ padding: '16px 20px' }}>
+              {/* Tabs */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                <DiagTab $active={abaDiagnostico === 'criadas'} onClick={() => setAbaDiagnostico('criadas')}>
+                  <i className="fa-solid fa-circle-check"></i> Criadas ({diagnostico.com_negociacao.length})
+                </DiagTab>
+                <DiagTab $active={abaDiagnostico === 'nao_criadas'} onClick={() => setAbaDiagnostico('nao_criadas')}>
+                  <i className="fa-solid fa-circle-xmark"></i> Não Criadas ({diagnostico.sem_negociacao.length})
+                </DiagTab>
+              </div>
+
+              {/* Filtros */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                <DiagInput
+                  type="text"
+                  placeholder="Buscar por nome..."
+                  value={buscaDiagnostico}
+                  onChange={e => setBuscaDiagnostico(e.target.value)}
+                />
+                <DiagSelect
+                  value={estadoDiagnostico}
+                  onChange={e => { setEstadoDiagnostico(e.target.value); carregarDiagnostico(e.target.value); }}
+                >
+                  <option value="">Todos os estados</option>
+                  {UFS_BRASIL.map(uf => <option key={uf} value={uf}>{uf}</option>)}
+                </DiagSelect>
+              </div>
+
+              {carregandoDiagnostico ? (
+                <div style={{ textAlign: 'center', padding: 40, color: '#666' }}>
+                  <i className="fa-solid fa-spinner fa-spin"></i> Carregando...
+                </div>
+              ) : (() => {
+                const lista = abaDiagnostico === 'criadas'
+                  ? diagnostico.com_negociacao
+                  : diagnostico.sem_negociacao;
+                const termo = normalizarTexto(buscaDiagnostico);
+                const filtrada = termo
+                  ? lista.filter(r => normalizarTexto(r.empresa_nome || '').includes(termo))
+                  : lista;
+
+                if (!filtrada.length) return (
+                  <div style={{ textAlign: 'center', padding: 30, color: '#999' }}>
+                    Nenhum resultado encontrado.
+                  </div>
+                );
+
+                return (
+                  <DiagTabela>
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Prefeitura / Empresa</th>
+                        <th>UF</th>
+                        {abaDiagnostico === 'criadas' ? (
+                          <>
+                            <th>Status</th>
+                            <th>Etapa</th>
+                          </>
+                        ) : (
+                          <>
+                            <th>Contatos</th>
+                            <th>Com cargo</th>
+                            <th>Motivo</th>
+                          </>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtrada.map((row, i) => (
+                        <tr key={row.empresa_id}>
+                          <td style={{ color: '#999', fontSize: '0.78rem' }}>{i + 1}</td>
+                          <td><strong>{row.empresa_nome}</strong></td>
+                          <td><span style={{ background: '#e2e8f0', borderRadius: 4, padding: '2px 6px', fontSize: '0.78rem', fontWeight: 600 }}>{row.estado}</span></td>
+                          {abaDiagnostico === 'criadas' ? (
+                            <>
+                              <td><DiagStatusBadge $status={row.status}>{row.status}</DiagStatusBadge></td>
+                              <td style={{ fontSize: '0.82rem', color: '#555' }}>{row.etapa_nome || '—'}</td>
+                            </>
+                          ) : (
+                            <>
+                              <td style={{ textAlign: 'center' }}>{row.total_contatos}</td>
+                              <td style={{ textAlign: 'center' }}>{row.contatos_com_cargo}</td>
+                              <td><DiagMotivoTag $motivo={motivoDiagnostico(row)}>{motivoDiagnostico(row)}</DiagMotivoTag></td>
+                            </>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </DiagTabela>
+                );
+              })()}
+            </ModalBody>
+
+            <ModalFooter>
+              <span style={{ fontSize: '0.82rem', color: '#888' }}>
+                {abaDiagnostico === 'criadas'
+                  ? `${diagnostico.com_negociacao.length} negociações criadas`
+                  : `${diagnostico.sem_negociacao.length} empresas sem negociação`}
+              </span>
+              <button
+                type="button"
+                onClick={exportarDiagnosticoCsv}
+                style={{ background: '#16a34a', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600 }}
+              >
+                <i className="fa-solid fa-file-csv"></i> Exportar CSV
+              </button>
+            </ModalFooter>
+          </ModalContent>
+        </ModalOverlay>
       )}
 
       {/* MODAL DE EDIÇÃO DE OPORTUNIDADE E SUB-MODAIS */}
@@ -1565,6 +1767,17 @@ export function Funil() {
                           </span>
                         )}
                       </div>
+                    </FormGroup>
+
+                    <FormGroup className="span-2">
+                      <label><i className="fa-solid fa-pen-to-square" style={{ color: '#f59e0b' }}></i> Observações</label>
+                      <TextArea
+                        value={observacoes}
+                        onChange={(e) => setObservacoes(e.target.value)}
+                        rows="3"
+                        placeholder="Resultado do contato, próximos passos, pendências..."
+                        style={{ resize: 'vertical', minHeight: 72, background: '#fffbeb', borderColor: '#fcd34d' }}
+                      />
                     </FormGroup>
 
                     <FormGroup className="span-2">
@@ -1875,11 +2088,6 @@ export function Funil() {
                         ))
                       }
                     </Select>
-                  </FormGroup>
-
-                  <FormGroup>
-                    <label>Resumo Geral do Negócio</label>
-                    <TextArea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows="2" />
                   </FormGroup>
 
                   <SectionCard>
@@ -2628,6 +2836,61 @@ const TaskBadge = styled.div`
   color: ${p => (p.$urgente ? '#dc3545' : '#6f42c1')};
   border: 1px solid ${p => (p.$urgente ? '#f5c6cb' : '#d6bcfa')};
   i { font-size: 0.7rem; }
+`;
+
+// --- SORT & DIAGNÓSTICO ---
+const SortBtn = styled.button`
+  background: ${p => p.$active ? '#3b82f6' : '#e2e8f0'};
+  color: ${p => p.$active ? '#fff' : '#555'};
+  border: none; border-radius: 4px; padding: 2px 6px; font-size: 0.68rem; font-weight: 700;
+  cursor: pointer; line-height: 1.4; transition: background 0.15s;
+  &:hover { background: ${p => p.$active ? '#2563eb' : '#cbd5e1'}; }
+`;
+
+const DiagnosticoBtn = styled.button`
+  display: inline-flex; align-items: center; gap: 6px; background: #f0f9ff; color: #0369a1;
+  border: 1px solid #bae6fd; border-radius: 8px; padding: 7px 14px; font-size: 0.85rem; font-weight: 600;
+  cursor: pointer; transition: background 0.15s;
+  &:hover { background: #e0f2fe; }
+`;
+
+const DiagTab = styled.button`
+  flex: 1; padding: 9px 14px; border-radius: 8px; border: 2px solid ${p => p.$active ? '#3b82f6' : '#e2e8f0'};
+  background: ${p => p.$active ? '#eff6ff' : '#f8fafc'}; color: ${p => p.$active ? '#1d4ed8' : '#555'};
+  font-weight: 700; font-size: 0.88rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: all 0.15s;
+`;
+
+const DiagInput = styled.input`
+  flex: 1; padding: 7px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.85rem;
+  &:focus { outline: none; border-color: #3b82f6; }
+`;
+
+const DiagSelect = styled.select`
+  padding: 7px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.85rem; background: #fff;
+  &:focus { outline: none; border-color: #3b82f6; }
+`;
+
+const DiagTabela = styled.table`
+  width: 100%; border-collapse: collapse; font-size: 0.84rem;
+  th { background: #f1f5f9; color: #374151; font-weight: 700; padding: 8px 10px; text-align: left; border-bottom: 2px solid #e2e8f0; position: sticky; top: 0; }
+  td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #f8fafc; }
+  max-height: 400px; display: block; overflow-y: auto;
+  thead, tbody tr { display: table; width: 100%; table-layout: fixed; }
+`;
+
+const DiagStatusBadge = styled.span`
+  display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 700;
+  background: ${p => ({ ganho: '#dcfce7', perdido: '#fee2e2', interessada: '#d1fae5', avaliar: '#d1fae5', inscricao: '#dbeafe' }[p.$status] || '#f1f5f9')};
+  color: ${p => ({ ganho: '#15803d', perdido: '#dc2626', interessada: '#059669', avaliar: '#16a34a', inscricao: '#1d4ed8' }[p.$status] || '#555')};
+`;
+
+const DiagMotivoTag = styled.span`
+  display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.73rem; font-weight: 600;
+  background: ${p => p.$motivo === 'Sem contatos cadastrados' ? '#fff7ed' : p.$motivo === 'Contatos congelados' ? '#eff6ff' : '#fef2f2'};
+  color: ${p => p.$motivo === 'Sem contatos cadastrados' ? '#c2410c' : p.$motivo === 'Contatos congelados' ? '#1d4ed8' : '#991b1b'};
 `;
 
 // --- MODAIS GERAIS ---
