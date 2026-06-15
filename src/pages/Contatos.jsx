@@ -61,7 +61,7 @@ export function Contatos() {
   const dropdownRef = useRef(null);
 
   const [paginaAtual, setPaginaAtual] = useState(1);
-  const itensPorPagina = 15;
+  const [itensPorPagina, setItensPorPagina] = useState(25);
 
   const getHeaders = useCallback(() => {
     const token = localStorage.getItem('token');
@@ -169,7 +169,7 @@ export function Contatos() {
 
   const itensExibidos = useMemo(() => {
     return contatosFiltrados.slice((paginaAtual - 1) * itensPorPagina, paginaAtual * itensPorPagina);
-  }, [contatosFiltrados, paginaAtual]);
+  }, [contatosFiltrados, paginaAtual, itensPorPagina]);
 
   const totalPaginas = Math.ceil(contatosFiltrados.length / itensPorPagina);
 
@@ -443,13 +443,29 @@ export function Contatos() {
             </Table>
           </TabelaResponsiva>
 
-          {totalPaginas > 1 && (
+          {contatosFiltrados.length > 0 && (
             <PaginationContainer>
-              <div className="info">Página <strong>{paginaAtual}</strong> de {totalPaginas}</div>
-              <div className="controls">
-                <PageButton disabled={paginaAtual === 1} onClick={() => setPaginaAtual(prev => prev - 1)}>Anterior</PageButton>
-                <PageButton disabled={paginaAtual >= totalPaginas} onClick={() => setPaginaAtual(prev => prev + 1)}>Próxima</PageButton>
+              <div className="info">
+                {contatosFiltrados.length} contato(s) · página <strong>{paginaAtual}</strong> de {totalPaginas || 1}
               </div>
+              <div className="per-page">
+                <label htmlFor="per-page-select">Por página:</label>
+                <select
+                  id="per-page-select"
+                  value={itensPorPagina}
+                  onChange={e => { setItensPorPagina(Number(e.target.value)); setPaginaAtual(1); }}
+                >
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+              {totalPaginas > 1 && (
+                <div className="controls">
+                  <PageButton disabled={paginaAtual === 1} onClick={() => setPaginaAtual(prev => prev - 1)}>Anterior</PageButton>
+                  <PageButton disabled={paginaAtual >= totalPaginas} onClick={() => setPaginaAtual(prev => prev + 1)}>Próxima</PageButton>
+                </div>
+              )}
             </PaginationContainer>
           )}
         </Panel>
@@ -736,19 +752,20 @@ const CustomDropdownItem = styled.li`
   ${props => props.$active && `color: #007bff; font-weight: 700; background: #f0f7ff;`}
 `;
 
-const Panel = styled.div` background: #fff; border-radius: 10px; overflow: hidden; border: 1px solid #edf2f9; box-shadow: 0 4px 10px rgba(0,0,0,0.02); `;
+const Panel = styled.div` background: #fff; border-radius: 10px; border: 1px solid #edf2f9; box-shadow: 0 4px 10px rgba(0,0,0,0.02); `;
 
 const TabelaResponsiva = styled.div`
-  overflow-x: auto; 
-  &::-webkit-scrollbar { height: 6px; }
+  overflow: auto;
+  max-height: calc(100vh - 340px);
+  &::-webkit-scrollbar { height: 6px; width: 6px; }
   &::-webkit-scrollbar-track { background: transparent; }
   &::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 `;
 
-const Table = styled.table` 
+const Table = styled.table`
   width: 100%; border-collapse: collapse; min-width: 600px;
-  th { text-align: left; padding: 15px 20px; background: #fbfbfc; border-bottom: 2px solid #edf2f9; color: #6c757d; font-size: 0.85rem; text-transform: uppercase; } 
-  td { padding: 15px 20px; border-bottom: 1px solid #edf2f9; vertical-align: middle; } 
+  th { text-align: left; padding: 15px 20px; background: #fbfbfc; border-bottom: 2px solid #edf2f9; color: #6c757d; font-size: 0.85rem; text-transform: uppercase; position: sticky; top: 0; z-index: 2; }
+  td { padding: 15px 20px; border-bottom: 1px solid #edf2f9; vertical-align: middle; }
 
   @media (max-width: 768px) {
     min-width: unset; display: block;
@@ -771,20 +788,29 @@ const Table = styled.table`
   }
 `;
 
-const ClickableRow = styled.tr` 
+const ClickableRow = styled.tr`
   cursor: pointer; transition: 0.2s; animation: ${fadeInUp} 0.4s ease forwards; opacity: 0;
-  &:hover { background: #f8fafc; } 
-  .contact-name { font-weight: 800; color: #2c3e50; font-size: 1.05rem; margin-bottom: 4px; } 
-  .contact-meta { font-size: 0.85rem; color: #6c757d; display: flex; flex-direction: column; gap: 4px; margin-top: 4px; align-items: flex-start; } 
-  .state-tag { color: #007bff; font-weight: bold; font-size: 0.75rem; margin-top: 4px; } 
-  .text-red { color: #e53e3e; } 
+  &:hover { background: #f8fafc; }
+  .contact-name { font-weight: 800; color: #2c3e50; font-size: 1.05rem; margin-bottom: 4px; }
+  .contact-meta { font-size: 0.85rem; color: #6c757d; display: flex; flex-direction: column; gap: 4px; margin-top: 4px; align-items: flex-start; }
+  .state-tag { color: #007bff; font-weight: bold; font-size: 0.75rem; margin-top: 4px; }
+  .text-red { color: #e53e3e; }
   .company-name { font-weight: 600; color: #495057; }
   span { display: flex; align-items: center; gap: 5px;}
 `;
 
 const Badge = styled.span` padding: 4px 10px; border-radius: 10px; font-size: 0.75rem; font-weight: 700; &.badge-gray { background: #f1f5f9; color: #475569; } &.badge-warning { background: #fff4e5; color: #b45309; } &.badge-danger { background: #ffe4e6; color: #991b1b; } `;
 
-const PaginationContainer = styled.div` padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; background: #fbfbfc; border-top: 1px solid #edf2f9; @media (max-width: 600px){ flex-direction: column; gap: 15px; } `;
+const PaginationContainer = styled.div`
+  padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; background: #fbfbfc; border-top: 1px solid #edf2f9; gap: 12px; flex-wrap: wrap;
+  .info { font-size: 0.85rem; color: #6c757d; }
+  .per-page { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #6c757d;
+    select { padding: 5px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem; background: #fff; cursor: pointer; }
+    select:focus { outline: none; border-color: #007bff; }
+  }
+  .controls { display: flex; gap: 8px; }
+  @media (max-width: 600px){ flex-direction: column; align-items: flex-start; gap: 10px; }
+`;
 const PageButton = styled.button` padding: 8px 15px; cursor: pointer; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; color: #475569; font-weight: 600; transition: 0.2s; &:hover:not(:disabled) { background: #eef4fa; border-color: #007bff; color: #007bff; } &:disabled{ opacity: 0.4; cursor: not-allowed; } `;
 
 const ModalOverlay = styled.div` position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 9998; padding: 20px; padding-bottom: calc(20px + env(safe-area-inset-bottom)); box-sizing: border-box; `;

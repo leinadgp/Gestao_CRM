@@ -1,15 +1,30 @@
 /* src/index.css */
 @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css');
 
+:root {
+  --color-primary: #007bff;
+  --color-success: #28a745;
+  --color-danger:  #dc3545;
+  --color-info:    #17a2b8;
+  --color-purple:  #6f42c1;
+  --color-text:         #2c3e50;
+  --color-text-muted:   #6c757d;
+  --color-bg-page:  #f8fafc;
+  --color-bg-card:  #ffffff;
+  --color-border:   #edf2f9;
+  --radius-card:    12px;
+  --shadow-card:    0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+}
+
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 body {
-    background-color: #f0f2f5;
+    font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--color-bg-page);
     color: #333;
 }
 

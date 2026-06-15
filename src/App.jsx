@@ -27,7 +27,7 @@ import { NotificacaoLanding } from './componentes/NotificacaoLanding.jsx';
 const GlobalStyle = createGlobalStyle`
   html, body {
     margin: 0; padding: 0; width: 100%; height: 100%;
-    background-color: #0B0F19; font-family: 'Inter', sans-serif;
+    font-family: 'Inter', 'Segoe UI', sans-serif;
     overscroll-behavior: none; /* FIX IPHONE: Remove o efeito elástico */
     -webkit-font-smoothing: antialiased;
   }

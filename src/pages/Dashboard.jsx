@@ -470,44 +470,49 @@ export function Dashboard() {
       </TopSection>
 
       {carregando ? (
-        <LoadingContainer>
-          <i className="fa-solid fa-spinner fa-spin"></i><br/>Calculando relatórios...
-        </LoadingContainer>
+        <>
+          <KpiGrid>
+            {[0,1,2,3].map(i => <SkeletonCard key={i} />)}
+          </KpiGrid>
+          <LoadingContainer>
+            <i className="fa-solid fa-spinner fa-spin"></i><br/>Calculando relatórios...
+          </LoadingContainer>
+        </>
       ) : (
         <>
           <KpiGrid>
-            <KpiCard $borderColor="#007bff">
-              <div className="kpi-header">
-                <span className="kpi-label">VALOR NEGOCIANDO</span>
-                <i className="fa-solid fa-chart-line" style={{ color: '#007bff' }}></i>
-              </div>
+            <KpiCard>
+              <KpiIconBox $color="#007bff">
+                <i className="fa-solid fa-chart-line"></i>
+              </KpiIconBox>
+              <div className="kpi-label">VALOR NEGOCIANDO</div>
               <div className="kpi-value">{formatarMoeda(kpis.totalAberto)}</div>
               <div className="kpi-subtitle" style={{ color: '#007bff' }}>{kpis.qtdAberto} negócios em aberto</div>
             </KpiCard>
 
-            <KpiCard $borderColor="#28a745" $bgColor="#f4fbf5">
-              <div className="kpi-header">
-                <span className="kpi-label">RECEITA FRACIONADA</span>
-                <i className="fa-solid fa-hand-holding-dollar" style={{ color: '#28a745' }}></i>
-              </div>
+            <KpiCard>
+              <KpiIconBox $color="#28a745">
+                <i className="fa-solid fa-hand-holding-dollar"></i>
+              </KpiIconBox>
+              <div className="kpi-label">RECEITA FRACIONADA</div>
               <div className="kpi-value">{formatarMoeda(kpis.totalGanho)}</div>
               <div className="kpi-subtitle" style={{ color: '#28a745' }}>{kpis.qtdGanhaCompetencia} inscrições no mês</div>
             </KpiCard>
 
-            <KpiCard $borderColor="#17a2b8">
-              <div className="kpi-header">
-                <span className="kpi-label">TICKET POR MÓDULO</span>
-                <i className="fa-solid fa-ticket" style={{ color: '#17a2b8' }}></i>
-              </div>
+            <KpiCard>
+              <KpiIconBox $color="#17a2b8">
+                <i className="fa-solid fa-ticket"></i>
+              </KpiIconBox>
+              <div className="kpi-label">TICKET POR MÓDULO</div>
               <div className="kpi-value">{formatarMoeda(kpis.ticketMedio)}</div>
               <div className="kpi-subtitle" style={{ color: '#17a2b8' }}>Média de valor por inscrição</div>
             </KpiCard>
 
-            <KpiCard $borderColor="#dc3545">
-              <div className="kpi-header">
-                <span className="kpi-label">VALOR PERDIDO</span>
-                <i className="fa-solid fa-circle-xmark" style={{ color: '#dc3545' }}></i>
-              </div>
+            <KpiCard>
+              <KpiIconBox $color="#dc3545">
+                <i className="fa-solid fa-circle-xmark"></i>
+              </KpiIconBox>
+              <div className="kpi-label">VALOR PERDIDO</div>
               <div className="kpi-value">{formatarMoeda(kpis.totalPerdido)}</div>
               <div className="kpi-subtitle" style={{ color: '#dc3545' }}>{kpis.qtdPerdido} negócios descartados</div>
             </KpiCard>
@@ -544,7 +549,10 @@ export function Dashboard() {
               <PanelSubtitle className="text-center">Comparativo do período filtrado.</PanelSubtitle>
               <ChartContainer>
                 {dadosPizza.length === 0 ? (
-                   <EmptyChartMsg>Nenhum dado para analisar.</EmptyChartMsg>
+                   <EmptyChartMsg>
+                     <i className="fa-regular fa-chart-pie"></i>
+                     Nenhum dado para analisar no período.
+                   </EmptyChartMsg>
                 ) : (
                   <>
                     <ResponsiveContainer minHeight={1}>
@@ -668,7 +676,10 @@ export function Dashboard() {
               </PanelSubtitle>
 
               {listaInscritosFiltrada.length === 0 ? (
-                <InscritosEmpty>Nenhuma inscrição encontrada para este período.</InscritosEmpty>
+                <InscritosEmpty>
+                  <i className="fa-solid fa-users-slash"></i>
+                  Nenhuma inscrição encontrada para este período.
+                </InscritosEmpty>
               ) : (
                 <InscritosListaCompacta>
                   <InscritosListaHead>
@@ -834,7 +845,10 @@ export function Dashboard() {
                   <p>{erroModal}</p>
                 </ErrorMessage>
               ) : cliquesAgrupadosModal.length === 0 ? (
-                <EmptyChartMsg>Nenhum clique registrado para este e-mail.</EmptyChartMsg>
+                <EmptyChartMsg>
+                  <i className="fa-regular fa-envelope-open"></i>
+                  Nenhum clique registrado para este e-mail.
+                </EmptyChartMsg>
               ) : (
                 <TabelaResponsiva>
                   <Table>
@@ -886,13 +900,18 @@ const ErrorMessage = styled.div`
 `;
 
 const PageContainer = styled.div`
-  padding: 30px; background-color: #f4f7f6; min-height: calc(100vh - 70px);
-  @media (max-width: 768px) { padding: 15px; }
+  padding: 24px 30px;
+  background-color: #f4f7f6;
+  min-height: calc(100vh - 70px);
+  max-width: 1600px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  @media (max-width: 768px) { padding: 16px; }
 `;
 
 const TopSection = styled.div`
-  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; margin-bottom: 25px;
-  @media (max-width: 768px) { flex-direction: column; align-items: flex-start; }
+  display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 20px; margin-bottom: 28px;
+  @media (max-width: 768px) { flex-direction: column; align-items: stretch; }
 `;
 
 const Title = styled.h2`
@@ -915,7 +934,7 @@ const FilterPillWrapper = styled.div`
 
 const FilterButton = styled.button`
   display: flex; align-items: center; justify-content: space-between; background: ${props => props.$hasValue ? '#eef4fa' : '#ffffff'};
-  border: 1px solid ${props => props.$hasValue ? '#b8cde1' : '#cbd5e1'}; color: #2c3e50; padding: 10px 18px; border-radius: 10px; font-size: 0.95rem; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 2px 5px rgba(0,0,0,0.02); width: 100%;
+  border: 1px solid ${props => props.$hasValue ? '#b8cde1' : '#cbd5e1'}; color: #2c3e50; padding: 10px 18px; border-radius: 10px; font-size: 0.95rem; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 2px 5px rgba(0,0,0,0.02); width: 100%; min-height: 44px;
   &:hover { background: #e7f3ff; border-color: #007bff; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,123,255,0.1); }
   span { margin: 0 10px; strong { color: #007bff; } }
   .icon { color: #6c757d; font-size: 1.05rem; } .arrow { color: #007bff; font-size: 0.8rem; }
@@ -943,21 +962,72 @@ const LoadingContainer = styled.div`
 `;
 
 const KpiGrid = styled.div`
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 30px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  margin-bottom: 28px;
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+  }
 `;
 
 const KpiCard = styled.div`
-  background: ${props => props.$bgColor || '#ffffff'}; border-left: 5px solid ${props => props.$borderColor || '#ccc'}; border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: center; transition: transform 0.2s;
-  &:hover { transform: translateY(-4px); }
-  .kpi-header { display: flex; justify-content: space-between; align-items: center; }
-  .kpi-label { color: #64748b; font-size: 0.85rem; font-weight: 700; }
-  .kpi-value { font-size: 1.8rem; font-weight: 800; color: #2c3e50; margin: 10px 0; }
-  .kpi-subtitle { font-size: 0.85rem; font-weight: 600; }
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 20px 22px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  border: 1px solid #f1f5f9;
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow 0.2s, transform 0.2s;
+  &:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); transform: translateY(-2px); }
+  .kpi-label { color: #64748b; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+  .kpi-value { font-size: 1.65rem; font-weight: 800; color: #0f172a; margin: 0 0 6px; line-height: 1.2; }
+  .kpi-subtitle { font-size: 0.82rem; font-weight: 600; }
+
+  @media (max-width: 767px) {
+    padding: 16px;
+    .kpi-value { font-size: 1.3rem; }
+  }
+`;
+
+const KpiIconBox = styled.div`
+  width: 42px;
+  height: 42px;
+  border-radius: 11px;
+  background: ${p => p.$color}18;
+  color: ${p => p.$color};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  margin-bottom: 14px;
+  flex-shrink: 0;
+`;
+
+const SkeletonCard = styled.div`
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 16px;
+  height: 130px;
+  border: 1px solid #f1f5f9;
+  @keyframes shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  @media (max-width: 767px) { height: 106px; }
 `;
 
 const DashboardGrid = styled.div`
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-bottom: 30px;
-  @media (max-width: 768px) { grid-template-columns: 1fr; }
+  display: grid;
+  gap: 20px;
+  margin-bottom: 24px;
+  grid-template-columns: 1fr;
+  @media (min-width: 900px) {
+    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  }
 `;
 
 const Panel = styled.div`
@@ -1025,7 +1095,8 @@ const ChartContainer = styled.div`
 `;
 
 const EmptyChartMsg = styled.div`
-  height: 100%; display: flex; align-items: center; justify-content: center; color: #a0aec0; font-style: italic; text-align: center;
+  height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #a0aec0; font-style: italic; text-align: center; gap: 10px;
+  i { font-size: 2rem; opacity: 0.45; }
 `;
 
 const LegendContainer = styled.div`
@@ -1109,12 +1180,17 @@ const BtnExportarInscritos = styled.button`
   &:disabled { opacity: 0.55; cursor: not-allowed; }
 `;
 
-const InscritosEmpty = styled.p`
+const InscritosEmpty = styled.div`
   margin: 0;
-  padding: 40px 20px;
+  padding: 48px 20px;
   text-align: center;
   color: #94a3b8;
   font-style: italic;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  i { font-size: 1.8rem; opacity: 0.5; }
 `;
 
 const inscritosGridCols = 'minmax(120px, 1.2fr) minmax(140px, 1.4fr) minmax(100px, 1fr) 52px';

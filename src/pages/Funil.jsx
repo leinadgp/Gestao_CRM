@@ -71,8 +71,11 @@ export function Funil() {
   });
   const [dropdownCampanhaAberto, setDropdownCampanhaAberto] = useState(false);
   const [dropdownEstadoAberto, setDropdownEstadoAberto] = useState(false);
+  const [filtroVendedor, setFiltroVendedor] = useState('');
+  const [dropdownVendedorAberto, setDropdownVendedorAberto] = useState(false);
   const dropdownCampanhaRef = useRef(null);
   const dropdownEstadoRef = useRef(null);
+  const dropdownVendedorRef = useRef(null);
   const buscaWrapperRef = useRef(null);
 
   // --- DADOS DO USUÁRIO ---
@@ -266,6 +269,9 @@ export function Funil() {
       }
       if (dropdownEstadoRef.current && !dropdownEstadoRef.current.contains(event.target)) {
         setDropdownEstadoAberto(false);
+      }
+      if (dropdownVendedorRef.current && !dropdownVendedorRef.current.contains(event.target)) {
+        setDropdownVendedorAberto(false);
       }
       if (buscaWrapperRef.current && !buscaWrapperRef.current.contains(event.target)) {
         setMostrarSugestoesBusca(false);
@@ -464,9 +470,11 @@ export function Funil() {
         const estadoOp = (op.empresa_estado || empresas.find(e => e.id === op.empresa_id)?.estado || '').toUpperCase();
         if (estadoOp !== filtroEstado.toUpperCase()) return false;
       }
+      if (filtroVendedor && String(op.vendedor_id) !== String(filtroVendedor)) return false;
       return true;
     });
 
+    const agora = Date.now();
     const opsEnriquecidas = opsFiltradasEstado.map((op) => {
       const emp = empresas.find((e) => e.id === op.empresa_id) || {};
       const cargosCont = normalizarCargosJson(op.contato_cargos_json, []);
@@ -481,12 +489,15 @@ export function Funil() {
         cargosAlvoCampanha,
         cargosCont
       );
+      const dataRef = op.atualizado_em || op.criado_em;
+      const diasNaEtapa = dataRef ? Math.floor((agora - new Date(dataRef).getTime()) / 86400000) : 0;
       return {
         ...op,
         classificacao: scoring.classificacao,
         estrelas: scoring.estrelas,
         cargoPrioridade: scoring.cargoRef,
         assessoradasCargos,
+        diasNaEtapa,
       };
     });
 
@@ -513,7 +524,7 @@ export function Funil() {
     }
 
     return mapa;
-  }, [etapas, oportunidades, filtroEstado, empresas, cargosAlvoCampanha, sortPorColuna]);
+  }, [etapas, oportunidades, filtroEstado, filtroVendedor, empresas, cargosAlvoCampanha, sortPorColuna]);
 
   const sugestoesBusca = useMemo(() => {
     const termo = normalizarTexto(buscaGeral);
@@ -1377,6 +1388,37 @@ export function Funil() {
               )}
             </FilterPillWrapper>
           )}
+          {filtroCampanha && equipe.length > 0 && (
+            <FilterPillWrapper ref={dropdownVendedorRef}>
+              <FilterButton
+                $hasValue={!!filtroVendedor}
+                onClick={() => setDropdownVendedorAberto(!dropdownVendedorAberto)}
+              >
+                <i className="fa-solid fa-user-tie icon"></i>
+                <span>Vendedor: <strong>{filtroVendedor ? (equipe.find(u => String(u.id) === String(filtroVendedor))?.nome || 'Todos') : 'Todos'}</strong></span>
+                <i className="fa-solid fa-chevron-down arrow" style={{ transform: dropdownVendedorAberto ? 'rotate(180deg)' : 'rotate(0)' }}></i>
+              </FilterButton>
+              {dropdownVendedorAberto && (
+                <CustomDropdownMenu>
+                  <CustomDropdownItem
+                    $active={filtroVendedor === ''}
+                    onClick={() => { setFiltroVendedor(''); setDropdownVendedorAberto(false); }}
+                  >
+                    Todos os Vendedores
+                  </CustomDropdownItem>
+                  {equipe.map((u) => (
+                    <CustomDropdownItem
+                      key={u.id}
+                      $active={String(filtroVendedor) === String(u.id)}
+                      onClick={() => { setFiltroVendedor(String(u.id)); setDropdownVendedorAberto(false); }}
+                    >
+                      {u.nome}
+                    </CustomDropdownItem>
+                  ))}
+                </CustomDropdownMenu>
+              )}
+            </FilterPillWrapper>
+          )}
           {filtroCampanha && (
             <BotaoExportar
               tipo="oportunidades"
@@ -1429,37 +1471,48 @@ export function Funil() {
           {etapas.map((etapa) => {
             const cardsDestaColuna = oportunidadesPorEtapa[etapa.id] || [];
 
+            const totalValorColuna = cardsDestaColuna.reduce((acc, op) => acc + (parseFloat(op.valor) || 0), 0);
+
             return (
               <KanbanColumn key={etapa.id}>
                 <ColumnHeader>
-                  <span className="title">{etapa.nome}</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <SortBtn
-                      $active={!sortPorColuna[etapa.id] || sortPorColuna[etapa.id] === 'padrao'}
-                      title="Ordenação padrão (estrelas)"
-                      onClick={() => setSortPorColuna(prev => ({ ...prev, [etapa.id]: 'padrao' }))}
-                    ><i className="fa-solid fa-star" /></SortBtn>
-                    <SortBtn
-                      $active={sortPorColuna[etapa.id] === 'az'}
-                      title="Ordenar A→Z"
-                      onClick={() => setSortPorColuna(prev => ({ ...prev, [etapa.id]: 'az' }))}
-                    >A-Z</SortBtn>
-                    <SortBtn
-                      $active={sortPorColuna[etapa.id] === 'za'}
-                      title="Ordenar Z→A"
-                      onClick={() => setSortPorColuna(prev => ({ ...prev, [etapa.id]: 'za' }))}
-                    >Z-A</SortBtn>
-                    <BotaoExportar
-                      compact
-                      tipo="oportunidades"
-                      params={{
-                        campanha_id: filtroCampanha,
-                        etapa_id: etapa.id,
-                        estado: filtroEstado || undefined,
-                      }}
-                    />
-                    <span className="badge">{cardsDestaColuna.length}</span>
+                  <div className="header-top">
+                    <span className="title">{etapa.nome}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <SortGroup>
+                        <SortBtn
+                          $active={!sortPorColuna[etapa.id] || sortPorColuna[etapa.id] === 'padrao'}
+                          title="Ordenar por relevância"
+                          onClick={() => setSortPorColuna(prev => ({ ...prev, [etapa.id]: 'padrao' }))}
+                        ><i className="fa-solid fa-star" /></SortBtn>
+                        <SortBtn
+                          $active={sortPorColuna[etapa.id] === 'az'}
+                          title="Ordenar A→Z"
+                          onClick={() => setSortPorColuna(prev => ({ ...prev, [etapa.id]: 'az' }))}
+                        >A·Z</SortBtn>
+                        <SortBtn
+                          $active={sortPorColuna[etapa.id] === 'za'}
+                          title="Ordenar Z→A"
+                          onClick={() => setSortPorColuna(prev => ({ ...prev, [etapa.id]: 'za' }))}
+                        >Z·A</SortBtn>
+                      </SortGroup>
+                      <BotaoExportar
+                        compact
+                        tipo="oportunidades"
+                        params={{
+                          campanha_id: filtroCampanha,
+                          etapa_id: etapa.id,
+                          estado: filtroEstado || undefined,
+                        }}
+                      />
+                      <span className="badge">{cardsDestaColuna.length}</span>
+                    </div>
                   </div>
+                  {totalValorColuna > 0 && (
+                    <div className="column-total">
+                      {totalValorColuna.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    </div>
+                  )}
                 </ColumnHeader>
 
                 <CardsContainer>
@@ -1531,6 +1584,12 @@ export function Funil() {
                               ? `${tarefasPorOp[op.id].urgente} tarefa(s) urgente(s)`
                               : `${tarefasPorOp[op.id].total} tarefa(s)`}
                           </TaskBadge>
+                        )}
+                        {op.diasNaEtapa >= 7 && (
+                          <RottingBadge $critico={op.diasNaEtapa >= 14}>
+                            <i className={op.diasNaEtapa >= 14 ? 'fa-solid fa-circle-exclamation' : 'fa-regular fa-clock'}></i>
+                            {op.diasNaEtapa} {op.diasNaEtapa >= 14 ? 'dias parado' : 'dias'}
+                          </RottingBadge>
                         )}
                       </KanbanCard>
                     );
@@ -1839,6 +1898,18 @@ export function Funil() {
                                     </span>
 
                                     <ContatoNegociacaoAcoes>
+                                      {cont.whatsapp_pessoal && (
+                                        <IconButton
+                                          as="a"
+                                          href={`https://wa.me/55${cont.whatsapp_pessoal.replace(/\D/g, '')}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          title={`WhatsApp: ${cont.whatsapp_pessoal}`}
+                                          className="whatsapp"
+                                        >
+                                          <i className="fa-brands fa-whatsapp" />
+                                        </IconButton>
+                                      )}
                                       <IconButton
                                         type="button"
                                         title="Editar contato"
@@ -2790,9 +2861,19 @@ const KanbanColumn = styled.div`
 `;
 
 const ColumnHeader = styled.div`
-  display: flex; justify-content: space-between; align-items: center; padding: 5px 5px 10px 5px;
+  display: flex; flex-direction: column; gap: 4px; padding: 5px 5px 10px 5px;
+  .header-top { display: flex; justify-content: space-between; align-items: center; }
   .title { font-weight: 700; color: #444; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px; }
   .badge { background: #e2e4e9; color: #555; padding: 4px 10px; border-radius: 10px; font-size: 0.8rem; font-weight: bold; }
+  .column-total { font-size: 0.82rem; font-weight: 700; color: #16a34a; padding-left: 2px; }
+`;
+
+const RottingBadge = styled.div`
+  display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; padding: 3px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 700; width: fit-content;
+  background: ${p => p.$critico ? '#fdecea' : '#fff7ed'};
+  color: ${p => p.$critico ? '#dc3545' : '#b45309'};
+  border: 1px solid ${p => p.$critico ? '#f5c6cb' : '#fed7aa'};
+  i { font-size: 0.68rem; }
 `;
 
 const CardsContainer = styled.div`
@@ -2839,12 +2920,23 @@ const TaskBadge = styled.div`
 `;
 
 // --- SORT & DIAGNÓSTICO ---
+const SortGroup = styled.div`
+  display: inline-flex; border: 1px solid #d1d5db; border-radius: 6px; overflow: hidden;
+`;
+
 const SortBtn = styled.button`
-  background: ${p => p.$active ? '#3b82f6' : '#e2e8f0'};
-  color: ${p => p.$active ? '#fff' : '#555'};
-  border: none; border-radius: 4px; padding: 2px 6px; font-size: 0.68rem; font-weight: 700;
-  cursor: pointer; line-height: 1.4; transition: background 0.15s;
-  &:hover { background: ${p => p.$active ? '#2563eb' : '#cbd5e1'}; }
+  background: ${p => p.$active ? '#3b82f6' : '#fff'};
+  color: ${p => p.$active ? '#fff' : '#6b7280'};
+  border: none;
+  border-right: 1px solid #d1d5db;
+  padding: 3px 7px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  line-height: 1.4;
+  transition: background 0.15s, color 0.15s;
+  &:last-child { border-right: none; }
+  &:hover:not([disabled]) { background: ${p => p.$active ? '#2563eb' : '#f3f4f6'}; color: ${p => p.$active ? '#fff' : '#374151'}; }
 `;
 
 const DiagnosticoBtn = styled.button`
@@ -3073,6 +3165,16 @@ const IconButton = styled.button`
       background: #dc3545;
       color: #fff;
     }
+  }
+  &.whatsapp {
+    color: #25d366;
+    background: #f0faf4;
+    border-color: #b7ebc8;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    &:hover { background: #25d366; color: #fff; }
   }
 `;
 

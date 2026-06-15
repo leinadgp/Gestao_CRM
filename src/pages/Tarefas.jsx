@@ -33,7 +33,7 @@ export function Tarefas() {
   const carregarTarefas = useCallback(async () => {
     setCarregando(true);
     try {
-      const lista = isAdmin ? await listarTodasTarefas() : await listarMinhasTarefas();
+      const lista = await listarTodasTarefas();
       setTarefas(lista || []);
     } catch (erro) {
       console.error(erro);
