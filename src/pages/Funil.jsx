@@ -1326,7 +1326,7 @@ export function Funil() {
             >
               <div style={{ display: 'flex', alignItems: 'center' }}>
                 <i className="fa-solid fa-layer-group icon"></i>
-                <span>Funil: <strong>
+                <span>Campanha: <strong>
                   <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
                     {campanhaSelecionadaObj ? (
                       <>

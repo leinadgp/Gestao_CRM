@@ -26,9 +26,12 @@ export function Disparos() {
   const navigate = useNavigate();
   
   const API_URL = import.meta.env?.VITE_API_URL || 'https://server-js-gestao.onrender.com';
+  const LANDING_DOMAIN = import.meta.env?.VITE_LANDING_DOMAIN || 'https://conteudo2.gestao.srv.br';
   const WEBHOOK_TESTE = import.meta.env?.VITE_WEBHOOK_TESTE || 'https://deccel-ia-n8n-nova-versao.cdqhrl.easypanel.host/webhook/v2-teste-disparo';
 
   const [campanhas, setCampanhas] = useState([]);
+  const [landingPages, setLandingPages] = useState([]);
+  const [urlLandingCampanha, setUrlLandingCampanha] = useState('');
   const [sequenciaAtual, setSequenciaAtual] = useState([]);
 
   // FILTRO DROPDOWN
@@ -72,6 +75,7 @@ export function Disparos() {
   const [copiadoVar, setCopiadoVar] = useState(false);
 
   const preparacaoRef = useRef(null);
+  const sunEditorRef = useRef(null);
 
   const editorOptions = {
     buttonList: [
@@ -105,8 +109,12 @@ export function Disparos() {
 
   const carregarCampanhas = useCallback(async () => {
     try {
-      const res = await axios.get(`${API_URL}/campanhas`, getHeaders());
-      setCampanhas((res.data || []).filter((camp) => camp.arquivada !== true));
+      const [resCamps, resLPs] = await Promise.all([
+        axios.get(`${API_URL}/campanhas`, getHeaders()),
+        axios.get(`${API_URL}/landing-pages`, getHeaders()),
+      ]);
+      setCampanhas((resCamps.data || []).filter((camp) => camp.arquivada !== true));
+      setLandingPages(resLPs.data || []);
     } catch (erro) { console.error('Erro campanhas', erro); }
   }, [API_URL, getHeaders]);
 
@@ -128,6 +136,12 @@ export function Disparos() {
   useEffect(() => {
     if (cursoAlvo) { carregarSequencia(cursoAlvo); } else { setSequenciaAtual([]); }
   }, [cursoAlvo, carregarSequencia]);
+
+  useEffect(() => {
+    if (!cursoAlvo || !landingPages.length) { setUrlLandingCampanha(''); return; }
+    const lp = landingPages.find(p => String(p.campanha_id) === String(cursoAlvo) && p.slug);
+    setUrlLandingCampanha(lp ? `${LANDING_DOMAIN}/lp/${lp.slug}` : '');
+  }, [cursoAlvo, landingPages, LANDING_DOMAIN]);
 
   useEffect(() => {
     if (!editandoEmailId) {
@@ -206,14 +220,22 @@ export function Disparos() {
 
   function inserirBotaoRastreado() {
     setTipoElemento('botao');
-    setDadosBotao({ nome: 'Selecionar os temas prioritários', url: 'https://www.gestao.srv.br', descricao: 'Botão Principal', originalHtml: null });
+    setDadosBotao({ nome: 'Selecionar os temas prioritários', url: urlLandingCampanha || 'https://www.gestao.srv.br', descricao: 'Botão Principal', originalHtml: null });
     setMostrarModalBotaoRastreado(true);
   }
 
   function inserirLinkTextoRastreado() {
     setTipoElemento('link');
-    setDadosBotao({ nome: 'Programa Avançado', url: 'https://www.gestao.srv.br', descricao: 'Link no Texto', originalHtml: null });
+    setDadosBotao({ nome: 'Programa Avançado', url: urlLandingCampanha || 'https://www.gestao.srv.br', descricao: 'Link no Texto', originalHtml: null });
     setMostrarModalBotaoRastreado(true);
+  }
+
+  function inserirSnippet(html) {
+    if (sunEditorRef.current && typeof sunEditorRef.current.insertHTML === 'function') {
+      sunEditorRef.current.insertHTML(html, true, true);
+    } else {
+      setEmailCru(prev => prev + '\n' + html);
+    }
   }
 
   function salvarBotaoRastreado() {
@@ -892,7 +914,7 @@ export function Disparos() {
 
               {modoVisual ? (
                 <div style={{ background: '#fff', border: '1px solid #ccc', borderRadius: '4px' }} onClick={handleEditorClick}>
-                  <SunEditor setOptions={editorOptions} setContents={emailCru} onChange={setEmailCru} />
+                  <SunEditor setOptions={editorOptions} setContents={emailCru} onChange={setEmailCru} getSunEditorInstance={instance => { sunEditorRef.current = instance; }} />
                 </div>
               ) : (
                 <textarea required value={emailCru} onChange={e => setEmailCru(e.target.value)} style={{ width: '100%', minHeight: '300px', padding: '15px', borderRadius: '8px', border: '1px solid #ccc', fontFamily: 'monospace', backgroundColor: '#2d2d2d', color: '#f8f8f2', boxSizing: 'border-box' }} />
@@ -1067,7 +1089,7 @@ export function Disparos() {
 
         {/* MODAL: INSERIR BOTÃO/LINK RASTREADO */}
         {mostrarModalBotaoRastreado && (
-          <ModalOverlay onClick={() => setMostrarModalBotaoRastreado(false)}>
+          <ModalOverlay>
             <ModalContent onClick={e => e.stopPropagation()}>
               <ModalHeader $bg={tipoElemento === 'botao' ? '#218553' : '#007bff'} $color="#fff">
                 <h3>

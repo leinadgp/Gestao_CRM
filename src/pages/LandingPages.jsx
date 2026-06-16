@@ -22,15 +22,10 @@ export function LandingPages() {
   const [statusLP, setStatusLP] = useState('rascunho');
   const [campanhaId, setCampanhaId] = useState('');
   
-  // === ESTADOS DO ASSISTENTE MÁGICO (IA) ===
-  const [mostrarWizardIA, setMostrarWizardIA] = useState(false);
-  const [gerandoIA, setGerandoIA] = useState(false);
-  const [iaPrompt, setIaPrompt] = useState({
-    nomeCurso: '',
-    publicoAlvo: '',
-    beneficios: '',
-    chamadaAcao: ''
-  });
+  const [publicandoLP, setPublicandoLP] = useState(false);
+  const [menuAbertoId, setMenuAbertoId] = useState(null);
+  const [menuPos, setMenuPos] = useState(null);
+  const menuRef = useRef(null);
 
   const API_URL = import.meta.env?.VITE_API_URL || 'https://server-js-gestao.onrender.com';
   const LANDING_DOMAIN = import.meta.env?.VITE_LANDING_DOMAIN || 'https://conteudo2.gestao.srv.br';
@@ -438,6 +433,14 @@ export function LandingPages() {
   useEffect(() => {
     carregarDados();
   }, [carregarDados]);
+
+  function fecharMenu() { setMenuAbertoId(null); setMenuPos(null); }
+
+  useEffect(() => {
+    if (!menuAbertoId) return;
+    document.addEventListener('click', fecharMenu);
+    return () => document.removeEventListener('click', fecharMenu);
+  }, [menuAbertoId]);
 
   // === INICIALIZAÇÃO DO GRAPESJS (MODO LEIGO / BLINDADO) ===
   useEffect(() => {
@@ -913,212 +916,6 @@ export function LandingPages() {
     }
   }, [mostrarModal, htmlInicial, cssInicial, extraHtmlHead, extraBodyScripts, htmlAttributes, bodyAttributes]);
 
- // === A MÁGICA DA IA (GERAR COPY COMPLETA / PÁGINA LONGA) ===
-  async function handleGerarComIA(e) {
-    e.preventDefault();
-    setGerandoIA(true);
-
-    try {
-      const payloadIA = { ...iaPrompt };
-
-      if (campanhaId) {
-        const campSelecionada = campanhas.find(c => c.id === Number(campanhaId));
-        if (campSelecionada) {
-          payloadIA.nomeCurso = payloadIA.nomeCurso || campSelecionada.nome;
-          payloadIA.descricaoCampanha = campSelecionada.descricao || '';
-          payloadIA.informacaoExtra = campSelecionada.informacao_extra || '';
-          try {
-            const resMods = await axios.get(`${API_URL}/campanhas/${campanhaId}/modulos`, getHeaders());
-            payloadIA.modulosCampanha = resMods.data || [];
-          } catch {
-            payloadIA.modulosCampanha = [];
-          }
-        }
-      }
-
-      const resposta = await axios.post(`${API_URL}/api/ia/gerar-copy`, payloadIA, getHeaders());
-      const copy = resposta.data;
-
-      // ========================================================
-      // 2. CONSTRUÇÃO DOS BLOCOS HTML (ESTILO AUTORIDADE PÚBLICA)
-      // ========================================================
-      
-      // Estilos base repetidos
-      const sectionStyle = "padding: 80px 20px; font-family: sans-serif; box-sizing: border-box;";
-      const containerStyle = "max-width: 1100px; margin: 0 auto;";
-      const titleStyle = "font-size: 36px; font-weight: 800; text-align: center; margin-bottom: 50px;";
-      const ctaStyle = "display: inline-block; background-color: #fbbf24; color: #0f172a; padding: 18px 35px; border-radius: 6px; font-weight: bold; text-decoration: none; font-size: 18px; transition: 0.2s;";
-
-      // BLOCO 1: HERO/GANCHO (AZUL ESCURO)
-      const blocoHero = `
-        <section style="${sectionStyle} background: #0b192c; color: #ffffff;">
-          <div style="${containerStyle} text-align: center; display: flex; flex-direction: column; align-items: center; gap: 30px;">
-             <img src="https://via.placeholder.com/250x60?text=Sua+Logo+Aqui" style="max-width: 250px; filter: brightness(0) invert(1);" alt="Logo" />
-             <h1 style="font-size: 48px; font-weight: 800; line-height: 1.1; color: #ffffff; margin: 0;">${copy.hook.headline}</h1>
-             <p style="font-size: 22px; color: #cbd5e1; max-width: 800px; margin: 0;">${copy.hook.subheadline}</p>
-             <a href="#form-inscricao" style="${ctaStyle}">${copy.hook.cta_texto}</a>
-          </div>
-        </section>
-      `;
-
-      // BLOCO 2: PROBLEMA (VERMELHO SOFT)
-      const blocoProblema = `
-        <section style="${sectionStyle} background: #fef2f2;">
-          <div style="${containerStyle}">
-             <h2 style="${titleStyle} color: #b91c1c;">${copy.problema.titulo}</h2>
-             <div style="display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;">
-               ${(copy.problema.cards || []).map(card => `
-                 <div style="flex: 1; min-width: 260px; max-width: 350px; background: #fff; padding: 30px; border-radius: 8px; border-top: 4px solid #ef4444; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
-                    <p style="color: #475569; font-size: 17px; line-height: 1.5; margin: 0; font-weight: 600;">${card}</p>
-                 </div>
-               `).join('')}
-             </div>
-          </div>
-        </section>
-      `;
-
-      // BLOCO 3: AGITAÇÃO (BRANCO)
-      const blocoAgitacao = `
-        <section style="${sectionStyle} background: #ffffff;">
-          <div style="${containerStyle} text-align: center; max-width: 800px;">
-             <p style="font-size: 20px; color: #1e293b; line-height: 1.8; font-weight: 600;">${copy.agitacao.texto_longo}</p>
-          </div>
-        </section>
-      `;
-
-      // BLOCO 4: SOLUÇÃO (AZUL ESCURO)
-      const blocoSolucao = `
-        <section style="${sectionStyle} background: #0b192c; color: #ffffff;">
-          <div style="${containerStyle} display: flex; flex-wrap: wrap; gap: 40px; align-items: center;">
-             <div style="flex: 1; min-width: 300px;">
-                <h2 style="font-size: 36px; font-weight: 800; color: #fbbf24; margin-bottom: 20px;">${copy.solucao.titulo}</h2>
-                <p style="font-size: 19px; color: #ffffff; font-weight: 700; margin-bottom: 30px;">${copy.solucao.texto_destaque}</p>
-                <ul style="list-style: none; padding: 0; margin-bottom: 30px;">
-                  ${(copy.solucao.lista || []).map(item => `
-                    <li style="margin-bottom: 15px; font-size: 17px; display: flex; align-items: center; gap: 10px; color: #cbd5e1;"><i class="fa-solid fa-check-circle" style="color: #fbbf24;"></i> ${item}</li>
-                  `).join('')}
-                </ul>
-                <a href="#form-inscricao" style="${ctaStyle}">Inspecionar Módulos e Preços</a>
-             </div>
-             <div style="flex: 1; min-width: 300px; text-align: center;">
-               <img src="https://images.unsplash.com/photo-1593720213428-28a5b9e94613?q=80&w=600&auto=format&fit=crop" style="max-width: 100%; border-radius: 10px; box-shadow: 0 10px 40px rgba(0,0,0,0.5);" alt="Estrutura do Curso" />
-             </div>
-          </div>
-        </section>
-      `;
-
-      // BLOCO 5: AUTORIDADE (BRANCO)
-      const blocoAutoridade = `
-        <section id="sobre" style="${sectionStyle} background: #ffffff;">
-          <div style="${containerStyle} display: flex; flex-wrap: wrap; gap: 40px; align-items: center; background: #f8fafc; padding: 50px; border-radius: 12px; border: 1px solid #e2e8f0;">
-             <div style="flex: 1; min-width: 250px; text-align: center;">
-               <img src="https://via.placeholder.com/250x250?text=Sua+Foto+Aqui" style="width: 220px; height: 220px; border-radius: 50%; object-fit: cover; border: 6px solid #fbbf24;" alt="Instrutor" />
-               <p style="color: #64748b; font-size: 13px; margin-top: 10px;">(Clique 2x para trocar a foto)</p>
-             </div>
-             <div style="flex: 2; min-width: 300px;">
-                <h2 style="font-size: 28px; font-weight: 800; color: #0b192c; margin-bottom: 5px;">Quem vai te guiar</h2>
-                <h3 style="font-size: 20px; color: #fbbf24; margin-top: 0; margin-bottom: 25px; font-weight: bold;">${copy.autoridade.nome_professor}</h3>
-                <p style="font-size: 17px; color: #475569; line-height: 1.7;">${copy.autoridade.bio_prefixo}</p>
-                <p style="font-size: 16px; color: #64748b; line-height: 1.7;">A IA gerou a introdução. Clique aqui e escreva o currículo completo profissional do professor.</p>
-             </div>
-          </div>
-        </section>
-      `;
-
-      // BLOCO 6: FAQ (CINZA SOFT)
-      const blocoFaq = `
-        <section style="${sectionStyle} background: #f8fafc;">
-          <div style="${containerStyle} max-width: 800px;">
-             <h2 style="${titleStyle} color: #0b192c;">Dúvidas Frequentes</h2>
-             <div style="display: flex; flex-direction: column; gap: 15px;">
-               ${(copy.faq || []).map(item => `
-                 <div style="background: #ffffff; padding: 25px; border-radius: 8px; border: 1px solid #e2e8f0;">
-                    <h4 style="margin: 0 0 10px 0; font-size: 18px; color: #0b192c; font-weight: bold;">${item.pergunta}</h4>
-                    <p style="margin: 0; color: #64748b; font-size: 16px; line-height: 1.6;">${item.resposta}</p>
-                 </div>
-               `).join('')}
-             </div>
-          </div>
-        </section>
-      `;
-
-      // BLOCO 7: FORMULÁRIO E CHAMADA FINAL (AZUL ESCURO)
-      const blocoFinal = `
-        <section id="form-inscricao" style="${sectionStyle} background: #0b192c; color: #ffffff;">
-          <div style="${containerStyle} text-align: center; max-width: 700px; padding-bottom: 60px;">
-             <p style="font-size: 22px; color: #cbd5e1; font-weight: bold; margin-bottom: 10px;">Últimas Vagas Disponíveis</p>
-             <h2 style="font-size: 32px; font-weight: 800; color: #fbbf24; margin-top: 0; margin-bottom: 20px;">${copy.chamada_final.texto}</h2>
-          </div>
-          
-          <div style="${containerStyle} max-width: 700px; background: #ffffff; padding: 40px; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
-              <h2 style="text-align: center; color: #0f172a; margin-bottom: 10px; font-size: 28px;">Garanta sua Vaga</h2>
-              <p style="text-align: center; color: #64748b; margin-bottom: 30px;">Preencha os dados abaixo para confirmar sua inscrição no curso.</p>
-              
-              <form id="formInscricaoCRM" style="display: flex; flex-direction: column; gap: 15px;">
-                <div>
-                  <label style="font-size: 0.9rem; font-weight: bold; color: #475569; display: block; margin-bottom: 5px;">Nome completo*</label>
-                  <input type="text" id="nome" required style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; font-size: 14px;" />
-                </div>
-                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-                  <div style="flex: 1; min-width: 200px;">
-                    <label style="font-size: 0.9rem; font-weight: bold; color: #475569; display: block; margin-bottom: 5px;">Email*</label>
-                    <input type="email" id="email" required style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; font-size: 14px;" />
-                  </div>
-                  <div style="flex: 1; min-width: 200px;">
-                    <label style="font-size: 0.9rem; font-weight: bold; color: #475569; display: block; margin-bottom: 5px;">Telefone (WhatsApp)*</label>
-                    <input type="text" id="whatsapp" required style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; font-size: 14px;" />
-                  </div>
-                </div>
-
-                <div style="margin-top: 10px; padding: 20px; background: #f0f7ff; border-radius: 8px; border: 1px solid #b8daff;">
-                  <label style="font-size: 1rem; font-weight: bold; color: #007bff; display: block; margin-bottom: 10px;">Opções de Inscrição</label>
-                  <div id="containerModulos">
-                     <div style="color: #64748b; font-size: 0.9rem; font-style: italic;">
-                       (Os módulos e combos de desconto definidos na campanha aparecerão automaticamente aqui)
-                     </div>
-                  </div>
-                </div>
-
-                <button type="submit" id="btnSubmit" style="margin-top: 20px; width: 100%; padding: 18px; background-color: #0b192c; color: #fff; border: none; border-radius: 5px; font-size: 1.2rem; font-weight: bold; cursor: pointer; transition: background 0.3s;">
-                  ${copy.chamada_final.cta_texto}
-                </button>
-                <div id="feedback" style="display:none; padding: 15px; border-radius: 5px; text-align: center; margin-top: 15px; font-weight: bold;"></div>
-              </form>
-          </div>
-        </section>
-      `;
-
-      // 3. Monta a página completa empilhando os blocos na ordem correta
-      const htmlFinalGerado = `
-        ${blocoHero}
-        ${blocoProblema}
-        ${blocoAgitacao}
-        ${blocoSolucao}
-        ${blocoAutoridade}
-        ${blocoFaq}
-        ${blocoFinal}
-      `;
-
-      // 4. Injeta tudo no editor e abre o modal principal
-      setHtmlInicial(htmlFinalGerado);
-      setCssInicial(''); // GrapesJS lidará com o CSS embutido
-      setMostrarWizardIA(false); // Fecha a janelinha
-      setMostrarModal(true); // Abre o editor
-
-      // 5. Configurações auxiliares do formulário
-      setNome(iaPrompt.nomeCurso);
-      const slugAutomatizado = iaPrompt.nomeCurso.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-      setSlug(slugAutomatizado);
-      setStatusLP('rascunho');
-
-    } catch (error) {
-      console.error(error);
-      alert('Houve uma falha na geração. Verifique os dados ou tente novamente mais tarde.');
-    } finally {
-      setGerandoIA(false);
-    }
-  }
-
   function abrirEditorHtmlBruto() {
     if (!editorRef.current) return;
     setHtmlBruto(editorRef.current.getHtml() || '');
@@ -1193,45 +990,70 @@ export function LandingPages() {
     event.target.value = '';
   }
 
-  function abrirModalEdicao(lp) {
-    setEditandoId(lp.id);
-    setNome(lp.nome);
-    setSlug(lp.slug);
-    setStatusLP(lp.status || 'rascunho');
-    setCampanhaId(lp.campanha_id || '');
-
-    const parsed = extractHtmlAssets(lp.html_content || '');
-    setHtmlInicial(parsed.bodyHtml || '');
-    setCssInicial(`${parsed.plainCssText}${parsed.plainCssText && lp.css_content ? '\n' : ''}${lp.css_content || ''}`);
-    setExtraHtmlHead(parsed.extraMarkup);
-    setExtraBodyScripts(parsed.bodyScripts || '');
-    setHtmlAttributes(parsed.htmlAttrs || '');
-    setBodyAttributes(parsed.bodyAttrs || '');
-    setImportErro('');
-    setMostrarModal(true);
+  async function abrirModalEdicao(lp) {
+    try {
+      const res = await axios.get(`${API_URL}/landing-pages/${lp.id}`, getHeaders());
+      const lpCompleta = res.data;
+      setEditandoId(lpCompleta.id);
+      setNome(lpCompleta.nome);
+      setSlug(lpCompleta.slug);
+      setStatusLP(lpCompleta.status || 'rascunho');
+      setCampanhaId(lpCompleta.campanha_id || '');
+      const htmlParaEditar = lpCompleta.html_rascunho || lpCompleta.html_content || '';
+      const cssParaEditar = lpCompleta.css_rascunho || lpCompleta.css_content || '';
+      const parsed = extractHtmlAssets(htmlParaEditar);
+      setHtmlInicial(parsed.bodyHtml || '');
+      setCssInicial(`${parsed.plainCssText}${parsed.plainCssText && cssParaEditar ? '\n' : ''}${cssParaEditar || ''}`);
+      setExtraHtmlHead(parsed.extraMarkup);
+      setExtraBodyScripts(parsed.bodyScripts || '');
+      setHtmlAttributes(parsed.htmlAttrs || '');
+      setBodyAttributes(parsed.bodyAttrs || '');
+      setImportErro('');
+      setMostrarModal(true);
+    } catch (e) {
+      console.error(e);
+      alert('Erro ao carregar a página para edição.');
+    }
   }
 
   async function salvarPagina(e) {
     e.preventDefault();
-    if(!slug.trim()) return alert("O Slug é obrigatório!");
+    if (!slug.trim()) return alert("O Slug é obrigatório!");
 
     const slugFormatado = slug.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
     const htmlGerado = editorRef.current ? editorRef.current.getHtml() : htmlInicial;
     const cssGerado = editorRef.current ? editorRef.current.getCss() : cssInicial;
     const htmlComExtras = `<!DOCTYPE html><html${htmlAttributes ? ` ${htmlAttributes}` : ''}><head>${extraHtmlHead || ''}</head><body${bodyAttributes ? ` ${bodyAttributes}` : ''}>${htmlGerado}${extraBodyScripts || ''}</body></html>`;
 
-    const payload = { nome, slug: slugFormatado, status: statusLP, campanha_id: campanhaId || null, html_content: htmlComExtras, css_content: cssGerado };
+    const payload = { nome, slug: slugFormatado, campanha_id: campanhaId || null, html_content: htmlComExtras, css_content: cssGerado };
 
     try {
       if (editandoId) {
         await axios.put(`${API_URL}/landing-pages/${editandoId}`, payload, getHeaders());
-        alert("Página atualizada com sucesso!");
+        alert("Rascunho salvo! Clique em Publicar para atualizar a versão online.");
+        carregarDados();
       } else {
-        await axios.post(`${API_URL}/landing-pages`, payload, getHeaders());
+        const res = await axios.post(`${API_URL}/landing-pages`, { ...payload, status: statusLP }, getHeaders());
         alert("Página criada com sucesso!");
+        setEditandoId(res.data.id);
+        carregarDados();
       }
-      setMostrarModal(false); carregarDados();
     } catch (err) { alert(err.response?.data?.erro || 'Erro ao salvar a página.'); }
+  }
+
+  async function publicarPagina() {
+    if (!editandoId) return;
+    if (!window.confirm("Publicar vai atualizar a versão online com o rascunho atual. Confirmar?")) return;
+    setPublicandoLP(true);
+    try {
+      await axios.post(`${API_URL}/landing-pages/${editandoId}/publicar`, {}, getHeaders());
+      alert("Página publicada com sucesso! A versão online foi atualizada.");
+      carregarDados();
+    } catch (err) {
+      alert(err.response?.data?.erro || 'Erro ao publicar a página.');
+    } finally {
+      setPublicandoLP(false);
+    }
   }
 
   async function deletarPagina(id) {
@@ -1240,10 +1062,19 @@ export function LandingPages() {
   }
 
   async function duplicarPagina(pagina) {
-    if (!window.confirm(`Duplicar a página "${pagina.nome}" como um novo rascunho?`)) return;
+    if (!window.confirm(`Criar uma cópia de "${pagina.nome}"?`)) return;
 
-    const novoNome = `${pagina.nome} (Cópia)`;
-    const baseSlug = pagina.slug ? `${pagina.slug}-copy` : `${novoNome.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}-copy`;
+    let lpCompleta;
+    try {
+      const res = await axios.get(`${API_URL}/landing-pages/${pagina.id}`, getHeaders());
+      lpCompleta = res.data;
+    } catch {
+      alert('Erro ao buscar dados da página para duplicar.');
+      return;
+    }
+
+    const novoNome = `${lpCompleta.nome} (Cópia)`;
+    const baseSlug = lpCompleta.slug ? `${lpCompleta.slug}-copy` : `${novoNome.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}-copy`;
     let slugCandidate = baseSlug;
     let tentativa = 1;
 
@@ -1253,9 +1084,9 @@ export function LandingPages() {
           nome: novoNome,
           slug: slugCandidate,
           status: 'rascunho',
-          campanha_id: pagina.campanha_id || null,
-          html_content: pagina.html_content || '',
-          css_content: pagina.css_content || ''
+          campanha_id: lpCompleta.campanha_id || null,
+          html_content: lpCompleta.html_content || '',
+          css_content: lpCompleta.css_content || ''
         };
 
         const res = await axios.post(`${API_URL}/landing-pages`, payload, getHeaders());
@@ -1300,9 +1131,6 @@ export function LandingPages() {
             <SecondaryButton onClick={selecionarArquivoLovable} className="btn-mobile">
               <i className="fa-solid fa-file-import"></i> Importar HTML
             </SecondaryButton>
-            <AiButton onClick={() => setMostrarWizardIA(true)} className="btn-mobile">
-              <i className="fa-solid fa-wand-magic-sparkles"></i> Gerar com IA
-            </AiButton>
           </div>
         </TopSection>
 
@@ -1350,17 +1178,24 @@ export function LandingPages() {
                         </div>
                       </td>
                       <td data-label="Status" onClick={() => abrirModalEdicao(p)} className="text-center">
-                        <StatusBadge className={p.status === 'publicada' ? 'published' : 'draft'}>
-                          {p.status === 'publicada' ? '🌐 Publicada' : '📝 Rascunho'}
-                        </StatusBadge>
+                        {p.status === 'publicada' && p.tem_rascunho_pendente ? (
+                          <StatusBadge className="draft-pending">🟡 Rascunho com edições</StatusBadge>
+                        ) : p.status === 'publicada' ? (
+                          <StatusBadge className="published">🌐 Publicada</StatusBadge>
+                        ) : (
+                          <StatusBadge className="draft">📝 Rascunho</StatusBadge>
+                        )}
                       </td>
                       <td data-label="Ações" className="text-center actions-cell">
-                        <LinkButton href={`${LANDING_DOMAIN}/lp/${p.slug}`} target="_blank" rel="noreferrer" title="Abrir página online" onClick={(e) => e.stopPropagation()}>
-                          <i className="fa-solid fa-arrow-up-right-from-square"></i> Visitar
-                        </LinkButton>
-                        <ActionButton type="button" onClick={(e) => { e.stopPropagation(); duplicarPagina(p); }} title="Duplicar página">
-                          <i className="fa-solid fa-copy"></i> Copiar
-                        </ActionButton>
+                        <DotsButton type="button" onClick={(e) => {
+                          e.stopPropagation();
+                          if (menuAbertoId === p.id) { fecharMenu(); return; }
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setMenuPos({ top: rect.bottom + 4, left: Math.min(rect.right - 160, window.innerWidth - 168) });
+                          setMenuAbertoId(p.id);
+                        }} title="Ações">
+                          ···
+                        </DotsButton>
                       </td>
                     </ClickableRow>
                   ))
@@ -1370,76 +1205,27 @@ export function LandingPages() {
           </TabelaResponsiva>
         </Panel>
 
+        {/* Menu 3 pontos — renderizado fora da tabela para não ser cortado por overflow:hidden */}
+        {menuAbertoId !== null && menuPos && (() => {
+          const pg = paginasFiltradas.find(x => x.id === menuAbertoId);
+          if (!pg) return null;
+          return (
+            <DotsMenu style={{ top: menuPos.top, left: menuPos.left }} onClick={(e) => e.stopPropagation()}>
+              <DotsMenuItem as="a" href={`${LANDING_DOMAIN}/lp/${pg.slug}`} target="_blank" rel="noreferrer" onClick={fecharMenu}>
+                <i className="fa-solid fa-arrow-up-right-from-square"></i> Visitar
+              </DotsMenuItem>
+              <DotsMenuItem type="button" onClick={() => { navigator.clipboard.writeText(`${LANDING_DOMAIN}/lp/${pg.slug}`); fecharMenu(); alert('Link copiado!'); }}>
+                <i className="fa-solid fa-link"></i> Copiar link
+              </DotsMenuItem>
+              <DotsMenuItem type="button" onClick={() => { fecharMenu(); duplicarPagina(pg); }}>
+                <i className="fa-solid fa-copy"></i> Criar cópia
+              </DotsMenuItem>
+            </DotsMenu>
+          );
+        })()}
+
       </PageContainer>
 
-     {/* === MODAL WIZARD IA === */}
-      {mostrarWizardIA && (
-        <ModalOverlay onClick={() => setMostrarWizardIA(false)} style={{zIndex: 10001}}>
-          <WizardContent onClick={e => e.stopPropagation()}>
-            <ModalHeader $bg="#f8fafc">
-              <div>
-                <h3><i className="fa-solid fa-wand-magic-sparkles" style={{color: '#8b5cf6'}}></i> Assistente de Criação (IA)</h3>
-                <span className="subtitle">Responda rapidamente e deixe a inteligência artificial escrever sua página.</span>
-              </div>
-              <CloseButton onClick={() => setMostrarWizardIA(false)}>&times;</CloseButton>
-            </ModalHeader>
-            
-            <form onSubmit={handleGerarComIA} style={{ padding: '25px' }}>
-              
-              {/* === NOVO: PUXANDO DADOS DO CRM DIRETO === */}
-              <FormGroup style={{marginBottom: '15px'}}>
-                <label style={{color: '#007bff'}}>1. Vincular a uma Campanha existente? (Recomendado)</label>
-                <Select 
-                  value={campanhaId} 
-                  onChange={e => {
-                    const idSelecionado = e.target.value;
-                    setCampanhaId(idSelecionado);
-                    
-                    // Se ele selecionar uma campanha, já preenche o nome do curso pra ele!
-                    if (idSelecionado) {
-                      const campSelecionada = campanhas.find(c => c.id === Number(idSelecionado));
-                      if (campSelecionada) {
-                        setIaPrompt({
-                          ...iaPrompt,
-                          nomeCurso: campSelecionada.nome,
-                          beneficios: campSelecionada.descricao || iaPrompt.beneficios
-                        });
-                      }
-                    } else {
-                      setIaPrompt({...iaPrompt, nomeCurso: '', beneficios: ''});
-                    }
-                  }}
-                  style={{borderColor: '#007bff', backgroundColor: '#f0f7ff'}}
-                >
-                  <option value="">-- Criar do zero (Sem vínculo) --</option>
-                  {campanhas.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                </Select>
-                <small style={{color: '#64748b'}}>Os módulos e valores dessa campanha serão injetados automaticamente no formulário da página ao vivo.</small>
-              </FormGroup>
-
-              <FormGroup>
-                <label>2. Nome do Curso / Serviço *</label>
-                <Input type="text" required value={iaPrompt.nomeCurso} onChange={e => setIaPrompt({...iaPrompt, nomeCurso: e.target.value})} placeholder="Ex: Formação em Licitações e Contratos" />
-              </FormGroup>
-              <FormGroup>
-                <label>3. Quem é o Público-Alvo? *</label>
-                <Input type="text" required value={iaPrompt.publicoAlvo} onChange={e => setIaPrompt({...iaPrompt, publicoAlvo: e.target.value})} placeholder="Ex: Servidores públicos, Prefeitos, Auditores..." />
-              </FormGroup>
-              <FormGroup>
-                <label>4. Quais as principais dores que você resolve? (Opcional)</label>
-                <Input type="text" value={iaPrompt.beneficios} onChange={e => setIaPrompt({...iaPrompt, beneficios: e.target.value})} placeholder="Ex: Medo de apontamentos do TCE, Insegurança Jurídica..." />
-              </FormGroup>
-
-              <div style={{ marginTop: '25px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                <SecondaryButton type="button" onClick={() => setMostrarWizardIA(false)}>Cancelar</SecondaryButton>
-                <AiButton type="submit" disabled={gerandoIA}>
-                  {gerandoIA ? <><i className="fa-solid fa-spinner fa-spin"></i> Escrevendo Copy...</> : <><i className="fa-solid fa-robot"></i> Gerar Página</>}
-                </AiButton>
-              </div>
-            </form>
-          </WizardContent>
-        </ModalOverlay>
-      )}
 
       {/* === MODAL EDITOR GRAPESJS === */}
       {mostrarModal && (
@@ -1476,13 +1262,15 @@ export function LandingPages() {
                   </Select>
                 </FormGroup>
 
-                <FormGroup>
-                  <label>Status</label>
-                  <Select value={statusLP} onChange={(e) => setStatusLP(e.target.value)} className={statusLP === 'publicada' ? 'published' : 'draft'}>
-                    <option value="rascunho">Rascunho</option>
-                    <option value="publicada">Publicada (Online)</option>
-                  </Select>
-                </FormGroup>
+                {!editandoId && (
+                  <FormGroup>
+                    <label>Status Inicial</label>
+                    <Select value={statusLP} onChange={(e) => setStatusLP(e.target.value)}>
+                      <option value="rascunho">Rascunho</option>
+                      <option value="publicada">Publicada</option>
+                    </Select>
+                  </FormGroup>
+                )}
               </form>
 
               <div className="actions">
@@ -1494,8 +1282,18 @@ export function LandingPages() {
                 <SecondaryButton type="button" onClick={abrirEditorHtmlBruto} title="Editar HTML/CSS">
                   <i className="fa-solid fa-code"></i> Editar HTML
                 </SecondaryButton>
+                {editandoId && slug && (
+                  <SecondaryButton type="button" onClick={() => window.open(`${LANDING_DOMAIN}/lp-preview/${slug}`, '_blank')} title="Pré-visualizar rascunho">
+                    <i className="fa-solid fa-eye"></i> Pré-visualizar
+                  </SecondaryButton>
+                )}
                 <SecondaryButton type="button" onClick={() => setMostrarModal(false)}>Cancelar</SecondaryButton>
-                <PrimaryButton type="submit" form="lpForm"><i className="fa-solid fa-save"></i> Salvar</PrimaryButton>
+                <PrimaryButton type="submit" form="lpForm"><i className="fa-solid fa-save"></i> Salvar Rascunho</PrimaryButton>
+                {editandoId && (
+                  <PublishButton type="button" onClick={publicarPagina} disabled={publicandoLP}>
+                    {publicandoLP ? <><i className="fa-solid fa-spinner fa-spin"></i> Publicando...</> : <><i className="fa-solid fa-globe"></i> Publicar</>}
+                  </PublishButton>
+                )}
               </div>
             </BuilderHeader>
 
@@ -1659,6 +1457,7 @@ const StatusBadge = styled.span`
   padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center;
   &.published { background: #d4edda; color: #155724; }
   &.draft { background: #fff3cd; color: #856404; }
+  &.draft-pending { background: #fff3cd; color: #92400e; border: 1px solid #f59e0b; }
 `;
 
 const IdsBar = styled.div`
@@ -1743,6 +1542,10 @@ const ButtonBase = styled.button`padding: 10px 20px; border-radius: 8px; font-we
 const PrimaryButton = styled(ButtonBase)`background: #007bff; color: #fff; &:hover:not(:disabled) { background: #0056b3; box-shadow: 0 4px 10px rgba(0,123,255,0.2); }`;
 const SecondaryButton = styled(ButtonBase)`background: #e2e8f0; color: #475569; &:hover:not(:disabled) { background: #cbd5e1; }`;
 const DangerButton = styled(ButtonBase)`background: #fdf2f2; color: #dc3545; border: 1px solid #f8d7da; &:hover:not(:disabled) { background: #dc3545; color: #fff; }`;
+const PublishButton = styled(ButtonBase)`background: #16a34a; color: #fff; &:hover:not(:disabled) { background: #15803d; box-shadow: 0 4px 10px rgba(22,163,74,0.25); }`;
+const DotsButton = styled.button`background: none; border: 1px solid #e2e8f0; border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 1.1rem; font-weight: 900; color: #64748b; letter-spacing: 2px; line-height: 1; &:hover { background: #f1f5f9; border-color: #cbd5e1; }`;
+const DotsMenu = styled.div`position: fixed; z-index: 9999; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); min-width: 160px; overflow: hidden;`;
+const DotsMenuItem = styled.button`display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 16px; background: none; border: none; cursor: pointer; font-size: 0.9rem; color: #374151; text-align: left; text-decoration: none; &:hover { background: #f8fafc; color: #007bff; } i { width: 14px; }`;
 const AiButton = styled(ButtonBase)`background: linear-gradient(135deg, #8b5cf6, #d946ef); color: white; border: none; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3); transition: all 0.2s ease; &:hover:not(:disabled) { background: linear-gradient(135deg, #7c3aed, #c026d3); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4); } `;
 
 // --- MODAIS GERAIS ---

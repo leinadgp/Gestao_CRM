@@ -8,11 +8,14 @@ import { normalizarCargosJson, normalizarListaJson, cargosParaTexto } from '../u
 import { normalizarClassificacoesPorCargo, labelClassificacao, resolverScoringEmpresa } from '../utils/classificacaoEmpresa.js';
 import { BotaoExportar } from '../componentes/BotaoExportar.jsx';
 import { normalizarTexto } from '../utils/normalizarTexto.js';
+import { useToast } from '../componentes/Toast.jsx';
 
 export function Empresas() {
+  const mostrar = useToast();
+
   const [empresas, setEmpresas] = useState([]);
   const [carregando, setCarregando] = useState(true);
-  
+
   const perfilUsuario = localStorage.getItem('perfil');
   const API_URL = import.meta.env?.VITE_API_URL || 'https://server-js-gestao.onrender.com';
 
@@ -20,6 +23,18 @@ export function Empresas() {
   const [buscaGeral, setBuscaGeral] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('');
   const [filtroClassificacao, setFiltroClassificacao] = useState('');
+
+  // === ORDENAÇÃO DA TABELA ===
+  const [sortColuna, setSortColuna] = useState('estrelas');
+  const [sortDirecao, setSortDirecao] = useState('desc');
+
+  // === MODAIS AUXILIARES ===
+  const [modalIBGEAberto, setModalIBGEAberto] = useState(false);
+  const [ufImport, setUfImport] = useState('');
+  const [importando, setImportando] = useState(false);
+  const [modalDeleteEmpresa, setModalDeleteEmpresa] = useState(null); // empresa a deletar
+  const [contaMathDelete, setContaMathDelete] = useState({ a: 0, b: 0, resultado: 0 });
+  const [respostaMathDelete, setRespostaMathDelete] = useState('');
 
   const [dropdownEstadoAberto, setDropdownEstadoAberto] = useState(false);
   const [dropdownClassificacaoAberto, setDropdownClassificacaoAberto] = useState(false);
@@ -164,20 +179,18 @@ export function Empresas() {
 
   // --- REQUISIÇÕES ---
   async function popularEstado() {
-    const uf = prompt("Digite a UF do estado que deseja popular (Ex: RS, SC, SP):");
-    if (!uf || uf.length !== 2) return alert("UF Inválida");
-
-    if (!window.confirm(`Deseja importar todas as prefeituras de ${uf.toUpperCase()}?`)) return;
-
-    setCarregando(true);
+    if (!ufImport || ufImport.length !== 2) return mostrar('Selecione um estado válido.', 'error');
+    setImportando(true);
     try {
-      const res = await axios.post(`${API_URL}/empresas/popular/${uf}`, {}, getHeaders());
-      alert(`Sucesso! ${res.data.novos_inseridos} novas prefeituras importadas.`);
-      buscarEmpresas(); 
+      const res = await axios.post(`${API_URL}/empresas/popular/${ufImport}`, {}, getHeaders());
+      mostrar(`${res.data.novos_inseridos} novas prefeituras importadas de ${ufImport.toUpperCase()}!`, 'success');
+      setModalIBGEAberto(false);
+      setUfImport('');
+      buscarEmpresas();
     } catch (error) {
-      alert("Erro na importação.");
+      mostrar('Erro na importação.', 'error');
     } finally {
-      setCarregando(false);
+      setImportando(false);
     }
   }
 
@@ -286,23 +299,43 @@ export function Empresas() {
     try {
       if (editandoId) {
         await axios.put(`${API_URL}/empresas/${editandoId}`, dados, getHeaders());
-        setModoEdicaoEmpresa(false); 
-        recarregarVisao360(editandoId); 
+        setModoEdicaoEmpresa(false);
+        recarregarVisao360(editandoId);
+        mostrar('Empresa atualizada com sucesso!', 'success');
       } else {
         await axios.post(`${API_URL}/empresas`, dados, getHeaders());
         setMostrarModalEmpresa(false);
+        mostrar('Empresa criada com sucesso!', 'success');
       }
-      buscarEmpresas(); 
-    } catch (erro) { 
-      alert(erro.response?.data?.erro || 'Erro ao salvar empresa.'); 
+      buscarEmpresas();
+    } catch (erro) {
+      mostrar(erro.response?.data?.erro || 'Erro ao salvar empresa.', 'error');
     }
   }
 
+  useEffect(() => {
+    if (modalDeleteEmpresa) {
+      const a = Math.floor(Math.random() * 10) + 1;
+      const b = Math.floor(Math.random() * 10) + 1;
+      setContaMathDelete({ a, b, resultado: a + b });
+      setRespostaMathDelete('');
+    }
+  }, [modalDeleteEmpresa]);
+
+  async function processarExclusaoEmpresa(e) {
+    e.preventDefault();
+    if (parseInt(respostaMathDelete) !== contaMathDelete.resultado) {
+      return alert('O cálculo matemático está incorreto. Tente novamente.');
+    }
+    await deletarEmpresa(modalDeleteEmpresa.id);
+  }
+
   async function deletarEmpresa(id) {
-    if (!window.confirm('Excluir esta empresa permanentemente? O histórico também será apagado.')) return;
     try {
       await axios.delete(`${API_URL}/empresas/${id}`, getHeaders());
+      setModalDeleteEmpresa(null);
       setMostrarModalEmpresa(false);
+      mostrar('Empresa excluída.', 'success');
       buscarEmpresas();
     } catch (erro) { 
       alert('Erro ao excluir. Verifique se existem contatos atrelados a esta prefeitura.'); 
@@ -347,14 +380,35 @@ export function Empresas() {
     });
   }, [empresas, buscaGeral, filtroEstado, filtroClassificacao]);
 
+  function toggleSort(coluna) {
+    if (sortColuna === coluna) {
+      setSortDirecao(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColuna(coluna);
+      setSortDirecao(coluna === 'estrelas' ? 'desc' : 'asc');
+    }
+  }
+
   const empresasOrdenadas = useMemo(() => {
     return [...empresasFiltradas].sort((a, b) => {
-      const aEstrelas = a.estrelas !== undefined ? a.estrelas : 0;
-      const bEstrelas = b.estrelas !== undefined ? b.estrelas : 0;
-      if (bEstrelas !== aEstrelas) return bEstrelas - aEstrelas;
+      let aVal, bVal;
+      if (sortColuna === 'estrelas') {
+        aVal = a.estrelas || 0; bVal = b.estrelas || 0;
+      } else if (sortColuna === 'nome') {
+        aVal = (a.nome || '').toLowerCase(); bVal = (b.nome || '').toLowerCase();
+      } else if (sortColuna === 'cidade') {
+        aVal = (a.cidade || '').toLowerCase(); bVal = (b.cidade || '').toLowerCase();
+      } else if (sortColuna === 'last_contact') {
+        aVal = a.last_contact ? new Date(a.last_contact).getTime() : 0;
+        bVal = b.last_contact ? new Date(b.last_contact).getTime() : 0;
+      } else {
+        aVal = 0; bVal = 0;
+      }
+      if (aVal < bVal) return sortDirecao === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDirecao === 'asc' ? 1 : -1;
       return (a.nome || '').localeCompare(b.nome || '');
     });
-  }, [empresasFiltradas]);
+  }, [empresasFiltradas, sortColuna, sortDirecao]);
 
   const itensAtuais = useMemo(() => {
     return empresasOrdenadas.slice((paginaAtual - 1) * itensPorPagina, paginaAtual * itensPorPagina);
@@ -398,7 +452,7 @@ export function Empresas() {
               params={{ estado: filtroEstado || undefined }}
               label="Exportar"
             />
-            <InfoButton onClick={popularEstado} className="btn-mobile">
+            <InfoButton onClick={() => setModalIBGEAberto(true)} className="btn-mobile">
               <i className="fa-solid fa-file-import"></i> Importar IBGE
             </InfoButton>
             <PrimaryButton onClick={abrirModalNovo} className="btn-mobile">
@@ -456,15 +510,43 @@ export function Empresas() {
           </FilterPillWrapper>
         </FilterBar>
 
+        {(filtroEstado || filtroClassificacao) && (
+          <FiltrosAtivos>
+            {filtroEstado && (
+              <FiltroChip onClick={() => { setFiltroEstado(''); setPaginaAtual(1); }}>
+                {filtroEstado} <i className="fa-solid fa-times" />
+              </FiltroChip>
+            )}
+            {filtroClassificacao && (
+              <FiltroChip onClick={() => { setFiltroClassificacao(''); setPaginaAtual(1); }}>
+                {filtroClassificacao === 'assessorada' ? 'Assessoradas' : filtroClassificacao === 'lead_quente' ? 'Leads Quentes' : 'Frios'}
+                {' '}<i className="fa-solid fa-times" />
+              </FiltroChip>
+            )}
+            <button className="limpar" onClick={() => { setFiltroEstado(''); setFiltroClassificacao(''); setPaginaAtual(1); }}>
+              Limpar filtros
+            </button>
+          </FiltrosAtivos>
+        )}
+
         <Panel>
           <TabelaResponsiva>
             <Table>
               <thead className="sticky-head">
                 <tr>
-                  <th>Prefeitura / Empresa</th>
+                  <SortableTh onClick={() => toggleSort('nome')} $active={sortColuna === 'nome'}>
+                    Prefeitura / Empresa
+                    <SortIcon $dir={sortColuna === 'nome' ? sortDirecao : null} />
+                  </SortableTh>
                   <th>Classificação</th>
-                  <th>Temperatura</th>
-                  <th className="text-center">Últ. Contato</th>
+                  <SortableTh onClick={() => toggleSort('estrelas')} $active={sortColuna === 'estrelas'}>
+                    Temperatura
+                    <SortIcon $dir={sortColuna === 'estrelas' ? sortDirecao : null} />
+                  </SortableTh>
+                  <SortableTh className="text-center" onClick={() => toggleSort('last_contact')} $active={sortColuna === 'last_contact'}>
+                    Últ. Contato
+                    <SortIcon $dir={sortColuna === 'last_contact' ? sortDirecao : null} />
+                  </SortableTh>
                   {perfilUsuario === 'admin' && <th className="text-center" style={{width: '80px'}}>Ações</th>}
                 </tr>
               </thead>
@@ -472,16 +554,24 @@ export function Empresas() {
                 {carregando ? (
                   <tr><td colSpan={perfilUsuario === 'admin' ? 5 : 4} className="text-center text-muted"><i className="fa-solid fa-spinner fa-spin"></i> Carregando dados...</td></tr>
                 ) : itensAtuais.length === 0 ? (
-                  <tr><td colSpan={perfilUsuario === 'admin' ? 5 : 4} className="text-center text-muted">Nenhuma empresa encontrada com estes filtros.</td></tr>
+                  <tr><td colSpan={perfilUsuario === 'admin' ? 5 : 4} className="text-center text-muted">
+                    Nenhuma empresa encontrada
+                    {(filtroEstado || filtroClassificacao || buscaGeral) && <> para os filtros selecionados — <button style={{background:'none',border:'none',color:'#3b82f6',cursor:'pointer',textDecoration:'underline'}} onClick={() => { setBuscaGeral(''); setFiltroEstado(''); setFiltroClassificacao(''); }}>Limpar filtros</button></>}.
+                  </td></tr>
                 ) : (
                   itensAtuais.map((empresa, index) => (
                     <ClickableRow key={empresa.id} style={{ animationDelay: `${index * 0.05}s` }}>
                       <td data-label="Prefeitura / Empresa" onClick={() => abrirModalDetalhes(empresa)} title="Clique para ver o perfil">
-                        <div className="main-name">
-                          {empresa.nome}
-                        </div>
-                        <div className="meta">
-                          <span><i className="fa-solid fa-location-dot"></i> {empresa.cidade || '-'} {empresa.estado ? `(${empresa.estado})` : ''}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <EmpresaAvatar $seed={empresa.id}>
+                            {(empresa.nome || '?').slice(0, 2).toUpperCase()}
+                          </EmpresaAvatar>
+                          <div>
+                            <div className="main-name">{empresa.nome}</div>
+                            <div className="meta">
+                              <span><i className="fa-solid fa-location-dot"></i> {empresa.cidade || '-'} {empresa.estado ? `(${empresa.estado})` : ''}</span>
+                            </div>
+                          </div>
                         </div>
                       </td>
                       <td data-label="Classificação" onClick={() => abrirModalDetalhes(empresa)}>
@@ -501,7 +591,7 @@ export function Empresas() {
                       </td>
                       {perfilUsuario === 'admin' && (
                         <td data-label="Ações" className="text-center">
-                          <IconButton className="danger" onClick={() => deletarEmpresa(empresa.id)} title="Excluir"><i className="fa-solid fa-trash-can"></i></IconButton>
+                          <IconButton className="danger" onClick={() => setModalDeleteEmpresa(empresa)} title="Excluir"><i className="fa-solid fa-trash-can"></i></IconButton>
                         </td>
                       )}
                     </ClickableRow>
@@ -548,7 +638,7 @@ export function Empresas() {
                 </div>
                 <div className="actions">
                   {perfilUsuario === 'admin' && editandoId && !modoEdicaoEmpresa && (
-                    <DangerButton onClick={() => deletarEmpresa(editandoId)}><i className="fa-solid fa-trash-can"></i> <span className="hide-mobile">Excluir</span></DangerButton>
+                    <DangerButton onClick={() => setModalDeleteEmpresa(detalhesEmpresa?.empresa)}><i className="fa-solid fa-trash-can"></i> <span className="hide-mobile">Excluir</span></DangerButton>
                   )}
                   {!modoEdicaoEmpresa && (
                     <WarningButton onClick={() => setModoEdicaoEmpresa(true)}><i className="fa-solid fa-pen"></i> <span className="hide-mobile">Editar</span></WarningButton>
@@ -893,6 +983,78 @@ export function Empresas() {
           </ModalOverlay>
         )}
 
+        {/* MODAL IMPORTAR IBGE */}
+        {modalIBGEAberto && (
+          <ModalOverlay onClick={() => setModalIBGEAberto(false)} style={{zIndex: 10001}}>
+            <ModalContent $small onClick={e => e.stopPropagation()} style={{maxWidth: 420}}>
+              <ModalHeader $bg="#1F4E79" $color="#fff">
+                <h3><i className="fa-solid fa-map-location-dot"></i> Importar pelo IBGE</h3>
+                <CloseButton $color="#fff" onClick={() => setModalIBGEAberto(false)}>&times;</CloseButton>
+              </ModalHeader>
+              <ModalBody>
+                <p style={{color:'#64748b',marginBottom:16,fontSize:'0.95rem'}}>
+                  Selecione o estado para importar prefeituras automaticamente via API do IBGE.
+                </p>
+                <FormGroup>
+                  <label>Estado (UF)</label>
+                  <Select value={ufImport} onChange={e => setUfImport(e.target.value)}>
+                    <option value="">-- Selecione --</option>
+                    {['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO'].map(uf => (
+                      <option key={uf} value={uf}>{uf}</option>
+                    ))}
+                  </Select>
+                </FormGroup>
+              </ModalBody>
+              <ModalFooter>
+                <SecondaryButton onClick={() => setModalIBGEAberto(false)}>Cancelar</SecondaryButton>
+                <PrimaryButton
+                  onClick={async () => { await popularEstado(); setModalIBGEAberto(false); }}
+                  disabled={!ufImport || importando}
+                >
+                  {importando ? <><i className="fa-solid fa-spinner fa-spin" /> Importando...</> : <><i className="fa-solid fa-download" /> Importar</>}
+                </PrimaryButton>
+              </ModalFooter>
+            </ModalContent>
+          </ModalOverlay>
+        )}
+
+        {/* MODAL CONFIRMAÇÃO DE EXCLUSÃO DE EMPRESA */}
+        {modalDeleteEmpresa && (
+          <ModalOverlay onClick={() => setModalDeleteEmpresa(null)} style={{zIndex: 10001}}>
+            <ModalContent $small onClick={e => e.stopPropagation()} style={{maxWidth: 440}}>
+              <ModalHeader $bg="#dc3545" $color="#fff">
+                <h3><i className="fa-solid fa-triangle-exclamation"></i> Excluir Empresa</h3>
+                <CloseButton $color="#fff" onClick={() => setModalDeleteEmpresa(null)}>&times;</CloseButton>
+              </ModalHeader>
+              <ModalBody>
+                <p style={{color:'#2c3e50',marginBottom:8,fontSize:'0.95rem',textAlign:'center'}}>
+                  Você está prestes a excluir <strong>{modalDeleteEmpresa.nome}</strong> e todos os seus contatos.<br/>
+                  <span style={{color:'#dc3545'}}>Esta ação não pode ser desfeita.</span>
+                </p>
+                <MathBoxDelete>
+                  <label>Para confirmar, resolva o cálculo abaixo:</label>
+                  <div className="equation">
+                    <span>{contaMathDelete.a}</span> + <span>{contaMathDelete.b}</span> =
+                    <input
+                      type="number"
+                      value={respostaMathDelete}
+                      onChange={e => setRespostaMathDelete(e.target.value)}
+                      placeholder="?"
+                      autoFocus
+                    />
+                  </div>
+                </MathBoxDelete>
+              </ModalBody>
+              <ModalFooter>
+                <SecondaryButton onClick={() => setModalDeleteEmpresa(null)}>Cancelar</SecondaryButton>
+                <DangerButton onClick={processarExclusaoEmpresa}>
+                  <i className="fa-solid fa-trash-can" /> Excluir Empresa
+                </DangerButton>
+              </ModalFooter>
+            </ModalContent>
+          </ModalOverlay>
+        )}
+
       </PageContainer>
     </>
   );
@@ -1219,3 +1381,52 @@ const NoteBubble = styled.div`
 `;
 const LoadingMsg = styled.div`text-align: center; padding: 20px; color: #a0aec0; font-style: italic;`;
 const EmptyMsg = styled.div`text-align: center; padding: 20px; color: #a0aec0; font-style: italic;`;
+
+const FiltrosAtivos = styled.div`
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 16px;
+  .limpar { background: none; border: none; color: #94a3b8; font-size: 0.82rem; cursor: pointer; text-decoration: underline; padding: 0; &:hover { color: #dc3545; } }
+`;
+
+const FiltroChip = styled.button`
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #e7f3ff; color: #007bff; border: 1px solid #b8d9f8;
+  padding: 4px 10px; border-radius: 20px; font-size: 0.82rem; font-weight: 700;
+  cursor: pointer; transition: 0.15s;
+  &:hover { background: #dc3545; color: #fff; border-color: #dc3545; }
+  i { font-size: 0.7rem; }
+`;
+
+const SortableTh = styled.th`
+  cursor: pointer; user-select: none; white-space: nowrap;
+  transition: color 0.15s;
+  color: ${p => p.$active ? '#007bff' : '#6c757d'} !important;
+  &:hover { color: #007bff !important; }
+  display: table-cell; align-items: center; gap: 6px;
+`;
+
+const SortIcon = ({ $dir }) => (
+  <span style={{ marginLeft: 5, fontSize: '0.7rem' }}>
+    {$dir === 'asc' ? '↑' : $dir === 'desc' ? '↓' : '↕'}
+  </span>
+);
+
+const EmpresaAvatar = styled.div`
+  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.75rem; font-weight: 800; color: #fff;
+  background: ${p => {
+    const colors = ['#007bff','#28a745','#6f42c1','#fd7e14','#17a2b8','#e83e8c','#20c997'];
+    return colors[(p.$seed || 0) % colors.length];
+  }};
+`;
+
+const MathBoxDelete = styled.div`
+  background: #fff5f5; padding: 20px; border-radius: 8px; border: 1px solid #f5c6cb; margin-top: 16px;
+  label { display: block; font-weight: 600; color: #c82333; margin-bottom: 12px; text-align: center; }
+  .equation {
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    font-size: 1.8rem; font-weight: bold; color: #333;
+    span { background: #fff; padding: 6px 14px; border-radius: 8px; border: 2px solid #f5c6cb; }
+    input { width: 80px; font-size: 1.5rem; font-weight: bold; text-align: center; border: 2px solid #dc3545; border-radius: 8px; padding: 6px; outline: none; }
+  }
+`;

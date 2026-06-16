@@ -3,6 +3,7 @@ import axios from 'axios';
 import styled from 'styled-components';
 import { Header } from '../componentes/Header.jsx';
 import { BotaoExportar } from '../componentes/BotaoExportar.jsx';
+import { useToast } from '../componentes/Toast.jsx';
 
 // --- UTILITÁRIO DE SEGURANÇA PARA JSON ---
 const parseJSONSeguro = (dadoString, fallback = []) => {
@@ -53,6 +54,10 @@ export function Campanhas() {
   const [campanhaExcluir, setCampanhaExcluir] = useState(null);
   const [contaMath, setContaMath] = useState({ a: 0, b: 0, resultado: 0 });
   const [respostaMath, setRespostaMath] = useState('');
+
+  const [buscaCampanha, setBuscaCampanha] = useState('');
+
+  const mostrar = useToast();
 
   const API_URL = import.meta.env?.VITE_API_URL || 'https://server-js-gestao.onrender.com';
 
@@ -178,10 +183,10 @@ export function Campanhas() {
     setModNome(''); setModValor(''); setModEvento(''); setModEventoFim('');
   }
 
-  function removerModulo(index) { 
-    const novos = [...modulos]; 
-    novas.splice(index, 1); 
-    setModulos(novos); 
+  function removerModulo(index) {
+    const novos = [...modulos];
+    novos.splice(index, 1);
+    setModulos(novos);
   }
   
   function atualizarModulo(index, campo, valorCampo) {
@@ -218,11 +223,12 @@ export function Campanhas() {
       } else { 
         await axios.post(`${API_URL}/campanhas`, { ...payload, etapas }, getHeaders()); 
       }
-      setMostrarModal(false); 
+      setMostrarModal(false);
+      mostrar(editandoId ? 'Campanha atualizada com sucesso!' : 'Campanha criada com sucesso!', 'success');
       carregarCampanhas();
-    } catch (erro) { 
+    } catch (erro) {
       console.error(erro);
-      alert(erro.response?.data?.erro || 'Erro ao salvar configurações da campanha.'); 
+      mostrar(erro.response?.data?.erro || 'Erro ao salvar configurações da campanha.', 'error');
     }
   }
 
@@ -233,9 +239,10 @@ export function Campanhas() {
 
     try {
       await axios.put(`${API_URL}/campanhas/${id}/arquivar`, { arquivada: !statusAtualArquivado }, getHeaders());
+      mostrar(statusAtualArquivado ? 'Campanha desarquivada.' : 'Campanha arquivada.', 'success');
       carregarCampanhas();
     } catch (error) {
-      alert('Erro ao alterar status de arquivamento.');
+      mostrar('Erro ao alterar status de arquivamento.', 'error');
     }
   }
 
@@ -257,20 +264,65 @@ export function Campanhas() {
     try { 
       await axios.delete(`${API_URL}/campanhas/${campanhaExcluir.id}`, getHeaders()); 
       setModalExcluir(false);
-      carregarCampanhas(); 
-      alert('Campanha excluída definitivamente!');
+      mostrar('Campanha excluída definitivamente.', 'success');
+      carregarCampanhas();
     } catch (error) { 
       console.error(error); 
       alert(error.response?.data?.erro || 'O banco de dados bloqueou a exclusão porque existem clientes atrelados a esta campanha.'); 
     }
   }
 
+  function calcularStatusCampanha(camp) {
+    const hoje = Date.now();
+    const inicio = camp.data_inicio ? new Date(camp.data_inicio).getTime() : null;
+    const fim = camp.data_fim ? new Date(camp.data_fim).getTime() : null;
+    if (!inicio && !fim) return { label: 'Sem data', cor: '#94a3b8', bg: '#f1f5f9' };
+    if (fim && hoje > fim) return { label: 'Encerrada', cor: '#6b7280', bg: '#f3f4f6' };
+    if (inicio && hoje < inicio) return { label: 'Futura', cor: '#2563eb', bg: '#eff6ff' };
+    return { label: 'Em andamento', cor: '#16a34a', bg: '#f0fdf4' };
+  }
+
+  function calcularProgressoTemporal(camp) {
+    const hoje = Date.now();
+    const inicio = camp.data_inicio ? new Date(camp.data_inicio).getTime() : null;
+    const fim = camp.data_fim ? new Date(camp.data_fim).getTime() : null;
+    if (!inicio || !fim || fim <= inicio) return null;
+    return Math.min(100, Math.max(0, Math.round(((hoje - inicio) / (fim - inicio)) * 100)));
+  }
+
+  async function duplicarCampanha(camp) {
+    try {
+      const etapasRes = await axios.get(`${API_URL}/campanhas/${camp.id}/etapas`, getHeaders());
+      const etapasNomes = (etapasRes.data || []).map(e => e.nome);
+      await axios.post(`${API_URL}/campanhas`, {
+        nome: `${camp.nome} — Cópia`,
+        descricao: camp.descricao || '',
+        informacao_extra: camp.informacao_extra || '',
+        data_inicio: '',
+        data_fim: '',
+        cargos_alvo: camp.cargos_alvo || '[]',
+        apenas_admin: camp.apenas_admin || false,
+        email_remetente: camp.email_remetente || '',
+        etapas: etapasNomes.length > 0 ? etapasNomes : ['CONTATO', 'INSCRITO', 'VENDA REALIZADA'],
+        etapa_inscricao_nome: 'INSCRITO',
+        etapa_venda_nome: 'VENDA REALIZADA',
+      }, getHeaders());
+      mostrar('Campanha duplicada com sucesso!', 'success');
+      carregarCampanhas();
+    } catch {
+      mostrar('Erro ao duplicar campanha.', 'error');
+    }
+  }
+
   // === MEMOIZAÇÃO DE PERFORMANCE ===
   const campanhasFiltradas = useMemo(() => {
-    return campanhas.filter(camp => 
-      abaAtiva === 'arquivadas' ? camp.arquivada === true : (camp.arquivada === false || camp.arquivada === null)
-    );
-  }, [campanhas, abaAtiva]);
+    const busca = buscaCampanha.toLowerCase().trim();
+    return campanhas.filter(camp => {
+      const abaMatch = abaAtiva === 'arquivadas' ? camp.arquivada === true : (camp.arquivada === false || camp.arquivada === null);
+      const buscaMatch = !busca || camp.nome.toLowerCase().includes(busca);
+      return abaMatch && buscaMatch;
+    });
+  }, [campanhas, abaAtiva, buscaCampanha]);
 
   // ==========================================
   // RENDERIZAÇÃO
@@ -300,6 +352,21 @@ export function Campanhas() {
           </PrimaryButton>
         </TopSection>
 
+        <BuscaBar>
+          <i className="fa-solid fa-magnifying-glass" />
+          <input
+            type="text"
+            placeholder="Buscar campanha por nome..."
+            value={buscaCampanha}
+            onChange={e => setBuscaCampanha(e.target.value)}
+          />
+          {buscaCampanha && (
+            <button onClick={() => setBuscaCampanha('')} title="Limpar busca">
+              <i className="fa-solid fa-times" />
+            </button>
+          )}
+        </BuscaBar>
+
         {carregando ? (
           <LoadingContainer>
             <i className="fa-solid fa-spinner fa-spin"></i><br />Carregando campanhas e módulos...
@@ -321,6 +388,9 @@ export function Campanhas() {
                     </div>
                   </CardTitle>
                   <CardActions>
+                    <IconButton onClick={() => duplicarCampanha(camp)} title="Duplicar campanha">
+                      <i className="fa-solid fa-copy"></i>
+                    </IconButton>
                     <IconButton onClick={() => alternarArquivamento(camp.id, camp.arquivada)} title={camp.arquivada ? "Desarquivar" : "Arquivar"}>
                       <i className={`fa-solid ${camp.arquivada ? 'fa-box-open' : 'fa-box-archive'}`}></i>
                     </IconButton>
@@ -332,7 +402,23 @@ export function Campanhas() {
                     </IconButton>
                   </CardActions>
                 </CardHeader>
-                
+
+                {(() => {
+                  const st = calcularStatusCampanha(camp);
+                  const pct = calcularProgressoTemporal(camp);
+                  return (
+                    <>
+                      <StatusChip $cor={st.cor} $bg={st.bg}>{st.label}</StatusChip>
+                      {pct !== null && (
+                        <ProgressBar>
+                          <ProgressFill $pct={pct} $encerrada={st.label === 'Encerrada'} />
+                          <ProgressLabel>{pct}% do período</ProgressLabel>
+                        </ProgressBar>
+                      )}
+                    </>
+                  );
+                })()}
+
                 <CardDescription>{camp.descricao || 'Sem descrição definida.'}</CardDescription>
 
                 <CardDates>
@@ -347,7 +433,7 @@ export function Campanhas() {
                 <ModulesSection>
                   <h4 className="section-title"><i className="fa-solid fa-calendar-days"></i> Turmas / Módulos ({camp.listaModulos?.length || 0})</h4>
                   {camp.listaModulos?.length > 0 ? (
-                    <div className="modules-list">
+                    <div className="modules-list" style={{ maxHeight: 160, overflowY: 'auto' }}>
                       {camp.listaModulos.map(mod => (
                         <ModuleItem key={mod.id}>
                           <span className="module-name">{mod.nome}</span>
@@ -674,6 +760,33 @@ const ModulesSection = styled.div`
 const ModuleItem = styled.div`
   background: #f8fafc; padding: 8px 12px; border-radius: 6px; font-size: 0.85rem; border-left: 3px solid #28a745; display: flex; justify-content: space-between; align-items: center;
   .module-name { font-weight: 600; color: #333; } .module-price { font-weight: 700; color: #28a745; }
+`;
+
+const BuscaBar = styled.div`
+  display: flex; align-items: center; gap: 10px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 14px; margin-bottom: 18px;
+  i { color: #94a3b8; font-size: 0.9rem; }
+  input { flex: 1; border: none; outline: none; font-size: 0.9rem; color: #374151; background: transparent; }
+  input::placeholder { color: #94a3b8; }
+  button { background: none; border: none; cursor: pointer; color: #94a3b8; padding: 2px 4px; &:hover { color: #64748b; } }
+`;
+
+const StatusChip = styled.span`
+  display: inline-block; margin: 6px 0 10px; padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.3px;
+  color: ${p => p.$cor}; background: ${p => p.$bg}; border: 1px solid ${p => p.$cor}33;
+`;
+
+const ProgressBar = styled.div`
+  position: relative; height: 6px; background: #e2e8f0; border-radius: 3px; margin-bottom: 12px; overflow: hidden;
+`;
+
+const ProgressFill = styled.div`
+  height: 100%; width: ${p => p.$pct}%; border-radius: 3px;
+  background: ${p => p.$encerrada ? '#9ca3af' : 'linear-gradient(90deg, #22c55e, #16a34a)'};
+  transition: width 0.3s ease;
+`;
+
+const ProgressLabel = styled.span`
+  position: absolute; right: 0; top: -16px; font-size: 0.68rem; color: #94a3b8; font-weight: 600;
 `;
 
 /* CORREÇÃO DO MODAL PARA IPHONE (100dvh) */
