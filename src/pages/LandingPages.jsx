@@ -112,6 +112,7 @@ export function LandingPages() {
                 <option value="Whatsapp" style="background:#0f1930; color:#f8fafc;">Whatsapp</option>
                 <option value="E-mail" style="background:#0f1930; color:#f8fafc;">E-mail</option>
                 <option value="LinkedIn" style="background:#0f1930; color:#f8fafc;">LinkedIn</option>
+                <option value="Outros" style="background:#0f1930; color:#f8fafc;">Outros</option>
               </select>
             </div>
             <div id="containerModulos" style="border-radius: 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(248,250,252,0.12); padding: 18px; color: #f8fafc;">
@@ -683,6 +684,7 @@ export function LandingPages() {
                                 <option value="Whatsapp" style="background:#0f1930; color:#fff;">Whatsapp</option>
                                 <option value="E-mail" style="background:#0f1930; color:#fff;">E-mail</option>
                                 <option value="LinkedIn" style="background:#0f1930; color:#fff;">LinkedIn</option>
+                                <option value="Outros" style="background:#0f1930; color:#fff;">Outros</option>
                             </select>
                         </div>
 
@@ -1056,6 +1058,18 @@ export function LandingPages() {
     }
   }
 
+  async function despublicarPagina(id) {
+    if (!window.confirm("Despublicar vai tirar esta página do ar e voltar ao status de rascunho. Confirmar?")) return;
+    try {
+      await axios.post(`${API_URL}/landing-pages/${id}/despublicar`, {}, getHeaders());
+      alert("Página despublicada. Ela não está mais acessível online.");
+      setStatusLP('rascunho');
+      carregarDados();
+    } catch (err) {
+      alert(err.response?.data?.erro || 'Erro ao despublicar a página.');
+    }
+  }
+
   async function deletarPagina(id) {
     if (!window.confirm("Deseja realmente apagar esta Landing Page? Isso removerá a página do ar.")) return;
     try { await axios.delete(`${API_URL}/landing-pages/${id}`, getHeaders()); setMostrarModal(false); carregarDados(); } catch { alert("Erro ao excluir página."); }
@@ -1220,6 +1234,11 @@ export function LandingPages() {
               <DotsMenuItem type="button" onClick={() => { fecharMenu(); duplicarPagina(pg); }}>
                 <i className="fa-solid fa-copy"></i> Criar cópia
               </DotsMenuItem>
+              {pg.status === 'publicada' && (
+                <DotsMenuItem type="button" style={{ color: '#d97706' }} onClick={() => { fecharMenu(); despublicarPagina(pg.id); }}>
+                  <i className="fa-solid fa-eye-slash"></i> Despublicar
+                </DotsMenuItem>
+              )}
             </DotsMenu>
           );
         })()}
@@ -1289,6 +1308,11 @@ export function LandingPages() {
                 )}
                 <SecondaryButton type="button" onClick={() => setMostrarModal(false)}>Cancelar</SecondaryButton>
                 <PrimaryButton type="submit" form="lpForm"><i className="fa-solid fa-save"></i> Salvar Rascunho</PrimaryButton>
+                {editandoId && statusLP === 'publicada' && (
+                  <UnpublishButton type="button" onClick={() => despublicarPagina(editandoId)}>
+                    <i className="fa-solid fa-eye-slash"></i> Despublicar
+                  </UnpublishButton>
+                )}
                 {editandoId && (
                   <PublishButton type="button" onClick={publicarPagina} disabled={publicandoLP}>
                     {publicandoLP ? <><i className="fa-solid fa-spinner fa-spin"></i> Publicando...</> : <><i className="fa-solid fa-globe"></i> Publicar</>}
@@ -1543,6 +1567,7 @@ const PrimaryButton = styled(ButtonBase)`background: #007bff; color: #fff; &:hov
 const SecondaryButton = styled(ButtonBase)`background: #e2e8f0; color: #475569; &:hover:not(:disabled) { background: #cbd5e1; }`;
 const DangerButton = styled(ButtonBase)`background: #fdf2f2; color: #dc3545; border: 1px solid #f8d7da; &:hover:not(:disabled) { background: #dc3545; color: #fff; }`;
 const PublishButton = styled(ButtonBase)`background: #16a34a; color: #fff; &:hover:not(:disabled) { background: #15803d; box-shadow: 0 4px 10px rgba(22,163,74,0.25); }`;
+const UnpublishButton = styled(ButtonBase)`background: #fff7ed; color: #d97706; border: 1px solid #fed7aa; &:hover:not(:disabled) { background: #d97706; color: #fff; }`;
 const DotsButton = styled.button`background: none; border: 1px solid #e2e8f0; border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 1.1rem; font-weight: 900; color: #64748b; letter-spacing: 2px; line-height: 1; &:hover { background: #f1f5f9; border-color: #cbd5e1; }`;
 const DotsMenu = styled.div`position: fixed; z-index: 9999; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); min-width: 160px; overflow: hidden;`;
 const DotsMenuItem = styled.button`display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 16px; background: none; border: none; cursor: pointer; font-size: 0.9rem; color: #374151; text-align: left; text-decoration: none; &:hover { background: #f8fafc; color: #007bff; } i { width: 14px; }`;
