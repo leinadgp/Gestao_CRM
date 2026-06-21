@@ -615,8 +615,8 @@ export function Dashboard() {
             </Panel>
           </DashboardGrid>
 
-          <DashboardGrid style={{ display: 'none' }}>
-            <Panel>
+          <DashboardGrid>
+            <Panel style={{ display: 'none' }}>
               <PanelTitle><i className="fa-solid fa-handshake text-green"></i> Últimos Negócios Fechados</PanelTitle>
               <TabelaResponsiva>
                 <Table>
