@@ -615,7 +615,7 @@ export function Dashboard() {
             </Panel>
           </DashboardGrid>
 
-          <DashboardGrid>
+          <DashboardGrid style={{ display: 'none' }}>
             <Panel>
               <PanelTitle><i className="fa-solid fa-handshake text-green"></i> Últimos Negócios Fechados</PanelTitle>
               <TabelaResponsiva>
@@ -683,6 +683,9 @@ export function Dashboard() {
               ) : (
                 <InscritosListaCompacta>
                   <InscritosListaHead>
+                    <span>Vendedor</span>
+                    <span>Origem</span>
+                    <span>Data/Hora</span>
                     <span>Nome</span>
                     <span>Prefeitura</span>
                     <span>Curso</span>
@@ -691,22 +694,35 @@ export function Dashboard() {
                   {listaInscritosFiltrada.map((ins) => {
                     const listaInsc = parseJSONSeguro(ins.inscritos_json, []).filter((p) => p.nome || p.email);
                     const qtd = ins.qtd_inscritos || listaInsc.length || 0;
+                    const origem = ins.origem_lead || ins.origem_venda || '—';
+                    const dataHora = ins.data_inscricao
+                      ? new Date(ins.data_inscricao).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
+                      : '—';
                     return (
                       <InscritosListaRow
                         key={ins.oportunidade_id}
                         type="button"
                         onClick={() => setInscritoDetalhe(ins)}
                       >
-                        <span className="col-nome" title={ins.contato_nome}>
+                        <span className="col-vendedor" data-label="Vendedor" title={ins.vendedor_nome}>
+                          {ins.vendedor_nome || <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>LP</span>}
+                        </span>
+                        <span className="col-origem" data-label="Origem" title={origem}>
+                          {origem}
+                        </span>
+                        <span className="col-data" data-label="Data/Hora" title={dataHora}>
+                          {dataHora}
+                        </span>
+                        <span className="col-nome" data-label="Nome" title={ins.contato_nome}>
                           {ins.contato_nome || '—'}
                         </span>
-                        <span className="col-pref" title={ins.empresa_nome}>
+                        <span className="col-pref" data-label="Prefeitura" title={ins.empresa_nome}>
                           {ins.empresa_nome || '—'}
                         </span>
-                        <span className="col-curso" title={ins.curso_nome}>
+                        <span className="col-curso" data-label="Curso" title={ins.curso_nome}>
                           {ins.curso_nome || '—'}
                         </span>
-                        <span className="col-qtd">{qtd}</span>
+                        <span className="col-qtd" data-label="Qtd.">{qtd}</span>
                       </InscritosListaRow>
                     );
                   })}
@@ -1193,7 +1209,7 @@ const InscritosEmpty = styled.div`
   i { font-size: 1.8rem; opacity: 0.5; }
 `;
 
-const inscritosGridCols = 'minmax(120px, 1.2fr) minmax(140px, 1.4fr) minmax(100px, 1fr) 52px';
+const inscritosGridCols = 'minmax(110px, 1fr) minmax(80px, 0.8fr) minmax(110px, 0.9fr) minmax(120px, 1.2fr) minmax(140px, 1.4fr) minmax(100px, 1fr) 52px';
 
 const InscritosListaCompacta = styled.div`
   margin: 8px 16px 16px;
@@ -1250,6 +1266,9 @@ const InscritosListaRow = styled.button`
     white-space: nowrap;
     min-width: 0;
   }
+  .col-vendedor { color: #475569; font-size: 0.82rem; }
+  .col-origem { color: #7c3aed; font-size: 0.80rem; font-weight: 600; }
+  .col-data { color: #64748b; font-size: 0.80rem; }
   .col-nome { font-weight: 700; color: #1e293b; }
   .col-curso { color: #007bff; font-weight: 600; font-size: 0.82rem; }
   .col-qtd {
