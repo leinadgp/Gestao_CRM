@@ -1,3 +1,41 @@
+import { parseJSONSeguro, normalizarCargosJson, normalizarListaJson, cargosParaTexto } from './jsonHelpers.js';
+
+// ─── Helpers de formatação ────────────────────────────────────────────────────
+
+function joinLista(val, sep = '; ') {
+  return normalizarListaJson(val, []).join(sep);
+}
+
+function primeiroEmail(emailsJson) {
+  return normalizarListaJson(emailsJson, [])[0] || '';
+}
+
+// Formata lista de inscritos como texto legível em célula única
+// Ex: "João Silva | joao@email.com | (51) 99999-9999 | Auditor || Maria Souza | maria@email.com"
+function formatarInscritos(val) {
+  const lista = parseJSONSeguro(val, []);
+  if (!Array.isArray(lista) || !lista.length) return '';
+  return lista
+    .filter(p => p?.nome || p?.email)
+    .map(p => [p.nome, p.email, p.telefone, p.cargo, p.formacao].filter(Boolean).join(' | '))
+    .join(' || ');
+}
+
+// Formata contatos vinculados como "Nome (Cargo) <email>; ..."
+function formatarContatosVinculados(lista) {
+  if (!Array.isArray(lista) || !lista.length) return '';
+  return lista
+    .map(p => {
+      const cargo = cargosParaTexto(p.cargos_json, '; ');
+      const email = primeiroEmail(p.emails_json);
+      return [p.nome, cargo ? `(${cargo})` : null, email ? `<${email}>` : null].filter(Boolean).join(' ');
+    })
+    .filter(Boolean)
+    .join('; ');
+}
+
+// ─── Infraestrutura CSV ───────────────────────────────────────────────────────
+
 function escapeCsv(val) {
   if (val == null) return '';
   const s = String(val);
@@ -6,7 +44,7 @@ function escapeCsv(val) {
 }
 
 export function downloadTexto(conteudo, nomeArquivo, mime = 'text/csv;charset=utf-8;') {
-  const blob = new Blob(['\ufeff', conteudo], { type: mime });
+  const blob = new Blob(['﻿', conteudo], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -27,18 +65,47 @@ export function linhasParaCsv(linhas, colunas) {
   return [header, ...body].join('\n');
 }
 
+export function exportarLinhasComoCsv(linhas, prefixoArquivo) {
+  if (!linhas.length) return false;
+  const keys = Object.keys(linhas[0]);
+  const colunas = keys.map((k) => ({ key: k, label: k }));
+  const csv = linhasParaCsv(linhas, colunas);
+  const data = new Date().toISOString().slice(0, 10);
+  downloadTexto(csv, `${prefixoArquivo}_${data}.csv`);
+  return true;
+}
+
+// ─── Flatten: Empresas ────────────────────────────────────────────────────────
+
 export function flattenExportEmpresas(payload) {
   const linhas = [];
   for (const bloco of payload.dados || []) {
     const emp = bloco.empresa || {};
+    const contatos = bloco.contatos || [];
+
+    const resumo_contatos = contatos
+      .map(c => {
+        const cargo = cargosParaTexto(c.cargos_json, '; ');
+        const email = primeiroEmail(c.emails_json);
+        const tel = normalizarListaJson(c.telefones_json, [])[0] || '';
+        return [c.nome, cargo ? `(${cargo})` : null, email ? `<${email}>` : null, tel || null]
+          .filter(Boolean).join(' ');
+      })
+      .join(' || ');
+
+    const baseEmpresa = {
+      empresa_id: emp.id,
+      empresa_nome: emp.nome,
+      empresa_uf: emp.estado,
+      empresa_cidade: emp.cidade,
+      empresa_classificacao: emp.classificacao,
+      total_contatos: contatos.length,
+      contatos_da_empresa: resumo_contatos,
+    };
+
     for (const op of bloco.oportunidades || []) {
       linhas.push({
-        empresa_id: emp.id,
-        empresa_nome: emp.nome,
-        empresa_uf: emp.estado,
-        empresa_cidade: emp.cidade,
-        empresa_classificacao: emp.classificacao,
-        empresa_telefones: emp.telefones,
+        ...baseEmpresa,
         negociacao_id: op.id,
         negociacao_titulo: op.titulo,
         negociacao_status: op.status,
@@ -47,43 +114,38 @@ export function flattenExportEmpresas(payload) {
         negociacao_valor: op.valor,
         negociacao_vendedor: op.vendedor_nome,
         qtd_inscritos: op.qtd_inscritos,
-        inscritos_json: JSON.stringify(op.inscritos_json || []),
-        modulos_ids: JSON.stringify(op.modulos_ids || []),
+        inscritos: formatarInscritos(op.inscritos_json),
+        contatos_vinculados: formatarContatosVinculados(op.contatos_vinculados),
         notas: op.notas_texto || '',
         tarefas: op.tarefas_texto || '',
-        contatos_vinculados: JSON.stringify(op.contatos_vinculados || []),
-        total_contatos_empresa: (bloco.contatos || []).length,
       });
     }
     if (!(bloco.oportunidades || []).length) {
-      linhas.push({
-        empresa_id: emp.id,
-        empresa_nome: emp.nome,
-        empresa_uf: emp.estado,
-        empresa_cidade: emp.cidade,
-        empresa_classificacao: emp.classificacao,
-        empresa_telefones: emp.telefones,
-        total_contatos_empresa: (bloco.contatos || []).length,
-      });
+      linhas.push(baseEmpresa);
     }
   }
   return linhas;
 }
 
+// ─── Flatten: Contatos ────────────────────────────────────────────────────────
+
 export function flattenExportContatos(payload) {
   const linhas = [];
   for (const bloco of payload.dados || []) {
     const ct = bloco.contato || {};
+    const baseContato = {
+      contato_id: ct.id,
+      contato_nome: ct.nome,
+      contato_emails: joinLista(ct.emails_json),
+      contato_telefones: joinLista(ct.telefones_json),
+      contato_cargos: cargosParaTexto(ct.cargos_json, '; '),
+      empresa_nome: ct.empresa_nome,
+      empresa_uf: ct.estado,
+      empresa_cidade: ct.cidade,
+    };
     for (const op of bloco.oportunidades || []) {
       linhas.push({
-        contato_id: ct.id,
-        contato_nome: ct.nome,
-        contato_emails: JSON.stringify(ct.emails_json || []),
-        contato_telefones: JSON.stringify(ct.telefones_json || []),
-        contato_cargos: JSON.stringify(ct.cargos_json || []),
-        empresa_nome: ct.empresa_nome,
-        empresa_uf: ct.estado,
-        empresa_cidade: ct.cidade,
+        ...baseContato,
         negociacao_id: op.id,
         negociacao_titulo: op.titulo,
         negociacao_status: op.status,
@@ -94,17 +156,13 @@ export function flattenExportContatos(payload) {
       });
     }
     if (!(bloco.oportunidades || []).length) {
-      linhas.push({
-        contato_id: ct.id,
-        contato_nome: ct.nome,
-        contato_emails: JSON.stringify(ct.emails_json || []),
-        empresa_nome: ct.empresa_nome,
-        empresa_uf: ct.estado,
-      });
+      linhas.push(baseContato);
     }
   }
   return linhas;
 }
+
+// ─── Flatten: Oportunidades ───────────────────────────────────────────────────
 
 export function flattenExportOportunidades(payload) {
   return (payload.dados || []).map((op) => ({
@@ -116,16 +174,18 @@ export function flattenExportOportunidades(payload) {
     empresa: op.empresa_nome,
     empresa_uf: op.empresa_estado,
     empresa_cidade: op.empresa_cidade,
-    contato: op.contato_nome,
+    contato_principal: op.contato_nome,
     vendedor: op.vendedor_nome,
     valor: op.valor,
     qtd_inscritos: op.qtd_inscritos,
-    inscritos_json: JSON.stringify(op.inscritos_json || []),
+    inscritos: formatarInscritos(op.inscritos_json),
+    contatos_vinculados: formatarContatosVinculados(op.contatos_vinculados),
     notas: op.notas_texto || '',
     tarefas: op.tarefas_texto || '',
-    contatos_vinculados: JSON.stringify(op.contatos_vinculados || []),
   }));
 }
+
+// ─── Flatten: Campanha ────────────────────────────────────────────────────────
 
 export function flattenExportCampanha(payload) {
   return (payload.negociacoes || []).map((op) => ({
@@ -137,72 +197,57 @@ export function flattenExportCampanha(payload) {
     empresa: op.empresa_nome,
     empresa_uf: op.empresa_estado,
     empresa_cidade: op.empresa_cidade,
-    contato: op.contato_nome,
+    contato_principal: op.contato_nome,
     vendedor: op.vendedor_nome,
     valor: op.valor,
     qtd_inscritos: op.qtd_inscritos,
-    inscritos_json: JSON.stringify(op.inscritos_json || []),
+    inscritos: formatarInscritos(op.inscritos_json),
+    contatos_vinculados: formatarContatosVinculados(op.contatos_vinculados),
     notas: op.notas_texto || '',
     tarefas: op.tarefas_texto || '',
-    contatos_vinculados: JSON.stringify(op.contatos_vinculados || []),
   }));
 }
 
-/** Uma linha por inscrito (dados do dashboard /inscritos). */
-export function flattenExportInscritosDashboard(items, parseJson) {
-  const parse = parseJson || ((d, f) => (d == null ? f : d));
-  const linhas = [];
+// ─── Flatten: Inscritos Dashboard ────────────────────────────────────────────
 
+/** Uma linha por inscrito (dados do dashboard /inscritos). */
+export function flattenExportInscritosDashboard(items, parseJsonExterno) {
+  const parse = parseJsonExterno
+    ? (val, fb) => { try { return parseJsonExterno(val, fb); } catch { return fb; } }
+    : parseJSONSeguro;
+
+  const linhas = [];
   for (const ins of items || []) {
-    const emails = parse(ins.emails_json, []);
-    const tels = parse(ins.telefones_json, []);
-    const lista = parse(ins.inscritos_json, []).filter((p) => p?.nome || p?.email);
-    const qtd = ins.qtd_inscritos || lista.length || 0;
+    const emails = normalizarListaJson(parse(ins.emails_json, []), []);
+    const tels   = normalizarListaJson(parse(ins.telefones_json, []), []);
+    const lista  = parse(ins.inscritos_json, []).filter((p) => p?.nome || p?.email);
+    const qtd    = ins.qtd_inscritos || lista.length || 0;
 
     const base = {
       oportunidade_id: ins.oportunidade_id,
-      contato_nome: ins.contato_nome || '',
-      prefeitura: ins.empresa_nome || '',
-      curso: ins.curso_nome || '',
-      qtd_inscritos: qtd,
-      data_inscricao: ins.data_inscricao || '',
-      email_lead: Array.isArray(emails) ? emails.join('; ') : '',
-      telefone_lead: Array.isArray(tels) ? tels.join('; ') : '',
+      contato_nome:    ins.contato_nome || '',
+      prefeitura:      ins.empresa_nome || '',
+      curso:           ins.curso_nome || '',
+      qtd_inscritos:   qtd,
+      data_inscricao:  ins.data_inscricao || '',
+      email_lead:      emails.join('; '),
+      telefone_lead:   tels.join('; '),
     };
 
     if (!lista.length) {
-      linhas.push({
-        ...base,
-        inscrito_nome: '',
-        inscrito_email: '',
-        inscrito_telefone: '',
-        inscrito_cargo: '',
-        inscrito_formacao: '',
-      });
+      linhas.push({ ...base, inscrito_nome: '', inscrito_email: '', inscrito_telefone: '', inscrito_cargo: '', inscrito_formacao: '' });
       continue;
     }
-
     for (const p of lista) {
       linhas.push({
         ...base,
-        inscrito_nome: p.nome || '',
-        inscrito_email: p.email || '',
+        inscrito_nome:     p.nome || '',
+        inscrito_email:    p.email || '',
         inscrito_telefone: p.telefone || '',
-        inscrito_cargo: p.cargo || '',
+        inscrito_cargo:    p.cargo || '',
         inscrito_formacao: p.formacao || '',
       });
     }
   }
-
   return linhas;
-}
-
-export function exportarLinhasComoCsv(linhas, prefixoArquivo) {
-  if (!linhas.length) return false;
-  const keys = Object.keys(linhas[0]);
-  const colunas = keys.map((k) => ({ key: k, label: k }));
-  const csv = linhasParaCsv(linhas, colunas);
-  const data = new Date().toISOString().slice(0, 10);
-  downloadTexto(csv, `${prefixoArquivo}_${data}.csv`);
-  return true;
 }
