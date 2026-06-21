@@ -34,6 +34,11 @@ export function Campanhas() {
   const [apenasAdmin, setApenasAdmin] = useState(false);
   const [emailRemetente, setEmailRemetente] = useState('');
 
+  // Filtro por UF
+  const [ufsAlvo, setUfsAlvo] = useState([]); // vazio = todos os estados
+
+  const LISTA_UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO'];
+
   const etapasPadrao = ['CONTATO 1° E-MAIL', 'CONTATO TEL.', 'IDENTIFICAÇÃO DO INTERESSE', 'INSCRITO', 'NÃO QUER LIGAÇÃO', 'VENDA REALIZADA', 'PERDIDO'];
   const [etapas, setEtapas] = useState(etapasPadrao);
   const [novaEtapa, setNovaEtapa] = useState('');
@@ -105,15 +110,16 @@ export function Campanhas() {
   }
 
   function abrirModalNovo() {
-    setEditandoId(null); 
-    setNome(''); 
-    setDescricao(''); 
+    setEditandoId(null);
+    setNome('');
+    setDescricao('');
     setInformacaoExtra('');
-    setDataInicio(''); 
-    setDataFim(''); 
+    setDataInicio('');
+    setDataFim('');
     setCargosAlvo([]);
     setApenasAdmin(false);
     setEmailRemetente('');
+    setUfsAlvo([]);
     setEtapas(etapasPadrao);
     setEtapasFunil([]);
     setEtapaInscricaoId('');
@@ -134,6 +140,7 @@ export function Campanhas() {
     setApenasAdmin(camp.apenas_admin || false);
     setEmailRemetente(camp.email_remetente || '');
     setCargosAlvo(parseJSONSeguro(camp.cargos_alvo, []));
+    setUfsAlvo(parseJSONSeguro(camp.ufs_alvo, []));
     setEtapaInscricaoId(camp.etapa_inscricao_id ? String(camp.etapa_inscricao_id) : '');
     setEtapaVendaId(camp.etapa_venda_id ? String(camp.etapa_venda_id) : '');
 
@@ -201,13 +208,14 @@ export function Campanhas() {
     if (editandoId && (!etapaInscricaoId || !etapaVendaId)) return alert('Selecione as etapas de inscrição e venda para a Landing Page.');
     if (!editandoId && (!etapaInscricaoNome || !etapaVendaNome)) return alert('Selecione as etapas de inscrição e venda para a Landing Page.');
     
-    const payload = { 
-        nome, 
-        descricao, 
-        informacao_extra: informacaoExtra, 
-        data_inicio: dataInicio || null, 
-        data_fim: dataFim || null, 
-        cargos_alvo: cargosAlvo, 
+    const payload = {
+        nome,
+        descricao,
+        informacao_extra: informacaoExtra,
+        data_inicio: dataInicio || null,
+        data_fim: dataFim || null,
+        cargos_alvo: cargosAlvo,
+        ufs_alvo: ufsAlvo.length > 0 ? ufsAlvo : null,
         apenas_admin: apenasAdmin,
         email_remetente: emailRemetente || null,
         modulos,
@@ -544,6 +552,35 @@ export function Campanhas() {
                         </CheckboxGroup>
                       </FormGroup>
                       
+                      <FormGroup className="span-2">
+                        <Label>
+                          Estados que receberão as negociações
+                          <span style={{ fontWeight: 400, color: '#64748b', marginLeft: 8 }}>
+                            ({ufsAlvo.length === 0 ? 'Todos os estados' : `${ufsAlvo.length} selecionado${ufsAlvo.length > 1 ? 's' : ''}`})
+                          </span>
+                        </Label>
+                        <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                          <button type="button" style={{ fontSize: '0.78rem', padding: '3px 10px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#f8fafc', cursor: 'pointer' }}
+                            onClick={() => setUfsAlvo([])}>
+                            Todos
+                          </button>
+                          <button type="button" style={{ fontSize: '0.78rem', padding: '3px 10px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#f8fafc', cursor: 'pointer' }}
+                            onClick={() => setUfsAlvo([...LISTA_UFS])}>
+                            Selecionar todos
+                          </button>
+                        </div>
+                        <CheckboxGroup>
+                          {LISTA_UFS.map(uf => (
+                            <CheckboxPill key={uf} $active={ufsAlvo.includes(uf)}
+                              style={{ minWidth: 52, justifyContent: 'center' }}
+                              onClick={() => setUfsAlvo(prev => prev.includes(uf) ? prev.filter(u => u !== uf) : [...prev, uf])}>
+                              <input type="checkbox" checked={ufsAlvo.includes(uf)} readOnly />
+                              {uf}
+                            </CheckboxPill>
+                          ))}
+                        </CheckboxGroup>
+                      </FormGroup>
+
                       <FormGroup>
                         <Label $color="#28a745">Data de Início</Label>
                         <Input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} />

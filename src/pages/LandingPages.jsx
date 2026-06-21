@@ -84,11 +84,15 @@ export function LandingPages() {
             <div style="display: grid; gap: 18px; grid-template-columns: repeat(2, minmax(0, 1fr));">
               <div>
                 <label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Estado*</label>
-                <input type="text" id="uf" name="uf" autocomplete="address-level1" required placeholder="Ex: RS" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" />
+                <select id="uf" name="uf" required style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(15,25,48,0.95); color: #f8fafc; padding: 14px 16px; outline:none; font-size:0.9rem;">
+                  <option value="" style="background:#0f1930;color:#fff;">Selecione o estado...</option>
+                </select>
               </div>
               <div>
                 <label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Município*</label>
-                <input type="text" id="cidade" name="cidade" autocomplete="address-level2" required placeholder="Cidade" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" />
+                <select id="cidade" name="cidade" required disabled style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(15,25,48,0.95); color: #f8fafc; padding: 14px 16px; outline:none; font-size:0.9rem;">
+                  <option value="" style="background:#0f1930;color:#fff;">Primeiro selecione o estado...</option>
+                </select>
               </div>
             </div>
             <div style="display: grid; gap: 18px; grid-template-columns: repeat(2, minmax(0, 1fr));">
@@ -658,9 +662,18 @@ export function LandingPages() {
                             <input type="text" id="cargo" name="cargo" required style="width: 100%; border-radius: 6px; border: 1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding: 12px 16px; font-size: 14px; color: #ffffff; outline: none;" placeholder="Seu cargo atual">
                         </div>
 
-                        <div style="flex: 1 1 100%;">
+                        <div style="flex: 1 1 calc(50% - 10px); min-width: 250px;">
+                            <label for="uf" style="display: block; font-size: 14px; font-weight: 500; color: #f8fafc; margin-bottom: 5px;">Estado*</label>
+                            <select id="uf" name="uf" required style="width: 100%; border-radius: 6px; border: 1px solid rgba(248,250,252,0.2); background: rgba(15,25,48,0.95); padding: 12px 16px; font-size: 14px; color: #ffffff; outline: none;">
+                              <option value="" style="background:#0f1930;color:#fff;">Selecione o estado...</option>
+                            </select>
+                        </div>
+
+                        <div style="flex: 1 1 calc(50% - 10px); min-width: 250px;">
                             <label for="cidade" style="display: block; font-size: 14px; font-weight: 500; color: #f8fafc; margin-bottom: 5px;">Município*</label>
-                            <input type="text" id="cidade" name="cidade" required style="width: 100%; border-radius: 6px; border: 1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding: 12px 16px; font-size: 14px; color: #ffffff; outline: none;" placeholder="Cidade / Estado">
+                            <select id="cidade" name="cidade" required disabled style="width: 100%; border-radius: 6px; border: 1px solid rgba(248,250,252,0.2); background: rgba(15,25,48,0.95); padding: 12px 16px; font-size: 14px; color: #ffffff; outline: none;">
+                              <option value="" style="background:#0f1930;color:#fff;">Primeiro selecione o estado...</option>
+                            </select>
                         </div>
 
                         <div style="flex: 1 1 100%;">
