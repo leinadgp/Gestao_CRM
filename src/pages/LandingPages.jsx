@@ -5,7 +5,8 @@ import styled, { keyframes } from 'styled-components';
 // Importações do GrapesJS
 import grapesjs from 'grapesjs';
 import 'grapesjs/dist/css/grapes.min.css';
-import 'grapesjs-preset-webpage';
+import gjsPresetWebpage from 'grapesjs-preset-webpage';
+import ptLocale from 'grapesjs/locale/pt';
 
 export function LandingPages() {
   const [paginas, setPaginas] = useState([]);
@@ -42,12 +43,8 @@ export function LandingPages() {
   const [htmlBruto, setHtmlBruto] = useState('');
   const [cssBruto, setCssBruto] = useState('');
   const [idsList, setIdsList] = useState([]);
-  const [selectedLinkHref, setSelectedLinkHref] = useState('');
-  const [selectedLinkTarget, setSelectedLinkTarget] = useState('');
-  const [selectedLinkComponentCid, setSelectedLinkComponentCid] = useState('');
   const [selectedComponentId, setSelectedComponentId] = useState('');
   const [selectedComponentType, setSelectedComponentType] = useState('');
-  const [mostrarLinkModal, setMostrarLinkModal] = useState(false);
   const fileInputRef = useRef(null);
 
   const getMarkupFormularioCRM = () => `
@@ -148,33 +145,6 @@ export function LandingPages() {
     </section>
   `;
 
-  const updateSelectedLinkInfo = (component) => {
-    if (!component) {
-      setSelectedLinkHref('');
-      setSelectedLinkTarget('');
-      setSelectedLinkComponentCid('');
-      setSelectedComponentId('');
-      setSelectedComponentType('');
-      return;
-    }
-
-    const tagName = component.get('tagName');
-    const type = component.get('type');
-    const attrs = component.getAttributes();
-    setSelectedComponentId(attrs.id || '');
-    setSelectedComponentType(tagName || type || 'component');
-
-    if (tagName === 'a' || type === 'link' || attrs.href) {
-      setSelectedLinkHref(attrs.href || '');
-      setSelectedLinkTarget(attrs.target || '');
-      setSelectedLinkComponentCid(component.cid);
-    } else {
-      setSelectedLinkHref('');
-      setSelectedLinkTarget('');
-      setSelectedLinkComponentCid('');
-    }
-  };
-
   const scanIdsFromCanvas = (editor) => {
     if (!editor) return;
     try {
@@ -188,32 +158,6 @@ export function LandingPages() {
       setIdsList(ids);
     } catch (err) {
       console.warn('Não foi possível capturar os ids do canvas do GrapesJS.', err);
-    }
-  };
-
-  const updateSelectedLinkHref = (value) => {
-    setSelectedLinkHref(value);
-    const editor = editorRef.current;
-    if (!editor) return;
-    const component = editor.getSelected();
-    if (!component) return;
-    const tagName = component.get('tagName');
-    const type = component.get('type');
-    if (tagName === 'a' || type === 'link') {
-      component.addAttributes({ href: value });
-    }
-  };
-
-  const updateSelectedLinkTarget = (value) => {
-    setSelectedLinkTarget(value);
-    const editor = editorRef.current;
-    if (!editor) return;
-    const component = editor.getSelected();
-    if (!component) return;
-    const tagName = component.get('tagName');
-    const type = component.get('type');
-    if (tagName === 'a' || type === 'link') {
-      component.addAttributes({ target: value });
     }
   };
 
@@ -455,9 +399,14 @@ export function LandingPages() {
         height: '100%',
         width: 'auto',
         storageManager: false,
-        plugins: ['gjs-preset-webpage'],
+        plugins: [gjsPresetWebpage],
         pluginsOpts: {
-          'gjs-preset-webpage': {}
+          [gjsPresetWebpage]: {
+            modalImportTitle: 'Importar código HTML',
+            modalImportButton: 'Importar',
+            modalImportLabel: '',
+            textCleanCanvas: 'Tem certeza que deseja limpar o canvas? Esta ação não pode ser desfeita.',
+          }
         },
         canvas: {
           scripts: ['https://cdn.tailwindcss.com', 'https://unpkg.com/lucide@latest']
@@ -467,7 +416,12 @@ export function LandingPages() {
           localeFallback: 'en',
           messages: {
             pt: {
-              assetManager: { modalTitle: 'Selecionar Imagem da Empresa', uploadTitle: 'Arraste as imagens aqui ou clique para enviar' }
+              ...ptLocale,
+              assetManager: {
+                ...ptLocale.assetManager,
+                modalTitle: 'Selecionar Imagem da Empresa',
+                uploadTitle: 'Arraste as imagens aqui ou clique para enviar',
+              },
             }
           }
         }
@@ -535,35 +489,51 @@ export function LandingPages() {
         applyHtmlBodyAttributesToCanvas(editor, htmlAttributes, bodyAttributes);
         allowAnchorScrollInCanvas(editor);
         scanIdsFromCanvas(editor);
-        updateSelectedLinkInfo(editor.getSelected());
+
+        // Traduz blocos nativos do GrapesJS para português
+        const traducoesBlocos = {
+          'text': '<i class="fa fa-font fa-2x"></i><br/>Texto',
+          'link': '<i class="fa fa-link fa-2x"></i><br/>Link',
+          'image': '<i class="fa fa-image fa-2x"></i><br/>Imagem',
+          'video': '<i class="fa fa-film fa-2x"></i><br/>Vídeo',
+          'map': '<i class="fa fa-map-marker fa-2x"></i><br/>Mapa',
+          'column1': '<i class="fa fa-square fa-2x"></i><br/>1 Coluna',
+          'column2': '<i class="fa fa-columns fa-2x"></i><br/>2 Colunas',
+          'column3': '<i class="fa fa-columns fa-2x"></i><br/>3 Colunas',
+          'column3-7': '<i class="fa fa-columns fa-2x"></i><br/>Colunas 30/70',
+          'text-basic': '<i class="fa fa-align-left fa-2x"></i><br/>Texto Simples',
+          'quote': '<i class="fa fa-quote-left fa-2x"></i><br/>Citação',
+          'link-block': '<i class="fa fa-hand-pointer fa-2x"></i><br/>Bloco Clicável',
+          'grid-items': '<i class="fa fa-th fa-2x"></i><br/>Grade de Cards',
+          'list-items': '<i class="fa fa-list fa-2x"></i><br/>Lista de Itens',
+        };
+        Object.entries(traducoesBlocos).forEach(([id, label]) => {
+          const block = editor.BlockManager.get(id);
+          if (block) block.set('label', label);
+        });
       });
 
-      // Abertura automática da galeria ao clicar numa imagem
+      // Abertura automática da galeria ao clicar numa imagem;
+      // ao clicar num link abre o painel Traits nativo do GrapesJS
       editor.on('component:selected', (component) => {
-        updateSelectedLinkInfo(component);
+        if (!component) return;
+
         if (component.get('type') === 'image') {
           editor.runCommand('open-assets', { target: component });
+          return;
         }
-      });
 
-      editor.on('load', () => {
-        const canvasDoc = editor.Canvas.getDocument();
-        if (canvasDoc) {
-          canvasDoc.addEventListener('dblclick', () => {
-            const selected = editor.getSelected();
-            if (!selected) return;
-            const tagName = selected.get('tagName');
-            const attrs = selected.getAttributes();
-            if (tagName === 'a' || selected.get('type') === 'link' || attrs.href) {
-              setMostrarLinkModal(true);
-            }
-          });
+        const tagName = component.get('tagName');
+        const type = component.get('type');
+        const attrs = component.getAttributes();
+        if (tagName === 'a' || type === 'link' || attrs.href) {
+          const traitsBtn = editor.Panels.getButton('views', 'open-traits');
+          if (traitsBtn) traitsBtn.set('active', true);
         }
       });
 
       editor.on('component:update:attributes', () => {
         scanIdsFromCanvas(editor);
-        updateSelectedLinkInfo(editor.getSelected());
       });
 
       editor.on('component:add', () => scanIdsFromCanvas(editor));
@@ -900,11 +870,286 @@ export function LandingPages() {
         `,
       });
 
+      // BLOCO: LOGO / IMAGEM
+      editor.BlockManager.add('bloco-logo-imagem', {
+        label: '<i class="fa-solid fa-image fa-2x"></i><br/>Logo / Imagem',
+        category: 'Elementos',
+        content: {
+          type: 'image',
+          style: { maxWidth: '280px', height: 'auto', display: 'block', margin: '20px auto' },
+          attributes: {
+            src: 'https://via.placeholder.com/280x100?text=Clique+2x+para+trocar+a+imagem',
+            alt: 'Logo ou imagem'
+          }
+        }
+      });
+
+      // BLOCO: SEÇÃO DE BENEFÍCIOS
+      editor.BlockManager.add('secao-beneficios', {
+        label: '<i class="fa-solid fa-star fa-2x"></i><br/>Seção Benefícios',
+        category: 'Seções',
+        content: `
+          <section style="padding: 80px 20px; background: #f8fafc; font-family: Arial, sans-serif;">
+            <div style="max-width: 1100px; margin: 0 auto;">
+              <p style="text-align:center; font-size:0.8rem; font-weight:700; text-transform:uppercase; letter-spacing:0.2em; color:#F59E0B; margin:0 0 10px;">Benefícios</p>
+              <h2 style="text-align:center; font-size:2rem; font-weight:800; color:#0B192C; margin:0 0 50px;">O que você vai ganhar com este curso</h2>
+              <div style="display:flex; flex-wrap:wrap; gap:24px; justify-content:center;">
+                <div style="flex:1; min-width:240px; max-width:320px; background:#fff; border-radius:16px; padding:30px; box-shadow:0 4px 15px rgba(0,0,0,0.05); border-top:4px solid #F59E0B;">
+                  <div style="font-size:2rem; margin-bottom:12px;">🎯</div>
+                  <h3 style="color:#0B192C; font-size:1.1rem; margin:0 0 10px;">Benefício 1</h3>
+                  <p style="color:#64748b; font-size:0.95rem; line-height:1.6; margin:0;">Descreva aqui o primeiro benefício do seu curso ou serviço.</p>
+                </div>
+                <div style="flex:1; min-width:240px; max-width:320px; background:#fff; border-radius:16px; padding:30px; box-shadow:0 4px 15px rgba(0,0,0,0.05); border-top:4px solid #F59E0B;">
+                  <div style="font-size:2rem; margin-bottom:12px;">⚡</div>
+                  <h3 style="color:#0B192C; font-size:1.1rem; margin:0 0 10px;">Benefício 2</h3>
+                  <p style="color:#64748b; font-size:0.95rem; line-height:1.6; margin:0;">Descreva aqui o segundo benefício do seu curso ou serviço.</p>
+                </div>
+                <div style="flex:1; min-width:240px; max-width:320px; background:#fff; border-radius:16px; padding:30px; box-shadow:0 4px 15px rgba(0,0,0,0.05); border-top:4px solid #F59E0B;">
+                  <div style="font-size:2rem; margin-bottom:12px;">📜</div>
+                  <h3 style="color:#0B192C; font-size:1.1rem; margin:0 0 10px;">Benefício 3</h3>
+                  <p style="color:#64748b; font-size:0.95rem; line-height:1.6; margin:0;">Descreva aqui o terceiro benefício do seu curso ou serviço.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+        `
+      });
+
+      // BLOCO: SEÇÃO INSTRUTOR
+      editor.BlockManager.add('secao-instrutor', {
+        label: '<i class="fa-solid fa-user-tie fa-2x"></i><br/>Seção Instrutor',
+        category: 'Seções',
+        content: `
+          <section style="padding: 80px 20px; background: #ffffff; font-family: Arial, sans-serif;">
+            <div style="max-width: 1100px; margin: 0 auto;">
+              <p style="text-align:center; font-size:0.8rem; font-weight:700; text-transform:uppercase; letter-spacing:0.2em; color:#F59E0B; margin:0 0 10px;">Instrutor</p>
+              <h2 style="text-align:center; font-size:2rem; font-weight:800; color:#0B192C; margin:0 0 50px;">Com quem você vai aprender</h2>
+              <div style="display:flex; flex-wrap:wrap; align-items:center; gap:50px; justify-content:center;">
+                <div style="text-align:center; flex-shrink:0;">
+                  <img src="https://via.placeholder.com/220x280?text=Foto+do+Instrutor" style="width:220px; height:280px; border-radius:20px; object-fit:cover; box-shadow:0 10px 30px rgba(0,0,0,0.12);" alt="Foto do instrutor" />
+                </div>
+                <div style="flex:1; min-width:280px; max-width:580px;">
+                  <p style="font-size:0.85rem; font-weight:700; text-transform:uppercase; color:#F59E0B; margin:0 0 6px;">Prof. / Dr.</p>
+                  <h3 style="font-size:2rem; font-weight:800; color:#0B192C; margin:0 0 20px;">Nome do Instrutor</h3>
+                  <p style="color:#475569; font-size:1rem; line-height:1.8; margin:0 0 16px;">Escreva aqui a biografia do instrutor. Destaque a formação, experiência profissional e diferenciais que credenciam este profissional a ministrar o curso.</p>
+                  <p style="color:#475569; font-size:1rem; line-height:1.8; margin:0;">Inclua conquistas, publicações, cargos ou projetos relevantes que fortaleçam a autoridade do instrutor perante o público-alvo.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+        `
+      });
+
+      // BLOCO: SEÇÃO FAQ
+      editor.BlockManager.add('secao-faq', {
+        label: '<i class="fa-solid fa-circle-question fa-2x"></i><br/>Perguntas Freq.',
+        category: 'Seções',
+        content: `
+          <section style="padding: 80px 20px; background: #f8fafc; font-family: Arial, sans-serif;">
+            <div style="max-width: 800px; margin: 0 auto;">
+              <p style="text-align:center; font-size:0.8rem; font-weight:700; text-transform:uppercase; letter-spacing:0.2em; color:#F59E0B; margin:0 0 10px;">Dúvidas</p>
+              <h2 style="text-align:center; font-size:2rem; font-weight:800; color:#0B192C; margin:0 0 50px;">Perguntas frequentes</h2>
+              <div style="display:flex; flex-direction:column; gap:12px;">
+                <div style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:20px 24px;">
+                  <p style="font-weight:700; color:#0B192C; margin:0 0 8px; font-size:1rem;">Pergunta frequente 1?</p>
+                  <p style="color:#64748b; margin:0; font-size:0.95rem; line-height:1.6;">Escreva aqui a resposta para a primeira pergunta frequente do seu público.</p>
+                </div>
+                <div style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:20px 24px;">
+                  <p style="font-weight:700; color:#0B192C; margin:0 0 8px; font-size:1rem;">Pergunta frequente 2?</p>
+                  <p style="color:#64748b; margin:0; font-size:0.95rem; line-height:1.6;">Escreva aqui a resposta para a segunda pergunta frequente do seu público.</p>
+                </div>
+                <div style="background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:20px 24px;">
+                  <p style="font-weight:700; color:#0B192C; margin:0 0 8px; font-size:1rem;">Pergunta frequente 3?</p>
+                  <p style="color:#64748b; margin:0; font-size:0.95rem; line-height:1.6;">Escreva aqui a resposta para a terceira pergunta frequente do seu público.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+        `
+      });
+
+      // BLOCO: RODAPÉ CTA
+      editor.BlockManager.add('secao-cta-final', {
+        label: '<i class="fa-solid fa-bullhorn fa-2x"></i><br/>Rodapé CTA',
+        category: 'Seções',
+        content: `
+          <section style="padding: 80px 20px; background: linear-gradient(135deg, #0B192C, #1E293B); text-align:center; font-family: Arial, sans-serif;">
+            <div style="max-width: 700px; margin: 0 auto;">
+              <h2 style="font-size:2.2rem; font-weight:800; color:#ffffff; margin:0 0 20px; line-height:1.2;">Garanta sua vaga e <span style="color:#F59E0B;">transforme sua prática profissional</span></h2>
+              <p style="color:rgba(248,250,252,0.75); font-size:1rem; line-height:1.7; margin:0 0 40px;">Não perca essa oportunidade. As vagas são limitadas e a próxima turma pode demorar a acontecer.</p>
+              <div style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap;">
+                <a href="#inscricao" style="background:linear-gradient(90deg,#FCD34D,#F59E0B); color:#0B192C; padding:18px 40px; border-radius:8px; text-decoration:none; font-weight:800; font-size:1.1rem; display:inline-block; box-shadow:0 4px 14px rgba(245,158,11,0.4);">Fazer inscrição agora</a>
+                <a href="https://wa.me/55XXXXXXXXXXX" target="_blank" style="background:rgba(255,255,255,0.08); color:#fff; padding:18px 40px; border-radius:8px; text-decoration:none; font-weight:700; font-size:1rem; display:inline-block; border:1px solid rgba(255,255,255,0.2);">Falar pelo WhatsApp</a>
+              </div>
+            </div>
+          </section>
+        `
+      });
+
+      // BLOCO: HEADER COM LOGO EDITÁVEL
+      editor.BlockManager.add('header-logo', {
+        label: '<i class="fa-solid fa-window-restore fa-2x"></i><br/>Cabeçalho',
+        category: 'Seções',
+        content: `
+          <header style="position:sticky; top:0; z-index:40; background:rgba(255,255,255,0.95); backdrop-filter:blur(8px); border-bottom:1px solid #e2e8f0; font-family:Arial,sans-serif;">
+            <div style="max-width:1200px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; padding:14px 24px;">
+              <a href="#top" style="display:inline-block; text-decoration:none;">
+                <img src="https://via.placeholder.com/160x40?text=Sua+Logo" style="height:40px; width:auto; object-fit:contain;" alt="Logo" />
+              </a>
+              <nav style="display:flex; align-items:center; gap:20px;">
+                <a href="#inscricao" style="background:linear-gradient(90deg,#FCD34D,#F59E0B); color:#0B192C; padding:10px 22px; border-radius:6px; text-decoration:none; font-weight:700; font-size:0.95rem;">Fazer inscrição</a>
+              </nav>
+            </div>
+          </header>
+        `
+      });
+
+      // BLOCO: TEMPLATE GENÉRICO COMPLETO
+      editor.BlockManager.add('template-generico', {
+        label: '<i class="fa-solid fa-file-circle-plus fa-2x"></i><br/>Template Genérico',
+        category: 'Páginas Prontas',
+        content: `
+          <header style="position:sticky; top:0; z-index:40; background:rgba(255,255,255,0.95); backdrop-filter:blur(8px); border-bottom:1px solid #e2e8f0; font-family:Arial,sans-serif;">
+            <div style="max-width:1200px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; padding:14px 24px;">
+              <a href="#top">
+                <img src="https://via.placeholder.com/160x40?text=Sua+Logo" style="height:40px; width:auto; object-fit:contain;" alt="Logo" />
+              </a>
+              <a href="#inscricao" style="background:linear-gradient(90deg,#FCD34D,#F59E0B); color:#0B192C; padding:10px 22px; border-radius:6px; text-decoration:none; font-weight:700; font-size:0.95rem;">Fazer inscrição</a>
+            </div>
+          </header>
+
+          <section id="top" style="background:linear-gradient(135deg,#0B192C,#1E293B); padding:100px 20px; font-family:Arial,sans-serif; text-align:center;">
+            <div style="max-width:800px; margin:0 auto;">
+              <span style="display:inline-block; background:rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.4); color:#F59E0B; padding:6px 16px; border-radius:99px; font-size:0.8rem; font-weight:700; letter-spacing:0.15em; text-transform:uppercase; margin-bottom:24px;">Curso Online Ao Vivo · Turma 2026</span>
+              <h1 style="font-size:3rem; font-weight:800; color:#ffffff; line-height:1.1; margin:0 0 24px;">Título Principal do <span style="color:#F59E0B;">Seu Curso ou Serviço</span></h1>
+              <p style="font-size:1.15rem; color:rgba(248,250,252,0.8); line-height:1.7; margin:0 0 40px; max-width:600px; margin-left:auto; margin-right:auto;">Escreva aqui o subtítulo que resume o principal benefício e desperta o interesse do visitante.</p>
+              <div style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap; margin-bottom:50px;">
+                <a href="#inscricao" style="background:linear-gradient(90deg,#FCD34D,#F59E0B); color:#0B192C; padding:18px 40px; border-radius:8px; text-decoration:none; font-weight:800; font-size:1.05rem; box-shadow:0 4px 14px rgba(245,158,11,0.4);">Fazer inscrição</a>
+                <a href="https://wa.me/55XXXXXXXXXXX" target="_blank" style="background:rgba(255,255,255,0.08); color:#fff; padding:18px 40px; border-radius:8px; text-decoration:none; font-weight:700; font-size:1rem; border:1px solid rgba(255,255,255,0.2);">Falar pelo WhatsApp</a>
+              </div>
+              <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:24px; border-top:1px solid rgba(248,250,252,0.1); padding-top:32px;">
+                <div style="text-align:left;">
+                  <p style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.1em; color:rgba(248,250,252,0.5); margin:0 0 4px;">Data</p>
+                  <p style="font-weight:700; color:#ffffff; margin:0;">DD/MM/AAAA</p>
+                </div>
+                <div style="text-align:left;">
+                  <p style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.1em; color:rgba(248,250,252,0.5); margin:0 0 4px;">Horário</p>
+                  <p style="font-weight:700; color:#ffffff; margin:0;">08h30 – 17h</p>
+                </div>
+                <div style="text-align:left;">
+                  <p style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.1em; color:rgba(248,250,252,0.5); margin:0 0 4px;">Modalidade</p>
+                  <p style="font-weight:700; color:#ffffff; margin:0;">Online · Zoom</p>
+                </div>
+                <div style="text-align:left;">
+                  <p style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.1em; color:rgba(248,250,252,0.5); margin:0 0 4px;">Carga Horária</p>
+                  <p style="font-weight:700; color:#ffffff; margin:0;">8 horas</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section style="padding:80px 20px; background:#ffffff; font-family:Arial,sans-serif;">
+            <div style="max-width:1100px; margin:0 auto;">
+              <p style="text-align:center; font-size:0.8rem; font-weight:700; text-transform:uppercase; letter-spacing:0.2em; color:#F59E0B; margin:0 0 10px;">Benefícios</p>
+              <h2 style="text-align:center; font-size:2rem; font-weight:800; color:#0B192C; margin:0 0 50px;">O que você vai ganhar com este curso</h2>
+              <div style="display:flex; flex-wrap:wrap; gap:24px; justify-content:center;">
+                <div style="flex:1; min-width:240px; max-width:320px; background:#f8fafc; border-radius:16px; padding:30px; border-top:4px solid #F59E0B;">
+                  <div style="font-size:2rem; margin-bottom:12px;">🎯</div>
+                  <h3 style="color:#0B192C; font-size:1.05rem; margin:0 0 10px; font-weight:700;">Benefício 1</h3>
+                  <p style="color:#64748b; font-size:0.95rem; line-height:1.6; margin:0;">Descreva o primeiro benefício aqui.</p>
+                </div>
+                <div style="flex:1; min-width:240px; max-width:320px; background:#f8fafc; border-radius:16px; padding:30px; border-top:4px solid #F59E0B;">
+                  <div style="font-size:2rem; margin-bottom:12px;">⚡</div>
+                  <h3 style="color:#0B192C; font-size:1.05rem; margin:0 0 10px; font-weight:700;">Benefício 2</h3>
+                  <p style="color:#64748b; font-size:0.95rem; line-height:1.6; margin:0;">Descreva o segundo benefício aqui.</p>
+                </div>
+                <div style="flex:1; min-width:240px; max-width:320px; background:#f8fafc; border-radius:16px; padding:30px; border-top:4px solid #F59E0B;">
+                  <div style="font-size:2rem; margin-bottom:12px;">📜</div>
+                  <h3 style="color:#0B192C; font-size:1.05rem; margin:0 0 10px; font-weight:700;">Benefício 3</h3>
+                  <p style="color:#64748b; font-size:0.95rem; line-height:1.6; margin:0;">Descreva o terceiro benefício aqui.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section id="instrutor" style="padding:80px 20px; background:#f8fafc; font-family:Arial,sans-serif;">
+            <div style="max-width:1100px; margin:0 auto;">
+              <p style="text-align:center; font-size:0.8rem; font-weight:700; text-transform:uppercase; letter-spacing:0.2em; color:#F59E0B; margin:0 0 10px;">Instrutor</p>
+              <h2 style="text-align:center; font-size:2rem; font-weight:800; color:#0B192C; margin:0 0 50px;">Com quem você vai aprender</h2>
+              <div style="display:flex; flex-wrap:wrap; align-items:center; gap:50px; justify-content:center;">
+                <img src="https://via.placeholder.com/220x280?text=Foto+do+Instrutor" style="width:220px; height:280px; border-radius:20px; object-fit:cover; box-shadow:0 10px 30px rgba(0,0,0,0.12); flex-shrink:0;" alt="Foto do instrutor" />
+                <div style="flex:1; min-width:280px; max-width:580px;">
+                  <p style="font-size:0.85rem; font-weight:700; text-transform:uppercase; color:#F59E0B; margin:0 0 6px;">Prof.</p>
+                  <h3 style="font-size:2rem; font-weight:800; color:#0B192C; margin:0 0 20px;">Nome do Instrutor</h3>
+                  <p style="color:#475569; font-size:1rem; line-height:1.8; margin:0 0 16px;">Escreva aqui a biografia do instrutor — formação, experiência e diferenciais que credenciam este profissional.</p>
+                  <a href="#" target="_blank" style="display:inline-flex; align-items:center; gap:8px; border:2px solid #0B192C; color:#0B192C; padding:12px 24px; border-radius:8px; text-decoration:none; font-weight:700; font-size:0.9rem;">Acessar Currículo Lattes</a>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section id="inscricao" style="padding:80px 20px; background:#ffffff; font-family:Arial,sans-serif;">
+            <div style="max-width:1100px; margin:0 auto;">
+              <div style="text-align:center; margin-bottom:40px;">
+                <p style="font-size:0.8rem; font-weight:700; text-transform:uppercase; letter-spacing:0.2em; color:#F59E0B; margin:0 0 10px;">Investimento e Inscrição</p>
+                <h2 style="font-size:2.2rem; font-weight:800; color:#0B192C; margin:0;">Garanta sua Vaga</h2>
+              </div>
+              <div style="max-width:800px; margin:0 auto; background:linear-gradient(135deg,#0B192C,#1E293B); border-radius:24px; padding:40px; border:1px solid rgba(245,158,11,0.3);">
+                <div style="text-align:center; margin-bottom:30px;">
+                  <h3 style="font-size:1.5rem; font-weight:800; color:#F59E0B; margin:0 0 8px;">Preencha seus dados</h3>
+                  <p style="color:#cbd5e1; margin:0; font-size:0.95rem;">Seus dados serão enviados diretamente para o nosso sistema.</p>
+                </div>
+                <form id="formInscricaoCRM" style="display:grid; gap:16px;">
+                  <div style="display:grid; gap:16px; grid-template-columns:repeat(2,minmax(0,1fr));">
+                    <div>
+                      <label style="display:block; color:#f8fafc; font-size:0.9rem; margin-bottom:6px;">Nome completo*</label>
+                      <input type="text" id="nome" name="nome" required placeholder="Seu nome completo" style="width:100%; border-radius:8px; border:1px solid rgba(248,250,252,0.15); background:rgba(248,250,252,0.05); color:#f8fafc; padding:12px 14px; outline:none; box-sizing:border-box;" />
+                    </div>
+                    <div>
+                      <label style="display:block; color:#f8fafc; font-size:0.9rem; margin-bottom:6px;">Telefone*</label>
+                      <input type="tel" id="telefone" name="telefone" required placeholder="(00) 00000-0000" style="width:100%; border-radius:8px; border:1px solid rgba(248,250,252,0.15); background:rgba(248,250,252,0.05); color:#f8fafc; padding:12px 14px; outline:none; box-sizing:border-box;" />
+                    </div>
+                  </div>
+                  <div style="display:grid; gap:16px; grid-template-columns:repeat(2,minmax(0,1fr));">
+                    <div>
+                      <label style="display:block; color:#f8fafc; font-size:0.9rem; margin-bottom:6px;">Email*</label>
+                      <input type="email" id="email" name="email" required placeholder="seu@email.com" style="width:100%; border-radius:8px; border:1px solid rgba(248,250,252,0.15); background:rgba(248,250,252,0.05); color:#f8fafc; padding:12px 14px; outline:none; box-sizing:border-box;" />
+                    </div>
+                    <div>
+                      <label style="display:block; color:#f8fafc; font-size:0.9rem; margin-bottom:6px;">WhatsApp*</label>
+                      <input type="tel" id="whatsapp" name="whatsapp" required placeholder="(00) 00000-0000" style="width:100%; border-radius:8px; border:1px solid rgba(248,250,252,0.15); background:rgba(248,250,252,0.05); color:#f8fafc; padding:12px 14px; outline:none; box-sizing:border-box;" />
+                    </div>
+                  </div>
+                  <div style="display:grid; gap:16px; grid-template-columns:repeat(2,minmax(0,1fr));">
+                    <div>
+                      <label style="display:block; color:#f8fafc; font-size:0.9rem; margin-bottom:6px;">Estado*</label>
+                      <select id="uf" name="uf" required style="width:100%; border-radius:8px; border:1px solid rgba(248,250,252,0.15); background:rgba(15,25,48,0.95); color:#f8fafc; padding:12px 14px; outline:none; box-sizing:border-box;"><option value="">Selecione o estado...</option></select>
+                    </div>
+                    <div>
+                      <label style="display:block; color:#f8fafc; font-size:0.9rem; margin-bottom:6px;">Município*</label>
+                      <select id="cidade" name="cidade" required disabled style="width:100%; border-radius:8px; border:1px solid rgba(248,250,252,0.15); background:rgba(15,25,48,0.95); color:#f8fafc; padding:12px 14px; outline:none; box-sizing:border-box;"><option value="">Primeiro selecione o estado...</option></select>
+                    </div>
+                  </div>
+                  <div id="containerModulos" style="background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.4); border-radius:8px; padding:16px; color:#F59E0B; font-size:0.9rem; font-style:italic; text-align:center;">(Os módulos definidos na campanha aparecerão automaticamente aqui)</div>
+                  <div>
+                    <label style="display:block; color:#f8fafc; font-size:0.9rem; margin-bottom:6px;">4 + 3 = ? *</label>
+                    <input type="number" id="captchaCalc" name="captchaCalc" required placeholder="Soma matemática" style="width:100%; border-radius:8px; border:1px solid rgba(248,250,252,0.15); background:rgba(248,250,252,0.05); color:#f8fafc; padding:12px 14px; outline:none; box-sizing:border-box;" />
+                  </div>
+                  <button type="submit" id="btnSubmit" style="width:100%; background:linear-gradient(90deg,#FCD34D,#F59E0B); color:#0B192C; padding:16px; border-radius:8px; border:none; font-weight:800; font-size:1rem; cursor:pointer;">Enviar meus dados</button>
+                  <div id="feedback" style="display:none; padding:14px; border-radius:8px; text-align:center; font-weight:700;"></div>
+                  <p style="text-align:center; color:rgba(248,250,252,0.55); font-size:0.82rem; margin:0;">Seus dados estão protegidos conosco.</p>
+                </form>
+              </div>
+            </div>
+          </section>
+        `
+      });
+
       if (htmlInicial) {
         editor.setComponents(htmlInicial);
         if (cssInicial) editor.setStyle(cssInicial);
       } else {
-        editor.setComponents('<div style="padding: 50px; text-align: center; font-family: sans-serif; color: #999;"><h1>Seu Editor de Páginas Profissional</h1><p>Arraste a "Capa Autoridade" e o "Form. Inscrição" do menu lateral.</p></div>');
+        editor.setComponents('<div style="padding: 50px; text-align: center; font-family: sans-serif; color: #999;"><h1>Seu Editor de Páginas Profissional</h1><p>Arraste os blocos do menu lateral para montar sua página. Use o <strong>Template Genérico</strong> para começar rapidamente!</p></div>');
       }
     }
 
@@ -927,7 +1172,6 @@ export function LandingPages() {
       if (cssInicial) injectCssIntoCanvas(editor, cssInicial);
       applyHtmlBodyAttributesToCanvas(editor, htmlAttributes, bodyAttributes);
       scanIdsFromCanvas(editor);
-      updateSelectedLinkInfo(editor.getSelected());
     }
   }, [mostrarModal, htmlInicial, cssInicial, extraHtmlHead, extraBodyScripts, htmlAttributes, bodyAttributes]);
 
@@ -1368,36 +1612,6 @@ export function LandingPages() {
           </WizardContent>
         </ModalOverlay>
       )}
-      {mostrarLinkModal && (
-        <ModalOverlay onClick={() => setMostrarLinkModal(false)}>
-          <WizardContent style={{ maxWidth: '560px', width: '100%', overflow: 'hidden' }} onClick={(e) => e.stopPropagation()}>
-            <ModalHeader $bg="#f8fafc" $color="#1f2937">
-              <div>
-                <h3><i className="fa-solid fa-link"></i> Editar link</h3>
-                <span className="subtitle">Atualize o destino do botão ou âncora selecionado.</span>
-              </div>
-              <CloseButton type="button" onClick={() => setMostrarLinkModal(false)}>×</CloseButton>
-            </ModalHeader>
-            <div style={{ padding: '20px', display: 'grid', gap: '18px' }}>
-              <FormGroup>
-                <label>Href</label>
-                <LinkInput value={selectedLinkHref} onChange={(e) => updateSelectedLinkHref(e.target.value)} placeholder="#inscricao ou /outra-pagina" />
-              </FormGroup>
-              <FormGroup>
-                <label>Target</label>
-                <Select value={selectedLinkTarget} onChange={(e) => updateSelectedLinkTarget(e.target.value)}>
-                  <option value="">mesma aba</option>
-                  <option value="_blank">nova aba</option>
-                </Select>
-              </FormGroup>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
-                <SecondaryButton type="button" onClick={() => setMostrarLinkModal(false)}>Cancelar</SecondaryButton>
-                <PrimaryButton type="button" onClick={() => setMostrarLinkModal(false)}>Salvar</PrimaryButton>
-              </div>
-            </div>
-          </WizardContent>
-        </ModalOverlay>
-      )}
     </>
   );
 }
@@ -1495,83 +1709,6 @@ const StatusBadge = styled.span`
   &.published { background: #d4edda; color: #155724; }
   &.draft { background: #fff3cd; color: #856404; }
   &.draft-pending { background: #fff3cd; color: #92400e; border: 1px solid #f59e0b; }
-`;
-
-const IdsBar = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 14px 25px;
-  background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
-  flex-wrap: wrap;
-  color: #475569;
-  font-size: 0.95rem;
-
-  strong { margin-right: 10px; color: #2c3e50; }
-
-  @media (max-width: 900px) { flex-direction: column; align-items: stretch; }
-`;
-
-const IdBadge = styled.span`
-  display: inline-flex;
-  align-items: center;
-  background: #ffffff;
-  border: 1px solid #d1d5db;
-  color: #1f2937;
-  border-radius: 999px;
-  padding: 6px 10px;
-  margin: 4px 4px 0 0;
-  font-size: 0.9rem;
-`;
-
-const SelectedInfo = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  flex: 1;
-  flex-wrap: wrap;
-  min-width: 0;
-
-  > div {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-  }
-
-  strong {
-    color: #334155;
-  }
-
-  span {
-    color: #64748b;
-    font-size: 0.92rem;
-  }
-`;
-
-const LinkEditor = styled.div`
-  display: grid;
-  gap: 10px;
-  min-width: 320px;
-  width: min(100%, 420px);
-`;
-
-const LinkInput = styled.input`
-  width: 100%;
-  min-width: 0;
-`;
-
-const LinkButton = styled.a`
-  background: #f1f5f9; color: #007bff; border: none; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; transition: 0.2s;
-  &:hover { background: #e7f3ff; }
-`;
-
-const ActionButton = styled.button`
-  background: #e2e8f0; color: #475569; border: none; padding: 6px 10px; border-radius: 6px; font-size: 0.82rem; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; cursor: pointer; transition: 0.2s;
-  &:hover { background: #cbd5e1; }
 `;
 
 // --- BOTÕES ---
