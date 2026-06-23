@@ -6,6 +6,7 @@ import 'suneditor/dist/css/suneditor.min.css';
 import styled, { keyframes } from 'styled-components';
 import { Header } from '../componentes/Header.jsx';
 import { temPermissao, primeiraRotaPermitida } from '../utils/permissoes';
+import { exportarLinhasComoCsv } from '../utils/exportarCsv.js';
 import {
   MULTIPLOS_FUNIS_DISPARO,
   TIPO_FUNIL_UNICO,
@@ -397,6 +398,16 @@ export function Disparos() {
       alert(error.response?.data?.erro || "Erro ao buscar fila.");
     } finally {
       setCarregandoEnvios(false);
+    }
+  }
+
+  async function exportarEmailsFalhos() {
+    try {
+      const res = await axios.get(`${API_URL}/export/emails-falhos`, getHeaders());
+      if (!res.data.length) return alert('Nenhum email com falha encontrado.');
+      exportarLinhasComoCsv(res.data, 'emails_falhos');
+    } catch (err) {
+      alert(err.response?.data?.erro || 'Erro ao exportar emails com falha.');
     }
   }
 
@@ -1068,7 +1079,12 @@ export function Disparos() {
 
                     {/* COLUNA 3: ERROS / BLACKLIST */}
                     <div className="col-wrapper">
-                      <div className="col-header danger"><i className="fa-solid fa-circle-exclamation"></i> Falhas / Bloqueados ({dadosEnvios.falhas?.length || 0})</div>
+                      <div className="col-header danger" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span><i className="fa-solid fa-circle-exclamation"></i> Falhas / Bloqueados ({dadosEnvios.falhas?.length || 0})</span>
+                        <button onClick={exportarEmailsFalhos} style={{ fontSize: '0.8rem', padding: '3px 10px', borderRadius: '5px', border: 'none', background: '#dc3545', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <i className="fa-solid fa-file-export"></i> Exportar CSV
+                        </button>
+                      </div>
                       <div className="col-body">
                         {dadosEnvios.falhas?.length === 0 && <EmptyMsg>Nenhuma falha registrada.</EmptyMsg>}
                         {dadosEnvios.falhas?.map((falha, idx) => (

@@ -96,6 +96,12 @@ export function Funil() {
   const [etapaId, setEtapaId] = useState('');
   const [observacoes, setObservacoes] = useState('');
   const [statusOp, setStatusOp] = useState('aberto');
+  const [motivoPerda, setMotivoPerda] = useState('');
+  const [motivosPerda, setMotivosPerda] = useState([]);
+  const [mostrarModalMotivos, setMostrarModalMotivos] = useState(false);
+  const [novoMotivoNome, setNovoMotivoNome] = useState('');
+  const [editandoMotivoId, setEditandoMotivoId] = useState(null);
+  const [editandoMotivoNome, setEditandoMotivoNome] = useState('');
   const [vendedorId, setVendedorId] = useState('');
   const [vendedorOriginal, setVendedorOriginal] = useState('');
   const [desconto, setDesconto] = useState(0);
@@ -348,12 +354,13 @@ export function Funil() {
     setCarregando(true);
     try {
       const config = getHeaders();
-      const [resEmp, resC, resCamp, resEquipe, resCargos] = await Promise.all([
+      const [resEmp, resC, resCamp, resEquipe, resCargos, resMotivos] = await Promise.all([
         axios.get(`${API_URL}/empresas`, config),
         axios.get(`${API_URL}/contatos`, config),
         axios.get(`${API_URL}/campanhas`, config),
         axios.get(`${API_URL}/usuarios/equipe`, config),
         axios.get(`${API_URL}/cargos`, config).catch(() => ({ data: [] })),
+        axios.get(`${API_URL}/motivos-perda`, config).catch(() => ({ data: [] })),
       ]);
 
       setEmpresas(resEmp.data);
@@ -361,6 +368,7 @@ export function Funil() {
       if (resCargos.data?.length) {
         setListaCargos(resCargos.data.map((c) => c.nome).sort((a, b) => a.localeCompare(b)));
       }
+      setMotivosPerda(resMotivos.data || []);
 
       const todasCampanhas = resCamp.data;
       const campanhasAtivas = todasCampanhas.filter((camp) => camp.arquivada !== true);
@@ -1033,7 +1041,7 @@ export function Funil() {
     setEditandoId(null); setTitulo(''); setEmpresaId(''); setEmpresaTelefones(''); setEmpresaHorario(''); setContatoId(''); setObservacoes('');
     setContatosVinculadosIds([]); setQtdInscritos(0); setInscritos([]);
     setModoPacoteInscricao('igual');
-    setStatusOp('aberto'); setEtapaId(etapas.length > 0 ? etapas[0].id : '');
+    setStatusOp('aberto'); setMotivoPerda(''); setEtapaId(etapas.length > 0 ? etapas[0].id : '');
     setVendedorId(meuUsuarioId || ''); setVendedorOriginal(meuUsuarioId || '');
     setDesconto(0); setDescontoReais(0);
 
@@ -1054,7 +1062,7 @@ export function Funil() {
     setTitulo(''); setValor(''); setEmpresaId(''); setEmpresaTelefones(''); setEmpresaHorario(''); setContatoId(''); setObservacoes('');
     setContatosVinculadosIds([]); setQtdInscritos(0); setInscritos([]);
     setModoPacoteInscricao('igual');
-    setStatusOp('aberto'); setEtapaId('');
+    setStatusOp('aberto'); setMotivoPerda(''); setEtapaId('');
     setVendedorId(''); setVendedorOriginal('');
     setDesconto(0); setDescontoReais(0);
     setModulosSelecionados([]);
@@ -1090,7 +1098,7 @@ export function Funil() {
       inscritosUsamModulosPorPessoa(listaInscritos, mods) ? 'por_inscrito' : 'igual'
     );
     setEtapaId(op.etapa_id); setObservacoes(op.observacoes || '');
-    setStatusOp(op.status || 'aberto'); setVendedorId(op.vendedor_id || '');
+    setStatusOp(op.status || 'aberto'); setMotivoPerda(op.motivo_perda || ''); setVendedorId(op.vendedor_id || '');
     setVendedorOriginal(op.vendedor_id || '');
     setDesconto(op.desconto || 0);
 
@@ -1117,6 +1125,38 @@ export function Funil() {
     setMostrarModal(true);
   }
 
+  async function adicionarMotivo() {
+    if (!novoMotivoNome.trim()) return;
+    try {
+      const res = await axios.post(`${API_URL}/motivos-perda`, { nome: novoMotivoNome.trim() }, getHeaders());
+      setMotivosPerda(prev => [...prev, res.data]);
+      setNovoMotivoNome('');
+    } catch (err) {
+      alert(err.response?.data?.erro || 'Erro ao adicionar motivo.');
+    }
+  }
+
+  async function salvarEdicaoMotivo(id) {
+    if (!editandoMotivoNome.trim()) return;
+    try {
+      const res = await axios.put(`${API_URL}/motivos-perda/${id}`, { nome: editandoMotivoNome.trim() }, getHeaders());
+      setMotivosPerda(prev => prev.map(m => m.id === id ? res.data : m));
+      setEditandoMotivoId(null);
+      setEditandoMotivoNome('');
+    } catch (err) {
+      alert(err.response?.data?.erro || 'Erro ao renomear motivo.');
+    }
+  }
+
+  async function excluirMotivo(id) {
+    try {
+      await axios.delete(`${API_URL}/motivos-perda/${id}`, getHeaders());
+      setMotivosPerda(prev => prev.filter(m => m.id !== id));
+    } catch (err) {
+      alert(err.response?.data?.erro || 'Erro ao excluir motivo.');
+    }
+  }
+
   async function salvarOportunidade(e) {
     e.preventDefault();
     const usaCalculoModulos = modulosSelecionados.length > 0
@@ -1131,6 +1171,10 @@ export function Funil() {
     }
     if (contatosVinculadosIds.length === 0) {
       alert('Vincule pelo menos um contato da prefeitura.');
+      return;
+    }
+    if (statusOp === 'perdido' && !motivoPerda.trim()) {
+      alert('Informe o motivo da perda para registrar como Perdido.');
       return;
     }
 
@@ -1161,6 +1205,7 @@ export function Funil() {
       observacoes,
       campanha_id: filtroCampanha,
       status: statusOp,
+      motivo_perda: statusOp === 'perdido' ? motivoPerda : null,
       vendedor_id: vendedorId || null,
       modulos_ids: modulosGravacao,
       desconto: modulosSelecionados.length > 0 ? Number(desconto) : 0,
@@ -1764,6 +1809,32 @@ export function Funil() {
                     </Select>
                   </FormGroup>
                 </FormGrid>
+
+                {statusOp === 'perdido' && (
+                  <FormGroup style={{ marginTop: '10px' }}>
+                    <label style={{ color: '#dc3545', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      🔴 Motivo da Perda *
+                      <button
+                        type="button"
+                        onClick={() => setMostrarModalMotivos(true)}
+                        style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', border: '1px solid #ccc', background: '#f8f9fa', color: '#555', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <i className="fa-solid fa-gear"></i> Gerenciar
+                      </button>
+                    </label>
+                    <Select
+                      required
+                      value={motivoPerda}
+                      onChange={(e) => setMotivoPerda(e.target.value)}
+                      style={{ border: '1px solid #f5c6cb', background: '#fff5f5' }}
+                    >
+                      <option value="">Selecione o motivo...</option>
+                      {motivosPerda.map(m => (
+                        <option key={m.id} value={m.nome}>{m.nome}</option>
+                      ))}
+                    </Select>
+                  </FormGroup>
+                )}
 
                 <SectionCard style={{ marginTop: '15px' }}>
                   <FormGrid $columns="1fr 1fr">
@@ -2687,6 +2758,71 @@ export function Funil() {
                 </ModalFooter>
               </form>
             )}
+          </ModalContent>
+        </ModalOverlay>
+      )}
+
+      {/* MODAL GERENCIAR MOTIVOS DE PERDA */}
+      {mostrarModalMotivos && (
+        <ModalOverlay style={{ zIndex: 10002 }} onClick={() => setMostrarModalMotivos(false)}>
+          <ModalContent $small onClick={e => e.stopPropagation()} style={{ maxWidth: '500px', width: '95%' }}>
+            <ModalHeader $bg="#dc3545" $color="#fff">
+              <h3 style={{ margin: 0, fontSize: '1rem' }}>
+                <i className="fa-solid fa-circle-xmark"></i> Gerenciar Motivos de Perda
+              </h3>
+              <CloseButton $color="#fff" onClick={() => setMostrarModalMotivos(false)}>&times;</CloseButton>
+            </ModalHeader>
+
+            <div style={{ maxHeight: '55vh', overflowY: 'auto', padding: '12px 16px' }}>
+              {motivosPerda.length === 0 && (
+                <p style={{ color: '#999', textAlign: 'center', padding: '20px 0' }}>Nenhum motivo cadastrado.</p>
+              )}
+              {motivosPerda.map(m => (
+                <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 0', borderBottom: '1px solid #f1f5f9' }}>
+                  {editandoMotivoId === m.id ? (
+                    <>
+                      <Input
+                        autoFocus
+                        value={editandoMotivoNome}
+                        onChange={e => setEditandoMotivoNome(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') salvarEdicaoMotivo(m.id); if (e.key === 'Escape') { setEditandoMotivoId(null); setEditandoMotivoNome(''); } }}
+                        style={{ flex: 1, padding: '5px 8px', fontSize: '0.9rem' }}
+                      />
+                      <IconButton type="button" onClick={() => salvarEdicaoMotivo(m.id)} style={{ color: '#28a745' }}>
+                        <i className="fa-solid fa-check"></i>
+                      </IconButton>
+                      <IconButton type="button" onClick={() => { setEditandoMotivoId(null); setEditandoMotivoNome(''); }} style={{ color: '#999' }}>
+                        <i className="fa-solid fa-xmark"></i>
+                      </IconButton>
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ flex: 1, fontSize: '0.9rem', color: '#333' }}>{m.nome}</span>
+                      <IconButton type="button" onClick={() => { setEditandoMotivoId(m.id); setEditandoMotivoNome(m.nome); }} style={{ color: '#007bff' }}>
+                        <i className="fa-solid fa-pen"></i>
+                      </IconButton>
+                      <IconButton type="button" className="danger" onClick={() => excluirMotivo(m.id)}>
+                        <i className="fa-solid fa-trash"></i>
+                      </IconButton>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div style={{ padding: '12px 16px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: '8px' }}>
+              <Input
+                type="text"
+                placeholder="Novo motivo..."
+                value={novoMotivoNome}
+                onChange={e => setNovoMotivoNome(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); adicionarMotivo(); } }}
+                style={{ flex: 1, fontSize: '0.9rem' }}
+              />
+              <PrimaryButton type="button" onClick={adicionarMotivo} style={{ whiteSpace: 'nowrap' }}>
+                <i className="fa-solid fa-plus"></i> Adicionar
+              </PrimaryButton>
+            </div>
           </ModalContent>
         </ModalOverlay>
       )}
