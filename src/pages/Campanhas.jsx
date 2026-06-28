@@ -39,13 +39,13 @@ export function Campanhas() {
 
   const LISTA_UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO'];
 
-  const etapasPadrao = ['CONTATO 1° E-MAIL', 'CONTATO TEL.', 'IDENTIFICAÇÃO DO INTERESSE', 'INSCRITO', 'NÃO QUER LIGAÇÃO', 'VENDA REALIZADA', 'PERDIDO'];
+  const etapasPadrao = ['CONTATO 1° E-MAIL', 'CONTATO TEL.', 'IDENTIFICAÇÃO DO INTERESSE','NÃO QUER LIGAÇÃO','PERDIDO', 'SE INSCREVEU E DESISTIU','VENDA REALIZADA'];
   const [etapas, setEtapas] = useState(etapasPadrao);
   const [novaEtapa, setNovaEtapa] = useState('');
   const [etapasFunil, setEtapasFunil] = useState([]);
   const [etapaInscricaoId, setEtapaInscricaoId] = useState('');
   const [etapaVendaId, setEtapaVendaId] = useState('');
-  const [etapaInscricaoNome, setEtapaInscricaoNome] = useState('INSCRITO');
+  const [etapaInscricaoNome, setEtapaInscricaoNome] = useState('VENDA REALIZADA');
   const [etapaVendaNome, setEtapaVendaNome] = useState('VENDA REALIZADA');
 
   const [modulos, setModulos] = useState([]);

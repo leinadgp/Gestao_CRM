@@ -11,6 +11,9 @@ import ptLocale from 'grapesjs/locale/pt';
 export function LandingPages() {
   const [paginas, setPaginas] = useState([]);
   const [campanhas, setCampanhas] = useState([]);
+  const [campanhasIds, setCampanhasIds] = useState([]);
+  const [dropdownCampanhasAberto, setDropdownCampanhasAberto] = useState(false);
+  const chipInputRef = useRef(null);
   const [carregando, setCarregando] = useState(true);
   const [buscaGeral, setBuscaGeral] = useState('');
   
@@ -390,6 +393,17 @@ export function LandingPages() {
     document.addEventListener('click', fecharMenu);
     return () => document.removeEventListener('click', fecharMenu);
   }, [menuAbertoId]);
+
+  useEffect(() => {
+    if (!dropdownCampanhasAberto) return;
+    function handleClickFora(e) {
+      if (chipInputRef.current && !chipInputRef.current.contains(e.target)) {
+        setDropdownCampanhasAberto(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickFora);
+    return () => document.removeEventListener('mousedown', handleClickFora);
+  }, [dropdownCampanhasAberto]);
 
   // === INICIALIZAÇÃO DO GRAPESJS (MODO LEIGO / BLINDADO) ===
   useEffect(() => {
@@ -1190,7 +1204,7 @@ export function LandingPages() {
   }
 
   function abrirModalNovo() {
-    setEditandoId(null); setNome(''); setSlug(''); setStatusLP('rascunho'); setCampanhaId(''); setHtmlInicial(''); setCssInicial(''); setExtraHtmlHead(''); setExtraBodyScripts(''); setHtmlAttributes(''); setBodyAttributes(''); setImportErro(''); setMostrarModal(true);
+    setEditandoId(null); setNome(''); setSlug(''); setStatusLP('rascunho'); setCampanhaId(''); setCampanhasIds([]); setHtmlInicial(''); setCssInicial(''); setExtraHtmlHead(''); setExtraBodyScripts(''); setHtmlAttributes(''); setBodyAttributes(''); setImportErro(''); setMostrarModal(true);
   }
 
   function selecionarArquivoLovable() {
@@ -1234,6 +1248,7 @@ export function LandingPages() {
         setSlug(pageSlug);
         setStatusLP('rascunho');
         setCampanhaId('');
+        setCampanhasIds([]);
         setEditandoId(null);
         setImportErro('');
         setMostrarModal(true);
@@ -1258,6 +1273,10 @@ export function LandingPages() {
       setSlug(lpCompleta.slug);
       setStatusLP(lpCompleta.status || 'rascunho');
       setCampanhaId(lpCompleta.campanha_id || '');
+      const cIds = lpCompleta.campanhas_ids
+        ? (typeof lpCompleta.campanhas_ids === 'string' ? JSON.parse(lpCompleta.campanhas_ids) : lpCompleta.campanhas_ids)
+        : (lpCompleta.campanha_id ? [Number(lpCompleta.campanha_id)] : []);
+      setCampanhasIds(Array.isArray(cIds) ? cIds.map(Number) : []);
       const htmlParaEditar = lpCompleta.html_rascunho || lpCompleta.html_content || '';
       const cssParaEditar = lpCompleta.css_rascunho || lpCompleta.css_content || '';
       const parsed = extractHtmlAssets(htmlParaEditar);
@@ -1284,7 +1303,14 @@ export function LandingPages() {
     const cssGerado = editorRef.current ? editorRef.current.getCss() : cssInicial;
     const htmlComExtras = `<!DOCTYPE html><html${htmlAttributes ? ` ${htmlAttributes}` : ''}><head>${extraHtmlHead || ''}</head><body${bodyAttributes ? ` ${bodyAttributes}` : ''}>${htmlGerado}${extraBodyScripts || ''}</body></html>`;
 
-    const payload = { nome, slug: slugFormatado, campanha_id: campanhaId || null, html_content: htmlComExtras, css_content: cssGerado };
+    const payload = {
+      nome,
+      slug: slugFormatado,
+      campanha_id: campanhasIds.length > 0 ? (campanhasIds[0] || null) : (campanhaId || null),
+      campanhas_ids: campanhasIds.length > 1 ? campanhasIds : null,
+      html_content: htmlComExtras,
+      css_content: cssGerado,
+    };
 
     try {
       if (editandoId) {
@@ -1356,6 +1382,7 @@ export function LandingPages() {
           slug: slugCandidate,
           status: 'rascunho',
           campanha_id: lpCompleta.campanha_id || null,
+          campanhas_ids: lpCompleta.campanhas_ids || null,
           html_content: lpCompleta.html_content || '',
           css_content: lpCompleta.css_content || ''
         };
@@ -1507,76 +1534,138 @@ export function LandingPages() {
       {mostrarModal && (
         <FullScreenModalOverlay>
           <FullScreenContent>
-            <BuilderHeader>
-              <div className="logo-area">
-                <i className="fa-solid fa-palette text-blue"></i>
-                <div>
-                  <h3>Editor Visual Otimizado</h3>
-                  <span className="sub">{editandoId ? 'Editando Landing Page' : 'Nova Landing Page'}</span>
-                </div>
+            {/* === BARRA DE TOPO ESCURA === */}
+            <BuilderTopBar>
+              <div className="brand">
+                <i className="fa-solid fa-palette"></i>
+                <span className="titulo">Editor Visual</span>
+                {nome && <PageTitleChip title={nome}>{nome}</PageTitleChip>}
+                <StatusPill $status={statusLP}>
+                  {statusLP === 'publicada' ? <><i className="fa-solid fa-circle-dot"></i> Publicada</> : <><i className="fa-regular fa-circle"></i> Rascunho</>}
+                </StatusPill>
               </div>
+              <div className="acoes">
+                {editandoId && (
+                  <TopBarBtn $danger title="Excluir página" type="button" onClick={() => deletarPagina(editandoId)}>
+                    <i className="fa-solid fa-trash-can"></i>
+                  </TopBarBtn>
+                )}
+                <TopBarBtn title="Editar HTML/CSS" type="button" onClick={abrirEditorHtmlBruto}>
+                  <i className="fa-solid fa-code"></i>
+                </TopBarBtn>
+                {editandoId && slug && (
+                  <TopBarBtn title="Pré-visualizar rascunho" type="button" onClick={() => window.open(`${LANDING_DOMAIN}/lp-preview/${slug}`, '_blank')}>
+                    <i className="fa-solid fa-eye"></i>
+                  </TopBarBtn>
+                )}
+                <TopBarBtn title="Fechar editor" type="button" onClick={() => setMostrarModal(false)}>
+                  <i className="fa-solid fa-xmark"></i>
+                </TopBarBtn>
+                <TopBarSaveBtn type="submit" form="lpForm" title="Salvar rascunho">
+                  <i className="fa-solid fa-save"></i> Salvar
+                </TopBarSaveBtn>
+                {editandoId && statusLP === 'publicada' && (
+                  <TopBarUnpublishBtn type="button" onClick={() => despublicarPagina(editandoId)} title="Despublicar">
+                    <i className="fa-solid fa-eye-slash"></i> Despublicar
+                  </TopBarUnpublishBtn>
+                )}
+                {editandoId && (
+                  <TopBarPublishBtn type="button" onClick={publicarPagina} disabled={publicandoLP}>
+                    {publicandoLP
+                      ? <><i className="fa-solid fa-spinner fa-spin"></i> Publicando…</>
+                      : <><i className="fa-solid fa-globe"></i> Publicar</>}
+                  </TopBarPublishBtn>
+                )}
+              </div>
+            </BuilderTopBar>
 
-              <form id="lpForm" onSubmit={salvarPagina} className="config-form">
-                <FormGroup>
+            {/* === FAIXA DE CONFIGURAÇÃO CLARA === */}
+            <BuilderConfigBar>
+              <form id="lpForm" onSubmit={salvarPagina} style={{ display: 'flex', gap: 20, alignItems: 'flex-end', flex: 1, flexWrap: 'wrap' }}>
+                <FormGroupInline style={{ flex: '2 1 200px' }}>
                   <label>Nome da Página</label>
                   <Input type="text" value={nome} onChange={(e) => setNome(e.target.value)} required placeholder="Ex: Inscrição Módulo B" />
-                </FormGroup>
-                
-                <FormGroup>
+                </FormGroupInline>
+
+                <FormGroupInline style={{ flex: '2 1 180px' }}>
                   <label>URL Amigável</label>
                   <SlugInputGroup>
                     <span className="prefix">/lp/</span>
                     <Input type="text" value={slug} onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'))} required placeholder="modulo-b" />
                   </SlugInputGroup>
-                </FormGroup>
+                </FormGroupInline>
 
-                <FormGroup>
-                  <label>Campanha do Formulário</label>
-                  <Select value={campanhaId} onChange={(e) => setCampanhaId(e.target.value)}>
-                    <option value="">-- Sem Vínculo --</option>
-                    {campanhas.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                  </Select>
-                </FormGroup>
+                <FormGroupInline style={{ flex: '3 1 260px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    Campanhas do Formulário
+                    {campanhasIds.length >= 2 && (
+                      <DescontoBadge>
+                        <i className="fa-solid fa-tag"></i>
+                        {campanhasIds.length >= 3 ? '15%' : '10%'} desconto
+                      </DescontoBadge>
+                    )}
+                  </label>
+                  <ChipInputWrapper ref={chipInputRef}>
+                    <div className="chips-area">
+                      {campanhasIds.map(id => {
+                        const c = campanhas.find(x => Number(x.id) === id);
+                        if (!c) return null;
+                        return (
+                          <CampanhaChip key={id}>
+                            <span className="chip-text" title={c.nome}>{c.nome}</span>
+                            <button
+                              type="button"
+                              onClick={() => setCampanhasIds(prev => prev.filter(x => x !== id))}
+                              title={`Remover: ${c.nome}`}
+                            >×</button>
+                          </CampanhaChip>
+                        );
+                      })}
+                      <AddCampanhaBtn
+                        type="button"
+                        onClick={() => setDropdownCampanhasAberto(v => !v)}
+                      >
+                        <i className="fa-solid fa-plus"></i> Adicionar
+                      </AddCampanhaBtn>
+                    </div>
+                    {dropdownCampanhasAberto && (
+                      <CampanhaDropdown>
+                        {campanhas.filter(c => !campanhasIds.includes(Number(c.id))).length === 0 && (
+                          <div className="vazio">Todas as campanhas já selecionadas</div>
+                        )}
+                        {campanhas
+                          .filter(c => !campanhasIds.includes(Number(c.id)))
+                          .map(c => (
+                            <div
+                              key={c.id}
+                              className="item"
+                              onMouseDown={() => {
+                                setCampanhasIds(prev => [...prev, Number(c.id)]);
+                                setDropdownCampanhasAberto(false);
+                              }}
+                            >
+                              <i className="fa-regular fa-square-check"></i> {c.nome}
+                            </div>
+                          ))}
+                      </CampanhaDropdown>
+                    )}
+                  </ChipInputWrapper>
+                  {campanhasIds.length === 0 && (
+                    <small style={{ color: '#94a3b8', fontSize: '0.78rem', marginTop: 3 }}>Nenhuma campanha — formulário sem vínculo</small>
+                  )}
+                </FormGroupInline>
 
                 {!editandoId && (
-                  <FormGroup>
+                  <FormGroupInline style={{ flex: '1 1 130px' }}>
                     <label>Status Inicial</label>
                     <Select value={statusLP} onChange={(e) => setStatusLP(e.target.value)}>
                       <option value="rascunho">Rascunho</option>
                       <option value="publicada">Publicada</option>
                     </Select>
-                  </FormGroup>
+                  </FormGroupInline>
                 )}
               </form>
-
-              <div className="actions">
-                {editandoId && (
-                  <DangerButton type="button" onClick={() => deletarPagina(editandoId)} title="Excluir">
-                    <i className="fa-solid fa-trash-can"></i>
-                  </DangerButton>
-                )}
-                <SecondaryButton type="button" onClick={abrirEditorHtmlBruto} title="Editar HTML/CSS">
-                  <i className="fa-solid fa-code"></i> Editar HTML
-                </SecondaryButton>
-                {editandoId && slug && (
-                  <SecondaryButton type="button" onClick={() => window.open(`${LANDING_DOMAIN}/lp-preview/${slug}`, '_blank')} title="Pré-visualizar rascunho">
-                    <i className="fa-solid fa-eye"></i> Pré-visualizar
-                  </SecondaryButton>
-                )}
-                <SecondaryButton type="button" onClick={() => setMostrarModal(false)}>Cancelar</SecondaryButton>
-                <PrimaryButton type="submit" form="lpForm"><i className="fa-solid fa-save"></i> Salvar Rascunho</PrimaryButton>
-                {editandoId && statusLP === 'publicada' && (
-                  <UnpublishButton type="button" onClick={() => despublicarPagina(editandoId)}>
-                    <i className="fa-solid fa-eye-slash"></i> Despublicar
-                  </UnpublishButton>
-                )}
-                {editandoId && (
-                  <PublishButton type="button" onClick={publicarPagina} disabled={publicandoLP}>
-                    {publicandoLP ? <><i className="fa-solid fa-spinner fa-spin"></i> Publicando...</> : <><i className="fa-solid fa-globe"></i> Publicar</>}
-                  </PublishButton>
-                )}
-              </div>
-            </BuilderHeader>
+            </BuilderConfigBar>
 
             {/* Container do GrapesJS */}
             <div id="gjs" style={{ flex: 1, overflow: 'hidden' }}></div>
@@ -1754,25 +1843,234 @@ const FullScreenContent = styled.div`
   width: 100%; height: 100%; background: #ffffff; display: flex; flex-direction: column; overflow: hidden;
 `;
 
-const BuilderHeader = styled.div`
-  background: #ffffff; border-bottom: 1px solid #e2e8f0; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); z-index: 100; flex-wrap: wrap; gap: 15px;
+/* === BARRA ESCURA DO EDITOR === */
+const BuilderTopBar = styled.div`
+  background: #0f172a;
+  border-bottom: 1px solid #1e293b;
+  padding: 0 20px;
+  height: 52px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  z-index: 200;
 
-  .logo-area {
-    display: flex; align-items: center; gap: 15px;
-    i { font-size: 2rem; } .text-blue { color: #007bff; }
-    h3 { margin: 0; font-size: 1.1rem; color: #2c3e50; }
-    .sub { font-size: 0.8rem; color: #94a3b8; font-weight: 600;}
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    i { color: #60a5fa; font-size: 1.1rem; flex-shrink: 0; }
+    .titulo { color: #94a3b8; font-size: 0.82rem; font-weight: 600; letter-spacing: 0.03em; white-space: nowrap; flex-shrink: 0; }
   }
 
-  .config-form {
-    display: flex; gap: 20px; align-items: flex-end; flex: 1; max-width: 800px; margin: 0 30px;
-    @media (max-width: 900px) { flex-direction: column; align-items: stretch; margin: 0; max-width: 100%; width: 100%; gap: 10px; }
+  .acoes {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-shrink: 0;
   }
+`;
 
-  .actions { 
-    display: flex; gap: 10px; align-items: center; 
-    @media (max-width: 600px) { width: 100%; button { flex: 1; justify-content: center;} }
+const PageTitleChip = styled.span`
+  background: #1e293b;
+  color: #e2e8f0;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const StatusPill = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  ${({ $status }) => $status === 'publicada'
+    ? 'background: rgba(34,197,94,0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.3);'
+    : 'background: rgba(148,163,184,0.1); color: #94a3b8; border: 1px solid rgba(148,163,184,0.2);'}
+`;
+
+const TopBarBtn = styled.button`
+  background: ${({ $danger }) => $danger ? 'rgba(239,68,68,0.1)' : 'rgba(255,255,255,0.06)'};
+  color: ${({ $danger }) => $danger ? '#f87171' : '#94a3b8'};
+  border: 1px solid ${({ $danger }) => $danger ? 'rgba(239,68,68,0.25)' : 'rgba(255,255,255,0.1)'};
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: background 0.15s, color 0.15s;
+  &:hover { background: rgba(255,255,255,0.12); color: #f1f5f9; }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+`;
+
+const TopBarSaveBtn = styled(TopBarBtn)`
+  background: rgba(59,130,246,0.15);
+  color: #93c5fd;
+  border-color: rgba(59,130,246,0.3);
+  font-weight: 600;
+  &:hover { background: rgba(59,130,246,0.25); color: #bfdbfe; }
+`;
+
+const TopBarUnpublishBtn = styled(TopBarBtn)`
+  background: rgba(245,158,11,0.1);
+  color: #fbbf24;
+  border-color: rgba(245,158,11,0.25);
+  font-weight: 600;
+  &:hover { background: rgba(245,158,11,0.2); color: #fde68a; }
+`;
+
+const TopBarPublishBtn = styled(TopBarBtn)`
+  background: rgba(34,197,94,0.15);
+  color: #4ade80;
+  border-color: rgba(34,197,94,0.3);
+  font-weight: 700;
+  padding: 6px 14px;
+  &:hover { background: rgba(34,197,94,0.25); color: #86efac; }
+`;
+
+/* === FAIXA DE CONFIGURAÇÃO CLARA === */
+const BuilderConfigBar = styled.div`
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 10px 24px 12px;
+  flex-shrink: 0;
+  z-index: 100;
+`;
+
+const FormGroupInline = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 0;
+  label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
   }
+`;
+
+/* === SELETOR DE CAMPANHAS COM CHIPS === */
+const ChipInputWrapper = styled.div`
+  position: relative;
+  .chips-area {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    min-height: 36px;
+    padding: 5px 8px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #fff;
+    cursor: text;
+    transition: border-color 0.15s;
+    &:focus-within { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+  }
+`;
+
+const CampanhaChip = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+  border-radius: 20px;
+  padding: 2px 8px 2px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  max-width: 220px;
+  min-width: 0;
+  .chip-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  button {
+    background: none;
+    border: none;
+    color: #3b82f6;
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+    padding: 0 0 0 2px;
+    flex-shrink: 0;
+    &:hover { color: #dc2626; }
+  }
+`;
+
+const AddCampanhaBtn = styled.button`
+  background: none;
+  border: 1px dashed #94a3b8;
+  border-radius: 20px;
+  color: #64748b;
+  font-size: 0.78rem;
+  padding: 2px 10px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s;
+  &:hover { border-color: #2563eb; color: #2563eb; }
+`;
+
+const CampanhaDropdown = styled.div`
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  z-index: 500;
+  max-height: 220px;
+  overflow-y: auto;
+  .item {
+    padding: 9px 14px;
+    font-size: 0.85rem;
+    color: #334155;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid #f1f5f9;
+    &:last-child { border-bottom: none; }
+    &:hover { background: #eff6ff; color: #1e40af; }
+    i { color: #93c5fd; }
+  }
+  .vazio { padding: 12px 14px; color: #94a3b8; font-size: 0.83rem; font-style: italic; }
+`;
+
+const DescontoBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #dcfce7;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+  border-radius: 20px;
+  padding: 1px 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
 `;
 
 const FormGroup = styled.div`
