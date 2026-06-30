@@ -493,7 +493,6 @@ export function LandingPages() {
 
       // Eventos de blindagem
       editor.on('load', () => {
-        // Mantém a visualização desktop/tablet/mobile ativa para ajustes responsivos
         editor.Panels.removeButton('views', 'open-layers');
         editor.Panels.getButton('views', 'open-blocks').set('active', true);
 
@@ -504,27 +503,18 @@ export function LandingPages() {
         allowAnchorScrollInCanvas(editor);
         scanIdsFromCanvas(editor);
 
-        // Traduz blocos nativos do GrapesJS para português
-        const traducoesBlocos = {
-          'text': '<i class="fa fa-font fa-2x"></i><br/>Texto',
-          'link': '<i class="fa fa-link fa-2x"></i><br/>Link',
-          'image': '<i class="fa fa-image fa-2x"></i><br/>Imagem',
-          'video': '<i class="fa fa-film fa-2x"></i><br/>Vídeo',
-          'map': '<i class="fa fa-map-marker fa-2x"></i><br/>Mapa',
-          'column1': '<i class="fa fa-square fa-2x"></i><br/>1 Coluna',
-          'column2': '<i class="fa fa-columns fa-2x"></i><br/>2 Colunas',
-          'column3': '<i class="fa fa-columns fa-2x"></i><br/>3 Colunas',
-          'column3-7': '<i class="fa fa-columns fa-2x"></i><br/>Colunas 30/70',
-          'text-basic': '<i class="fa fa-align-left fa-2x"></i><br/>Texto Simples',
-          'quote': '<i class="fa fa-quote-left fa-2x"></i><br/>Citação',
-          'link-block': '<i class="fa fa-hand-pointer fa-2x"></i><br/>Bloco Clicável',
-          'grid-items': '<i class="fa fa-th fa-2x"></i><br/>Grade de Cards',
-          'list-items': '<i class="fa fa-list fa-2x"></i><br/>Lista de Itens',
-        };
-        Object.entries(traducoesBlocos).forEach(([id, label]) => {
-          const block = editor.BlockManager.get(id);
-          if (block) block.set('label', label);
+        // Remove blocos nativos desnecessários
+        ['text','link','image','video','map',
+         'column1','column2','column3','column3-7',
+         'quote','grid-items','list-items'].forEach(id => {
+          if (editor.BlockManager.get(id)) editor.BlockManager.remove(id);
         });
+
+        // Renomeia apenas os dois blocos nativos mantidos
+        const blk = editor.BlockManager.get('text-basic');
+        if (blk) blk.set({ label: '<i class="fa fa-align-left fa-2x"></i><br/>Texto', category: 'Elementos' });
+        const lnk = editor.BlockManager.get('link-block');
+        if (lnk) lnk.set({ label: '<i class="fa fa-hand-pointer fa-2x"></i><br/>Bloco Link', category: 'Elementos' });
       });
 
       // Abertura automática da galeria ao clicar numa imagem;
@@ -553,56 +543,11 @@ export function LandingPages() {
       editor.on('component:add', () => scanIdsFromCanvas(editor));
       editor.on('component:remove', () => scanIdsFromCanvas(editor));
 
-      // BLOCO 1: CAPA AUTORIDADE
-      editor.BlockManager.add('autoridade-hero', {
-        label: '<i class="fa-solid fa-crown fa-2x"></i><br/>Capa Autoridade',
-        category: 'Estilo Premium',
-        content: `
-          <section style="background: linear-gradient(rgba(11, 25, 44, 0.85), rgba(11, 25, 44, 0.85)), url('https://images.unsplash.com/photo-1589829085413-56de8ae18c73?q=80&w=2000&auto=format&fit=crop') center/cover; padding: 120px 20px; color: #fff; font-family: Arial, sans-serif;">
-            <div style="max-width: 1200px; margin: 0 auto; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 40px;">
-              <div style="flex: 1; min-width: 300px; max-width: 700px;">
-                <h1 style="font-size: 46px; font-weight: 800; margin-bottom: 20px; line-height: 1.1;">Título do Programa Aqui</h1>
-                <p style="font-size: 20px; line-height: 1.6; margin-bottom: 40px; color: #cbd5e1;">Escreva o subtítulo persuasivo do seu serviço ou curso.</p>
-                <div style="display: flex; gap: 20px; flex-wrap: wrap;">
-                  <a href="#form-inscricao" style="background: #fbbf24; color: #000; padding: 18px 35px; border-radius: 6px; font-weight: bold; text-decoration: none; font-size: 18px;">Quero garantir minha vaga!</a>
-                </div>
-              </div>
-              <div style="flex: 1; min-width: 300px; text-align: center;">
-                 <img src="https://via.placeholder.com/400x150?text=Sua+Logo+Aqui" style="max-width: 100%; border-radius: 10px;" alt="Logo da Empresa" />
-                 <p style="margin-top: 15px; color: #94a3b8; font-size: 14px;">(Clique 2x para trocar a logo)</p>
-              </div>
-            </div>
-          </section>
-        `
-      });
-
-      // BLOCO 2: DORES/SOLUÇÕES
-      editor.BlockManager.add('rd-benefits', {
-        label: '<i class="fa-solid fa-triangle-exclamation fa-2x"></i><br/>Dores/Soluções',
-        category: 'Estilo Premium',
-        content: `
-          <section id="sobre" style="padding: 80px 20px; background-color: #ffffff; font-family: Arial, sans-serif;">
-            <div style="max-width: 1000px; margin: 0 auto;">
-              <h2 style="text-align: center; color: #0f172a; margin-bottom: 50px; font-size: 32px;">Você enfrenta esses desafios?</h2>
-              <div style="display: flex; gap: 30px; justify-content: center; flex-wrap: wrap;">
-                <div style="flex: 1; min-width: 280px; background: #fff5f5; padding: 40px 30px; border-radius: 8px; border-top: 4px solid #dc3545; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
-                  <h3 style="color: #dc3545; margin-top: 0; font-size: 20px;">Problema 1</h3>
-                  <p style="color: #475569; font-size: 16px; line-height: 1.5;">Descreva a dor principal do seu cliente aqui.</p>
-                </div>
-                <div style="flex: 1; min-width: 280px; background: #f0f7ff; padding: 40px 30px; border-radius: 8px; border-top: 4px solid #007bff; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
-                  <h3 style="color: #007bff; margin-top: 0; font-size: 20px;">A Solução</h3>
-                  <p style="color: #475569; font-size: 16px; line-height: 1.5;">Aprenda o passo a passo prático para resolver.</p>
-                </div>
-              </div>
-            </div>
-          </section>
-        `,
-      });
-
-      // BLOCO 3: FORMULÁRIO DE INSCRIÇÃO
+      // ── BLOCOS: ELEMENTOS ────────────────────────────────────────────────────
+      // FORMULÁRIO DE INSCRIÇÃO
       editor.BlockManager.add('rd-form', {
         label: '<i class="fa-solid fa-address-card fa-2x"></i><br/>Form. Inscrição',
-        category: 'Estilo Premium',
+        category: 'Elementos',
         content: `
           <section id="inscricao" style="padding: 80px 20px; background-color: #ffffff; font-family: Arial, sans-serif;">
             <div style="max-width: 1100px; margin: 0 auto;">
@@ -718,12 +663,8 @@ export function LandingPages() {
         `,
       });
 
-      // BLOCO 4: TEMPLATE COMPLETO (TAILWIND)
-      editor.BlockManager.add('template-completo', {
-        label: '<i class="fa-solid fa-layer-group fa-2x"></i><br/>Template Completo',
-        category: 'Páginas Prontas',
-        content: `
-          <script>
+      // [template-completo REMOVIDO]
+      if (false) { const _x = `<script>
             tailwind.config = {
               theme: {
                 extend: {
@@ -881,8 +822,7 @@ export function LandingPages() {
                   </div>
               </section>
           </main>
-        `,
-      });
+      `; }
 
       // BLOCO: LOGO / IMAGEM
       editor.BlockManager.add('bloco-logo-imagem', {
@@ -898,8 +838,58 @@ export function LandingPages() {
         }
       });
 
-      // BLOCO: SEÇÃO DE BENEFÍCIOS
-      editor.BlockManager.add('secao-beneficios', {
+      // ── BLOCO: RODAPÉ ────────────────────────────────────────────────────────
+      editor.BlockManager.add('rodape-attenti', {
+        label: '<i class="fa-solid fa-shoe-prints fa-2x"></i><br/>Rodapé',
+        category: 'Elementos',
+        content: `<footer style="background:#0d1b35;padding:48px 20px 0;font-family:Arial,sans-serif;"><div style="max-width:1200px;margin:0 auto;"><div style="display:flex;flex-wrap:wrap;gap:48px;align-items:flex-start;justify-content:space-between;padding-bottom:40px;"><div style="flex:0 0 auto;"><img src="https://drive.google.com/uc?export=view&id=1q9UyvePIn8m49JGGZspHmruNu9y81Z_y" alt="Gestão — Inteligência em Administração Pública" style="max-width:200px;height:auto;display:block;" /></div><div style="flex:1;min-width:200px;"><p style="margin:0 0 16px;font-weight:700;font-size:1rem;color:#f8fafc;">Contato</p><p style="margin:0 0 10px;color:#cbd5e1;font-size:0.92rem;display:flex;align-items:center;gap:10px;"><i class="fa-solid fa-phone" style="color:#F59E0B;"></i> (51) 3541-3355</p><p style="margin:0 0 10px;color:#cbd5e1;font-size:0.92rem;display:flex;align-items:center;gap:10px;"><i class="fa-solid fa-phone" style="color:#F59E0B;"></i> (51) 98443-2097</p><p style="margin:0;color:#cbd5e1;font-size:0.92rem;display:flex;align-items:center;gap:10px;"><i class="fa-solid fa-envelope" style="color:#F59E0B;"></i> gestao@gestao.srv.br</p></div><div style="flex:1;min-width:220px;"><p style="margin:0 0 16px;font-weight:700;font-size:1rem;color:#f8fafc;">Endereço</p><p style="margin:0 0 6px;color:#cbd5e1;font-size:0.92rem;">Gestão A+ Desenvolvimento Ltda — ME</p><p style="margin:0 0 6px;color:#cbd5e1;font-size:0.92rem;">CNPJ: 18.693.117/0001-63</p><p style="margin:0;color:#cbd5e1;font-size:0.92rem;">R. João Bayer, 744 · Petrópolis · Taquara/RS</p></div></div><div style="border-top:1px solid rgba(248,250,252,0.1);padding:20px 0;"><p style="text-align:center;color:#64748b;font-size:0.82rem;margin:0;">© 2026 Gestão — Inteligência em Administração Pública. Todos os direitos reservados.</p></div></div></footer>`
+      });
+
+      // ── BLOCOS: ESTRUTURA ────────────────────────────────────────────────────
+      editor.BlockManager.add('struct-section', {
+        label: '<i class="fa-solid fa-table-cells-large fa-2x"></i><br/>Seção',
+        category: 'Estrutura',
+        content: '<section style="padding:60px 20px;min-height:80px;"></section>'
+      });
+      editor.BlockManager.add('struct-div', {
+        label: '<i class="fa-solid fa-square-dashed fa-2x"></i><br/>Div',
+        category: 'Estrutura',
+        content: '<div style="padding:20px;min-height:40px;"></div>'
+      });
+      editor.BlockManager.add('struct-button', {
+        label: '<i class="fa-solid fa-computer-mouse fa-2x"></i><br/>Botão',
+        category: 'Estrutura',
+        content: '<a href="#" style="display:inline-block;padding:14px 32px;background:#F59E0B;color:#0B192C;border-radius:8px;font-weight:700;text-decoration:none;font-size:1rem;">Clique aqui</a>'
+      });
+      editor.BlockManager.add('struct-linha', {
+        label: '<i class="fa-solid fa-minus fa-2x"></i><br/>Linha',
+        category: 'Estrutura',
+        content: '<hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;" />'
+      });
+      editor.BlockManager.add('struct-colunas', {
+        label: '<i class="fa-solid fa-table-columns fa-2x"></i><br/>Colunas',
+        category: 'Estrutura',
+        content: '<div style="display:flex;gap:20px;flex-wrap:wrap;"><div style="flex:1;min-width:200px;padding:16px;min-height:60px;"></div><div style="flex:1;min-width:200px;padding:16px;min-height:60px;"></div></div>'
+      });
+      editor.BlockManager.add('struct-caixa', {
+        label: '<i class="fa-solid fa-box fa-2x"></i><br/>Caixa',
+        category: 'Estrutura',
+        content: '<div style="padding:24px;border-radius:12px;border:1px solid #e2e8f0;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,0.06);min-height:60px;"></div>'
+      });
+      editor.BlockManager.add('struct-nav', {
+        label: '<i class="fa-solid fa-bars fa-2x"></i><br/>Menu Nav',
+        category: 'Estrutura',
+        content: '<nav style="display:flex;align-items:center;gap:24px;padding:16px 24px;background:#fff;border-bottom:1px solid #e2e8f0;"><a href="#" style="color:#0B192C;text-decoration:none;font-weight:600;">Link 1</a><a href="#" style="color:#0B192C;text-decoration:none;font-weight:600;">Link 2</a><a href="#" style="color:#0B192C;text-decoration:none;font-weight:600;">Link 3</a></nav>'
+      });
+      editor.BlockManager.add('struct-html', {
+        label: '<i class="fa-solid fa-code fa-2x"></i><br/>HTML',
+        category: 'Estrutura',
+        content: '<div><!-- Cole seu HTML aqui --></div>'
+      });
+
+      // BLOCOS ANTIGOS (secao-beneficios → template-generico) — REMOVIDOS
+      if (false) { // eslint-disable-next-line no-unreachable
+      editor.BlockManager.add('_REMOVED_secao-beneficios', {
         label: '<i class="fa-solid fa-star fa-2x"></i><br/>Seção Benefícios',
         category: 'Seções',
         content: `
@@ -1157,13 +1147,13 @@ export function LandingPages() {
             </div>
           </section>
         `
-      });
+      }); } // fim if(false) blocos removidos
 
       if (htmlInicial) {
         editor.setComponents(htmlInicial);
         if (cssInicial) editor.setStyle(cssInicial);
       } else {
-        editor.setComponents('<div style="padding: 50px; text-align: center; font-family: sans-serif; color: #999;"><h1>Seu Editor de Páginas Profissional</h1><p>Arraste os blocos do menu lateral para montar sua página. Use o <strong>Template Genérico</strong> para começar rapidamente!</p></div>');
+        editor.setComponents('<div style="padding: 50px; text-align: center; font-family: sans-serif; color: #999;"><h1>Seu Editor de Páginas</h1><p>Arraste os blocos do menu lateral para montar sua página.</p></div>');
       }
     }
 
