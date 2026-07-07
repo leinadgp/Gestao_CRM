@@ -119,6 +119,17 @@ export function Funil() {
   const [editandoNotaId, setEditandoNotaId] = useState(null);
   const [textoNotaEditada, setTextoNotaEditada] = useState('');
 
+  // --- HISTÓRICO DA PREFEITURA (empresa-level) ---
+  const [historicoEmpresa, setHistoricoEmpresa] = useState([]);
+  const [observacoesEmpresa, setObservacoesEmpresa] = useState('');
+  const [carregandoHistorico, setCarregandoHistorico] = useState(false);
+  const [historicoOpSelecionada, setHistoricoOpSelecionada] = useState(null);
+  const [notasHistorico, setNotasHistorico] = useState([]);
+
+  // --- ÚLTIMA INTERAÇÃO ---
+  const [ultimaInteracao, setUltimaInteracao] = useState(null);
+  const [salvandoInteracao, setSalvandoInteracao] = useState(false);
+
   // --- ESTADOS DE TAREFAS ---
   const [tarefasPorOp, setTarefasPorOp] = useState({});
 
@@ -654,6 +665,36 @@ export function Funil() {
     } catch (e) { console.error('Erro ao buscar notas', e); }
   }
 
+  async function salvarObservacoesEmpresa() {
+    if (!empresaId) return;
+    try {
+      await axios.patch(`${API_URL}/empresas/${empresaId}/observacoes`, { observacoes: observacoesEmpresa }, getHeaders());
+    } catch (e) { console.error('Erro ao salvar observações da empresa', e); }
+  }
+
+  async function carregarHistoricoEmpresa(empresaId, opAtualId) {
+    setCarregandoHistorico(true);
+    setHistoricoEmpresa([]);
+    setObservacoesEmpresa('');
+    try {
+      const res = await axios.get(`${API_URL}/empresas/${empresaId}/detalhes`, getHeaders());
+      const outras = (res.data.oportunidades || []).filter(o => o.id !== opAtualId);
+      setHistoricoEmpresa(outras);
+      setObservacoesEmpresa(res.data.empresa?.observacoes || '');
+    } catch (e) { console.error('Erro ao carregar histórico da empresa', e); }
+    finally { setCarregandoHistorico(false); }
+  }
+
+  async function verNotasHistorico(op) {
+    if (historicoOpSelecionada === op.id) { setHistoricoOpSelecionada(null); setNotasHistorico([]); return; }
+    setHistoricoOpSelecionada(op.id);
+    setNotasHistorico([]);
+    try {
+      const res = await axios.get(`${API_URL}/oportunidades/${op.id}/notas`, getHeaders());
+      setNotasHistorico(res.data);
+    } catch (e) { console.error('Erro ao buscar notas do histórico', e); }
+  }
+
   async function adicionarNota() {
     if (!novaNota.trim() || !editandoId) return;
     try {
@@ -1121,8 +1162,27 @@ export function Funil() {
     setModulosSelecionados(mods);
 
     setBuscaEmpresaNoModal(op.empresa_nome || ''); setBuscaContatoNoModal(op.contato_nome || '');
+    setUltimaInteracao(op.ultima_interacao || null);
     setNotas([]); cancelarEdicaoNota(); carregarNotas(op.id);
+    setHistoricoEmpresa([]); setNotasHistorico([]); setHistoricoOpSelecionada(null); setObservacoesEmpresa('');
+    if (op.empresa_id) carregarHistoricoEmpresa(op.empresa_id, op.id);
     setMostrarModal(true);
+  }
+
+  async function registrarInteracao() {
+    if (!editandoId) return;
+    setSalvandoInteracao(true);
+    try {
+      const res = await axios.patch(`${API_URL}/oportunidades/${editandoId}/interacao`, {}, getHeaders());
+      setUltimaInteracao(res.data.ultima_interacao);
+      setOportunidades(prev => prev.map(o =>
+        o.id === editandoId ? { ...o, ultima_interacao: res.data.ultima_interacao } : o
+      ));
+    } catch (e) {
+      console.error('Erro ao registrar interação', e);
+    } finally {
+      setSalvandoInteracao(false);
+    }
   }
 
   async function adicionarMotivo() {
@@ -1224,6 +1284,9 @@ export function Funil() {
       } else {
         await axios.post(`${API_URL}/oportunidades`, dados, getHeaders());
       }
+      if (empresaId) {
+        await axios.patch(`${API_URL}/empresas/${empresaId}/observacoes`, { observacoes: observacoesEmpresa }, getHeaders());
+      }
       fecharModalPrincipal();
     } catch (erro) {
       alert(erro.response?.data?.erro || 'Erro ao salvar oportunidade.');
@@ -1252,6 +1315,19 @@ export function Funil() {
     const data = new Date(value);
     if (Number.isNaN(data.getTime())) return value;
     return data.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  };
+  const formatarDataHora = (iso) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
+    const hoje = new Date();
+    const ontem = new Date(hoje); ontem.setDate(ontem.getDate() - 1);
+    const dLocal = d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+    const hojeLocal = hoje.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+    const ontemLocal = ontem.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+    if (dLocal === hojeLocal) return `Hoje às ${hora}`;
+    if (dLocal === ontemLocal) return `Ontem às ${hora}`;
+    return `${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' })} às ${hora}`;
   };
   const calcularDiasRestantes = (value) => {
     if (!value) return null;
@@ -1636,6 +1712,12 @@ export function Funil() {
                             {op.diasNaEtapa} {op.diasNaEtapa >= 14 ? 'dias parado' : 'dias'}
                           </RottingBadge>
                         )}
+                        {op.ultima_interacao && (
+                          <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <i className="fa-solid fa-phone" style={{ color: '#94a3b8', fontSize: '0.65rem' }}></i>
+                            {formatarDataHora(op.ultima_interacao)}
+                          </div>
+                        )}
                       </KanbanCard>
                     );
                   })}
@@ -1836,6 +1918,23 @@ export function Funil() {
                   </FormGroup>
                 )}
 
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '14px 0 4px' }}>
+                  <button
+                    type="button"
+                    onClick={registrarInteracao}
+                    disabled={salvandoInteracao}
+                    style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 16px', borderRadius: 8, border: '1px solid #3b82f6', background: salvandoInteracao ? '#e0eaff' : '#eff6ff', color: '#1d4ed8', fontWeight: 600, fontSize: '0.85rem', cursor: salvandoInteracao ? 'not-allowed' : 'pointer' }}
+                  >
+                    <i className="fa-solid fa-phone"></i>
+                    {salvandoInteracao ? 'Salvando...' : 'Registrar Contato Agora'}
+                  </button>
+                  {ultimaInteracao && (
+                    <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                      Último: <strong>{formatarDataHora(ultimaInteracao)}</strong>
+                    </span>
+                  )}
+                </div>
+
                 <SectionCard style={{ marginTop: '15px' }}>
                   <FormGrid $columns="1fr 1fr">
                     <FormGroup>
@@ -1900,14 +1999,17 @@ export function Funil() {
                     </FormGroup>
 
                     <FormGroup className="span-2">
-                      <label><i className="fa-solid fa-pen-to-square" style={{ color: '#f59e0b' }}></i> Observações</label>
+                      <label><i className="fa-solid fa-note-sticky" style={{ color: '#d97706' }}></i> Observações da Prefeitura <span style={{ fontSize: '0.75rem', fontWeight: 400, color: '#92400e' }}>(visível em todas as negociações desta prefeitura)</span></label>
                       <TextArea
-                        value={observacoes}
-                        onChange={(e) => setObservacoes(e.target.value)}
+                        value={observacoesEmpresa}
+                        onChange={(e) => setObservacoesEmpresa(e.target.value)}
+                        onBlur={() => { if (empresaId) salvarObservacoesEmpresa(); }}
                         rows="3"
                         placeholder="Resultado do contato, próximos passos, pendências..."
-                        style={{ resize: 'vertical', minHeight: 72, background: '#fffbeb', borderColor: '#fcd34d' }}
+                        disabled={!empresaId}
+                        style={{ resize: 'vertical', minHeight: 72, background: '#fffbeb', borderColor: '#fcd34d', opacity: empresaId ? 1 : 0.5 }}
                       />
+                      {!empresaId && <small style={{ color: '#94a3b8' }}>Vincule uma prefeitura para habilitar este campo.</small>}
                     </FormGroup>
 
                     <FormGroup className="span-2">
@@ -2284,6 +2386,58 @@ export function Funil() {
                       />
                     </SectionCard>
                   )}
+
+                  <SectionCard $bgColor="#f8fafc" $borderColor="#e2e8f0">
+                    <label style={{ display: 'block', marginBottom: '12px', color: '#475569', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                      <i className="fa-solid fa-clock-rotate-left" style={{ color: '#6f42c1' }}></i> Histórico de Negociações da Prefeitura
+                    </label>
+                    {carregandoHistorico ? (
+                      <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>Carregando histórico...</div>
+                    ) : historicoEmpresa.length === 0 ? (
+                      <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>Nenhuma negociação anterior registrada para esta prefeitura.</div>
+                    ) : (
+                      historicoEmpresa.map(op => {
+                        const statusMap = { ganho: ['#28a745','Vendido'], perdido: ['#dc3545','Perdido'], interessada: ['#28a745','Interessada'], inscricao: ['#195326','Inscrição'], avaliar: ['#2e8b57','Avaliar'] };
+                        const [cor, label] = statusMap[op.status] || ['#64748b','Em Aberto'];
+                        const aberta = historicoOpSelecionada === op.id;
+                        return (
+                          <div key={op.id} style={{ border: '1px solid #e2e8f0', borderRadius: '10px', marginBottom: '8px', overflow: 'hidden' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: '#fff', cursor: 'pointer' }} onClick={() => verNotasHistorico(op)}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontWeight: 600, fontSize: '0.88rem', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {op.titulo} <span style={{ background: cor + '20', color: cor, borderRadius: '6px', padding: '2px 8px', fontSize: '0.75rem', fontWeight: 700 }}>{label}</span>
+                                </div>
+                                <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '4px' }}>
+                                  <span><i className="fa-solid fa-graduation-cap" style={{ marginRight: '4px' }}></i>{op.campanha_nome || '-'}</span>
+                                  <span style={{ margin: '0 8px' }}>·</span>
+                                  <span><i className="fa-solid fa-user-tie" style={{ marginRight: '4px' }}></i>{op.vendedor_nome || '-'}</span>
+                                </div>
+                              </div>
+                              <button type="button" style={{ background: aberta ? '#6f42c1' : '#ede9fe', color: aberta ? '#fff' : '#6f42c1', border: 'none', borderRadius: '8px', padding: '6px 12px', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', marginLeft: '12px' }}>
+                                <i className={`fa-solid fa-${aberta ? 'chevron-up' : 'eye'}`}></i> {aberta ? 'Fechar' : 'Ver Notas'}
+                              </button>
+                            </div>
+                            {aberta && (
+                              <div style={{ borderTop: '1px solid #e2e8f0', padding: '12px 14px', background: '#f8fafc' }}>
+                                {notasHistorico.length === 0 ? (
+                                  <div style={{ color: '#94a3b8', fontSize: '0.82rem' }}>Nenhuma nota nesta negociação.</div>
+                                ) : (
+                                  notasHistorico.map(n => (
+                                    <div key={n.id} style={{ marginBottom: '10px', paddingBottom: '10px', borderBottom: '1px solid #e2e8f0' }}>
+                                      <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '4px' }}>
+                                        <strong>{n.usuario_nome}</strong> · {new Date(n.criado_em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+                                      </div>
+                                      <div style={{ fontSize: '0.85rem', color: '#1e293b', whiteSpace: 'pre-wrap' }}>{n.nota}</div>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </SectionCard>
                 </FormGrid>
               </ModalBody>
 

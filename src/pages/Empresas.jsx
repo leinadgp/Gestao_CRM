@@ -61,6 +61,7 @@ export function Empresas() {
   const [estrelas, setEstrelas] = useState(0);
   const [listaCargos, setListaCargos] = useState([]);
   const [classificacoesPorCargo, setClassificacoesPorCargo] = useState([]);
+  const [observacoes, setObservacoes] = useState('');
 
   // === CONTROLE DO SUB-MODAL DE CONTATO RÁPIDO ===
   const [mostrarModalContato, setMostrarModalContato] = useState(false);
@@ -199,6 +200,7 @@ export function Empresas() {
     try {
       const resposta = await axios.get(`${API_URL}/empresas/${id}/detalhes`, getHeaders());
       setDetalhesEmpresa(resposta.data);
+      setObservacoes(resposta.data.empresa?.observacoes || '');
     } catch (erro) {
       alert('Erro ao carregar os detalhes desta prefeitura.');
     } finally {
@@ -211,7 +213,7 @@ export function Empresas() {
     setEditandoId(null);
     setNome(''); setEstado(''); setCidade(''); setTelefones(''); setHorarioFuncionamento('');
     setClassificacao('nao_assessorada'); setEstrelas(0);
-    setClassificacoesPorCargo([]);
+    setClassificacoesPorCargo([]); setObservacoes('');
     setDetalhesEmpresa(null);
     setModoEdicaoEmpresa(true);
     setMostrarModalEmpresa(true);
@@ -227,8 +229,9 @@ export function Empresas() {
     setClassificacao(emp.classificacao || 'nao_assessorada');
     setEstrelas(emp.estrelas !== undefined ? emp.estrelas : 0);
     setClassificacoesPorCargo(normalizarClassificacoesPorCargo(emp.classificacoes_por_cargo_json));
-    
-    setModoEdicaoEmpresa(false); 
+    setObservacoes(emp.observacoes || '');
+
+    setModoEdicaoEmpresa(false);
     setMostrarModalEmpresa(true);
     
     recarregarVisao360(emp.id);
@@ -295,6 +298,7 @@ export function Empresas() {
       classificacao,
       estrelas,
       classificacoes_por_cargo_json: classificacoesPorCargo.filter((c) => c.cargo),
+      observacoes: observacoes || null,
     };
     try {
       if (editandoId) {
@@ -729,6 +733,13 @@ export function Empresas() {
                         </InfoCard>
                       </ProfileGrid>
 
+                      {detalhesEmpresa.empresa?.observacoes && (
+                        <HistorySection style={{ background: '#fffbeb', border: '1px solid #fcd34d', marginBottom: '16px' }}>
+                          <h4><i className="fa-solid fa-note-sticky" style={{ color: '#d97706' }}></i> Observações da Prefeitura</h4>
+                          <p style={{ color: '#92400e', margin: '8px 0 0', whiteSpace: 'pre-wrap', lineHeight: 1.6, fontSize: '0.9rem' }}>{detalhesEmpresa.empresa.observacoes}</p>
+                        </HistorySection>
+                      )}
+
                       <HistorySection>
                         <h4><i className="fa-solid fa-clock-rotate-left text-purple"></i> Histórico de Negociações</h4>
                         {detalhesEmpresa.oportunidades.length === 0 ? (
@@ -863,6 +874,22 @@ export function Empresas() {
                       </FormGrid>
                     </SectionCard>
                     
+                    <SectionCard style={{ marginTop: '20px' }}>
+                      <label style={{ display: 'block', marginBottom: '10px', color: '#d97706', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                        <i className="fa-solid fa-note-sticky"></i> Observações da Prefeitura
+                      </label>
+                      <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '0 0 10px' }}>
+                        Anotações gerais sobre esta prefeitura — visíveis em todas as campanhas.
+                      </p>
+                      <textarea
+                        rows={4}
+                        value={observacoes}
+                        onChange={e => setObservacoes(e.target.value)}
+                        placeholder="Ex: Prefeito novo assumiu em janeiro. Sempre solicitar ata de reunião..."
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #fcd34d', background: '#fffbeb', color: '#92400e', fontSize: '0.9rem', resize: 'vertical', minHeight: '80px', boxSizing: 'border-box' }}
+                      />
+                    </SectionCard>
+
                     <ModalFooter $justify="flex-end" style={{border: 'none', padding: '20px 0 0'}}>
                       <SecondaryButton type="button" onClick={() => editandoId ? setModoEdicaoEmpresa(false) : setMostrarModalEmpresa(false)}>Cancelar</SecondaryButton>
                       <PrimaryButton type="submit"><i className="fa-solid fa-save"></i> {editandoId ? 'Atualizar Empresa' : 'Salvar Empresa'}</PrimaryButton>
