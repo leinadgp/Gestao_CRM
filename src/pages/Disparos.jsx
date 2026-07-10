@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import SunEditorModule from 'suneditor-react';
 import 'suneditor/dist/css/suneditor.min.css';
-import styled, { keyframes } from 'styled-components';
+import styled, { keyframes, createGlobalStyle } from 'styled-components';
 import { Header } from '../componentes/Header.jsx';
 import { temPermissao, primeiraRotaPermitida } from '../utils/permissoes';
 import { exportarLinhasComoCsv } from '../utils/exportarCsv.js';
+import { campanhaEstaAtiva } from '../utils/campanhaStatus.js';
 import {
   MULTIPLOS_FUNIS_DISPARO,
   TIPO_FUNIL_UNICO,
@@ -23,9 +24,27 @@ const parseJSONSeguro = (dadoString, fallback = []) => {
   try { return JSON.parse(dadoString); } catch { return fallback; }
 };
 
+const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const NOMES_MES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+// Uma cor fixa por campanha no calendário (por índice do campanha_id), pra diferenciar visualmente.
+const PALETA_CORES_CAMPANHA = [
+  { bg: '#e7f3ff', borda: '#007bff', texto: '#004a99' },
+  { bg: '#e9f9ee', borda: '#28a745', texto: '#1a7a34' },
+  { bg: '#fff4e5', borda: '#fd7e14', texto: '#b35900' },
+  { bg: '#f3e8ff', borda: '#8b5cf6', texto: '#6427c9' },
+  { bg: '#ffe8f0', borda: '#e83e8c', texto: '#b8236a' },
+  { bg: '#e6fbfa', borda: '#17a2b8', texto: '#0f7688' },
+  { bg: '#fff9db', borda: '#d4a017', texto: '#8a6a00' },
+  { bg: '#ffe9e9', borda: '#dc3545', texto: '#a71d2a' },
+  { bg: '#e8ecf7', borda: '#4c5fd5', texto: '#33409e' },
+  { bg: '#eafff0', borda: '#0ca678', texto: '#087f5b' },
+];
+
 export function Disparos() {
   const navigate = useNavigate();
-  
+  const [searchParams] = useSearchParams();
+
   const API_URL = import.meta.env?.VITE_API_URL || 'https://server-js-gestao.onrender.com';
   const LANDING_DOMAIN = import.meta.env?.VITE_LANDING_DOMAIN || 'https://conteudo2.gestao.srv.br';
   const WEBHOOK_TESTE = import.meta.env?.VITE_WEBHOOK_TESTE || 'https://deccel-ia-n8n-nova-versao.cdqhrl.easypanel.host/webhook/v2-teste-disparo';
@@ -40,12 +59,22 @@ export function Disparos() {
   const [dropdownCampanhaAberto, setDropdownCampanhaAberto] = useState(false);
   const dropdownRef = useRef(null);
 
-  const [tipoFunil, setTipoFunil] = useState(tipoFunilPadrao()); 
+  const [tipoFunil, setTipoFunil] = useState(tipoFunilPadrao());
   const [ordemEtapa, setOrdemEtapa] = useState('1');
   const [dataDisparo, setDataDisparo] = useState('');
+  const [horaDisparo, setHoraDisparo] = useState('08:00');
   const [horasEspera, setHorasEspera] = useState('');
   const [diasExpiracao, setDiasExpiracao] = useState('');
   const [emailAtivo, setEmailAtivo] = useState(true);
+
+  // CALENDÁRIO (mostrado quando nenhuma campanha está selecionada)
+  const [mesCalendario, setMesCalendario] = useState(() => {
+    const hoje = new Date();
+    return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [emailsCalendario, setEmailsCalendario] = useState([]);
+  const [carregandoCalendario, setCarregandoCalendario] = useState(true);
+  const [diaSelecionadoCalendario, setDiaSelecionadoCalendario] = useState(null);
   
   const [tituloemail, setTituloemail] = useState('');
   const [cabecalhoEmail, setCabecalhoEmail] = useState('');
@@ -114,7 +143,7 @@ export function Disparos() {
         axios.get(`${API_URL}/campanhas`, getHeaders()),
         axios.get(`${API_URL}/landing-pages`, getHeaders()),
       ]);
-      setCampanhas((resCamps.data || []).filter((camp) => camp.arquivada !== true));
+      setCampanhas((resCamps.data || []).filter(campanhaEstaAtiva));
       setLandingPages(resLPs.data || []);
     } catch (erro) { console.error('Erro campanhas', erro); }
   }, [API_URL, getHeaders]);
@@ -126,6 +155,12 @@ export function Disparos() {
     }
     carregarCampanhas();
   }, [navigate, carregarCampanhas]);
+
+  // Vindo do Calendário de Disparos com uma campanha específica (?campanha=ID)
+  useEffect(() => {
+    const campanhaUrl = searchParams.get('campanha');
+    if (campanhaUrl) setCursoAlvo(campanhaUrl);
+  }, [searchParams]);
 
   const carregarSequencia = useCallback(async (campanhaId) => {
     try {
@@ -143,6 +178,24 @@ export function Disparos() {
     const lp = landingPages.find(p => String(p.campanha_id) === String(cursoAlvo) && p.slug);
     setUrlLandingCampanha(lp ? `${LANDING_DOMAIN}/lp/${lp.slug}` : '');
   }, [cursoAlvo, landingPages, LANDING_DOMAIN]);
+
+  const carregarCalendario = useCallback(async () => {
+    const [ano, mes] = mesCalendario.split('-').map(Number);
+    setCarregandoCalendario(true);
+    try {
+      const res = await axios.get(`${API_URL}/sequencia-emails/calendario?ano=${ano}&mes=${mes}`, getHeaders());
+      setEmailsCalendario(res.data || []);
+    } catch (erro) {
+      console.error('Erro ao buscar calendário de disparos', erro);
+      setEmailsCalendario([]);
+    } finally {
+      setCarregandoCalendario(false);
+    }
+  }, [API_URL, getHeaders, mesCalendario]);
+
+  useEffect(() => {
+    if (!cursoAlvo) carregarCalendario();
+  }, [cursoAlvo, carregarCalendario]);
 
   useEffect(() => {
     if (!editandoEmailId) {
@@ -471,14 +524,17 @@ export function Disparos() {
     if (!cursoAlvo) return alert('Selecione a Campanha.');
 
     const tipoSalvar = MULTIPLOS_FUNIS_DISPARO ? tipoFunil : TIPO_FUNIL_UNICO;
-    const ordemDuplicada = sequenciaAtual.find(email =>
-      emailDoFunilDisparo(email)
-      && Number(email.ordem_etapa) === Number(ordemEtapa)
-      && email.id !== editandoEmailId
-      && (MULTIPLOS_FUNIS_DISPARO ? email.tipo_funil === tipoSalvar : true)
-    );
-
-    if (ordemDuplicada) return alert(`Já existe um e-mail na Etapa ${ordemEtapa}. Escolha um número de etapa diferente.`);
+    // "Etapa" só é escolhida manualmente pelo Pós-Clique — pra Broadcast o backend atribui
+    // sozinho (a ordem real de envio é pela data), então não faz sentido validar duplicidade aqui.
+    if (MULTIPLOS_FUNIS_DISPARO && tipoSalvar === 'POS_CLIQUE') {
+      const ordemDuplicada = sequenciaAtual.find(email =>
+        emailDoFunilDisparo(email)
+        && Number(email.ordem_etapa) === Number(ordemEtapa)
+        && email.id !== editandoEmailId
+        && email.tipo_funil === tipoSalvar
+      );
+      if (ordemDuplicada) return alert(`Já existe um e-mail na Etapa ${ordemEtapa}. Escolha um número de etapa diferente.`);
+    }
 
     setSalvandoConfig(true);
 
@@ -495,6 +551,9 @@ export function Disparos() {
       data_disparo_exata: MULTIPLOS_FUNIS_DISPARO
         ? (tipoFunil.includes('BROADCAST') ? dataDisparo : null)
         : dataDisparo,
+      hora_disparo: MULTIPLOS_FUNIS_DISPARO
+        ? (tipoFunil.includes('BROADCAST') ? (horaDisparo || null) : null)
+        : (horaDisparo || null),
       horas_espera: MULTIPLOS_FUNIS_DISPARO && tipoFunil === 'POS_CLIQUE' ? horasEspera : null,
       dias_expiracao: MULTIPLOS_FUNIS_DISPARO && tipoFunil === 'POS_CLIQUE' && diasExpiracao ? parseInt(diasExpiracao) : null,
       cargo_alvo: 'Todos', 
@@ -529,6 +588,7 @@ export function Disparos() {
     setCabecalhoEmail('');
     setEmailCru('');
     setDataDisparo('');
+    setHoraDisparo('08:00');
     setHorasEspera('');
     setDiasExpiracao('');
     setEmailAtivo(true);
@@ -539,7 +599,8 @@ export function Disparos() {
     setTipoFunil(emailConfig.tipo_funil); 
     setOrdemEtapa(emailConfig.ordem_etapa);
     setDataDisparo(emailConfig.data_disparo_exata ? emailConfig.data_disparo_exata.split('T')[0] : '');
-    setHorasEspera(emailConfig.horas_espera || ''); 
+    setHoraDisparo(emailConfig.hora_disparo ? emailConfig.hora_disparo.slice(0, 5) : '');
+    setHorasEspera(emailConfig.horas_espera || '');
     setDiasExpiracao(emailConfig.dias_expiracao || '');
     setTituloemail(emailConfig.titulo_email || '');
     setCabecalhoEmail(emailConfig.cabecalho_email || '');
@@ -618,6 +679,61 @@ export function Disparos() {
   }, [dadosCliques]);
 
   // ==========================================
+  // CALENDÁRIO (sem campanha selecionada)
+  // ==========================================
+  function trocarMesCalendario(delta) {
+    const [ano, mes] = mesCalendario.split('-').map(Number);
+    const data = new Date(ano, mes - 1 + delta, 1);
+    setMesCalendario(`${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}`);
+    setDiaSelecionadoCalendario(null);
+  }
+
+  const emailsPorDiaCalendario = useMemo(() => {
+    const mapa = new Map();
+    for (const email of emailsCalendario) {
+      const dia = String(email.data_disparo_exata).slice(0, 10);
+      if (!mapa.has(dia)) mapa.set(dia, []);
+      mapa.get(dia).push(email);
+    }
+    return mapa;
+  }, [emailsCalendario]);
+
+  const celulasCalendario = useMemo(() => {
+    const [ano, mes] = mesCalendario.split('-').map(Number);
+    const primeiroDiaSemana = new Date(ano, mes - 1, 1).getDay();
+    const totalDias = new Date(ano, mes, 0).getDate();
+    const lista = [];
+    for (let i = 0; i < primeiroDiaSemana; i++) lista.push(null);
+    for (let dia = 1; dia <= totalDias; dia++) {
+      lista.push(`${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`);
+    }
+    return lista;
+  }, [mesCalendario]);
+
+  const [anoCalendario, mesNumCalendario] = mesCalendario.split('-').map(Number);
+  const emailsDoDiaSelecionadoCalendario = diaSelecionadoCalendario ? (emailsPorDiaCalendario.get(diaSelecionadoCalendario) || []) : [];
+
+  function abrirCampanhaDoCalendario(campanhaId) {
+    setDiaSelecionadoCalendario(null);
+    setCursoAlvo(String(campanhaId));
+  }
+
+  function formatarHora(horaStr) {
+    if (!horaStr) return null;
+    return horaStr.slice(0, 5);
+  }
+
+  function abreviarNome(nome, maxLen = 16) {
+    if (!nome) return '';
+    return nome.length > maxLen ? `${nome.slice(0, maxLen - 1).trim()}…` : nome;
+  }
+
+  function corDaCampanha(campanhaId) {
+    const indice = Math.abs(Number(campanhaId) || 0) % PALETA_CORES_CAMPANHA.length;
+    return PALETA_CORES_CAMPANHA[indice];
+  }
+
+  // ==========================================
   // RENDERIZAÇÃO
   // ==========================================
   return (
@@ -662,6 +778,89 @@ export function Disparos() {
             )}
           </FilterPillWrapper>
         </TopSection>
+
+        {!cursoAlvo && (
+          <>
+            <PrintStyles />
+            <div className="calendario-print-area">
+              <CalendarioTopo>
+                <p className="no-print"><i className="fa-regular fa-calendar-check"></i> E-mails com data marcada, de todas as campanhas. Selecione uma campanha acima pra editar a sequência dela.</p>
+                <MesNav>
+                  <button type="button" className="no-print" onClick={() => trocarMesCalendario(-1)}><i className="fa-solid fa-chevron-left"></i></button>
+                  <span>{NOMES_MES[mesNumCalendario - 1]} de {anoCalendario}</span>
+                  <button type="button" className="no-print" onClick={() => trocarMesCalendario(1)}><i className="fa-solid fa-chevron-right"></i></button>
+                  <ImprimirBtn type="button" className="no-print" onClick={() => window.print()}>
+                    <i className="fa-solid fa-print"></i> Imprimir / Exportar PDF
+                  </ImprimirBtn>
+                </MesNav>
+              </CalendarioTopo>
+
+              {carregandoCalendario ? (
+                <CarregandoBox>Carregando calendário...</CarregandoBox>
+              ) : (
+                <CalendarGrid>
+                  {DIAS_SEMANA.map(d => <DiaSemanaLabel key={d}>{d}</DiaSemanaLabel>)}
+                  {celulasCalendario.map((diaIso, indice) => {
+                    if (!diaIso) return <DiaCelula key={`vazio-${indice}`} $vazio />;
+                    const emailsDoDia = emailsPorDiaCalendario.get(diaIso) || [];
+                    const numeroDia = Number(diaIso.slice(8, 10));
+                    const ehHoje = diaIso === new Date().toISOString().slice(0, 10);
+                    return (
+                      <DiaCelula key={diaIso} $temEmail={emailsDoDia.length > 0} $hoje={ehHoje}
+                        onClick={() => emailsDoDia.length > 0 && setDiaSelecionadoCalendario(diaIso)}>
+                        <NumeroDia $hoje={ehHoje}>{numeroDia}</NumeroDia>
+                        <ChipsWrapper>
+                          {emailsDoDia.slice(0, 3).map(email => {
+                            const cor = corDaCampanha(email.campanha_id);
+                            return (
+                              <Chip key={email.id} $arquivada={email.arquivada}
+                                style={email.arquivada ? undefined : { background: cor.bg, color: cor.texto, borderLeftColor: cor.borda }}
+                                title={`${email.campanha_nome} — ${email.titulo_email}${formatarHora(email.hora_disparo) ? ` (${formatarHora(email.hora_disparo)})` : ''}`}>
+                                {abreviarNome(email.campanha_nome)}
+                              </Chip>
+                            );
+                          })}
+                          {emailsDoDia.length > 3 && <MaisChip>+{emailsDoDia.length - 3}</MaisChip>}
+                        </ChipsWrapper>
+                      </DiaCelula>
+                    );
+                  })}
+                </CalendarGrid>
+              )}
+            </div>
+
+            {diaSelecionadoCalendario && (
+              <ModalOverlay onClick={() => setDiaSelecionadoCalendario(null)}>
+                <ModalContent onClick={e => e.stopPropagation()}>
+                  <ModalHeader>
+                    <h3><i className="fa-regular fa-calendar-check"></i> {new Date(diaSelecionadoCalendario + 'T00:00:00').toLocaleDateString('pt-BR')}</h3>
+                    <CloseButton onClick={() => setDiaSelecionadoCalendario(null)}>&times;</CloseButton>
+                  </ModalHeader>
+                  <div style={{ padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {emailsDoDiaSelecionadoCalendario.map(email => (
+                      <EmailRowCalendario key={email.id}>
+                        <div>
+                          <strong>{email.campanha_nome}</strong>
+                          {email.arquivada && <BadgeArquivada>Arquivada</BadgeArquivada>}
+                          {email.ativo === false && <BadgeInativo>Inativo</BadgeInativo>}
+                          <p>{email.titulo_email}</p>
+                          <span className="meta">
+                            Etapa {email.ordem_etapa}
+                            {formatarHora(email.hora_disparo) && ` · às ${formatarHora(email.hora_disparo)}`}
+                          </span>
+                        </div>
+                        <button type="button" onClick={() => abrirCampanhaDoCalendario(email.campanha_id)}>
+                          Ver sequência
+                        </button>
+                      </EmailRowCalendario>
+                    ))}
+                    {emailsDoDiaSelecionadoCalendario.length === 0 && <p>Nenhum e-mail agendado neste dia.</p>}
+                  </div>
+                </ModalContent>
+              </ModalOverlay>
+            )}
+          </>
+        )}
 
         {campanhaSelecionada && (
           <MotorControlPanel>
@@ -708,11 +907,11 @@ export function Disparos() {
               {emailsFunilUnico.map(email => (
                 <EmailCard key={email.id} $active={editandoEmailId === email.id} $borderColor="#007bff" $inativo={email.ativo === false}>
                   <div className="card-header">
-                    <span className="step-badge">Etapa {email.ordem_etapa}</span>
+                    <span className="step-badge">{email.data_disparo_exata ? exibirDataISO(email.data_disparo_exata) : `Etapa ${email.ordem_etapa}`}</span>
                     {email.ativo === false && <span className="expire-badge danger">Desabilitado</span>}
                   </div>
                   <div className="email-title">{email.titulo_email}</div>
-                  <div className="email-meta"><i className="fa-regular fa-clock"></i> Dia {email.data_disparo_exata ? exibirDataISO(email.data_disparo_exata) : '-'}</div>
+                  <div className="email-meta"><i className="fa-regular fa-clock"></i> Dia {email.data_disparo_exata ? exibirDataISO(email.data_disparo_exata) : '-'}{email.hora_disparo ? ` às ${email.hora_disparo.slice(0, 5)}` : ''}</div>
 
                   <div className="card-actions-top">
                     <ActionButton onClick={() => carregarParaEdicao(email)}>{editandoEmailId === email.id ? 'Editando' : 'Editar'}</ActionButton>
@@ -742,11 +941,11 @@ export function Disparos() {
               {broadcastsFrios.map(email => (
                 <EmailCard key={email.id} $active={editandoEmailId === email.id} $borderColor="#007bff" $inativo={email.ativo === false}>
                   <div className="card-header">
-                    <span className="step-badge">Etapa {email.ordem_etapa}</span>
+                    <span className="step-badge">{email.data_disparo_exata ? exibirDataISO(email.data_disparo_exata) : `Etapa ${email.ordem_etapa}`}</span>
                     {email.ativo === false && <span className="expire-badge danger">Desabilitado</span>}
                   </div>
                   <div className="email-title">{email.titulo_email}</div>
-                  <div className="email-meta"><i className="fa-regular fa-clock"></i> Dia {email.data_disparo_exata ? exibirDataISO(email.data_disparo_exata) : '-'}</div>
+                  <div className="email-meta"><i className="fa-regular fa-clock"></i> Dia {email.data_disparo_exata ? exibirDataISO(email.data_disparo_exata) : '-'}{email.hora_disparo ? ` às ${email.hora_disparo.slice(0, 5)}` : ''}</div>
                   
                   <div className="card-actions-top">
                     <ActionButton onClick={() => carregarParaEdicao(email)}>{editandoEmailId === email.id ? 'Editando' : 'Editar'}</ActionButton>
@@ -772,11 +971,11 @@ export function Disparos() {
               {broadcastsQuentes.map(email => (
                 <EmailCard key={email.id} $active={editandoEmailId === email.id} $borderColor="#dc3545" $inativo={email.ativo === false}>
                   <div className="card-header">
-                    <span className="step-badge">Etapa {email.ordem_etapa}</span>
+                    <span className="step-badge">{email.data_disparo_exata ? exibirDataISO(email.data_disparo_exata) : `Etapa ${email.ordem_etapa}`}</span>
                     {email.ativo === false && <span className="expire-badge danger">Desabilitado</span>}
                   </div>
                   <div className="email-title">{email.titulo_email}</div>
-                  <div className="email-meta"><i className="fa-regular fa-clock"></i> Dia {email.data_disparo_exata ? exibirDataISO(email.data_disparo_exata) : '-'}</div>
+                  <div className="email-meta"><i className="fa-regular fa-clock"></i> Dia {email.data_disparo_exata ? exibirDataISO(email.data_disparo_exata) : '-'}{email.hora_disparo ? ` às ${email.hora_disparo.slice(0, 5)}` : ''}</div>
                   
                   <div className="card-actions-top">
                     <ActionButton onClick={() => carregarParaEdicao(email)}>{editandoEmailId === email.id ? 'Editando' : 'Editar'}</ActionButton>
@@ -859,10 +1058,16 @@ export function Disparos() {
               )}
 
               {(!MULTIPLOS_FUNIS_DISPARO || tipoFunil.includes('BROADCAST')) ? (
-                <FormGroup className={MULTIPLOS_FUNIS_DISPARO ? 'span-2' : 'span-full'}>
-                  <label className="text-blue"><i className="fa-regular fa-calendar"></i> Data de Disparo *</label>
-                  <input type="date" required value={dataDisparo} onChange={e => setDataDisparo(e.target.value)} />
-                </FormGroup>
+                <>
+                  <FormGroup className={MULTIPLOS_FUNIS_DISPARO ? '' : 'span-2'}>
+                    <label className="text-blue"><i className="fa-regular fa-calendar"></i> Data de Disparo *</label>
+                    <input type="date" required value={dataDisparo} onChange={e => setDataDisparo(e.target.value)} />
+                  </FormGroup>
+                  <FormGroup>
+                    <label className="text-blue"><i className="fa-regular fa-clock"></i> Hora de Início</label>
+                    <input type="time" value={horaDisparo} onChange={e => setHoraDisparo(e.target.value)} />
+                  </FormGroup>
+                </>
               ) : (
                 <>
                   <FormGroup>
@@ -876,10 +1081,12 @@ export function Disparos() {
                 </>
               )}
 
-              <FormGroup>
-                <label>Ordem (Etapa/Índice) *</label>
-                <input type="number" required placeholder="Ex: 1" value={ordemEtapa} onChange={e => setOrdemEtapa(e.target.value)} />
-              </FormGroup>
+              {MULTIPLOS_FUNIS_DISPARO && tipoFunil === 'POS_CLIQUE' && (
+                <FormGroup>
+                  <label>Ordem (Etapa/Índice) *</label>
+                  <input type="number" required placeholder="Ex: 1" value={ordemEtapa} onChange={e => setOrdemEtapa(e.target.value)} />
+                </FormGroup>
+              )}
 
               <FormGroup className="span-full">
                 <label>Assunto do E-mail *</label>
@@ -1377,6 +1584,101 @@ const CloseButton = styled.button`
   background: none; border: none; font-size: 1.8rem; cursor: pointer; color: ${props => props.$color || '#a0aec0'};
   &:hover { color: #dc3545; }
   @media (max-width: 600px) { position: absolute; right: 15px; top: 15px; }
+`;
+
+/* CALENDÁRIO DE DISPAROS (exibido sem campanha selecionada) */
+const CalendarioTopo = styled.div`
+  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;
+  p { margin: 0; color: #6c757d; font-size: 0.9rem; max-width: 520px; }
+  @media (max-width: 768px) { flex-direction: column; align-items: stretch; }
+`;
+
+const ImprimirBtn = styled.button`
+  display: flex; align-items: center; gap: 8px; border: 1px solid #cbd5e1; background: #fff; color: #495057;
+  border-radius: 8px; padding: 8px 14px; font-size: 0.9rem; cursor: pointer;
+  &:hover { background: #f8fafc; border-color: #007bff; color: #007bff; }
+`;
+
+const PrintStyles = createGlobalStyle`
+  @media print {
+    @page { size: A4; margin: 12mm; }
+    body * { visibility: hidden; }
+    .calendario-print-area, .calendario-print-area * { visibility: visible; }
+    .calendario-print-area { position: absolute; top: 0; left: 0; width: 100%; }
+    .no-print { display: none !important; }
+  }
+`;
+
+const MesNav = styled.div`
+  display: flex; align-items: center; gap: 10px; background: #fff; border: 1px solid #cbd5e1; border-radius: 10px; padding: 8px 14px;
+  span { font-weight: 700; color: #2c3e50; min-width: 150px; text-align: center; }
+  button { border: none; background: none; color: #007bff; cursor: pointer; font-size: 1rem; padding: 4px 8px; }
+  button:hover { color: #0056b3; }
+`;
+
+const CarregandoBox = styled.div`
+  text-align: center; padding: 60px; color: #6c757d;
+`;
+
+const CalendarGrid = styled.div`
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 30px;
+`;
+
+const DiaSemanaLabel = styled.div`
+  text-align: center; font-size: 0.8rem; font-weight: 700; color: #6c757d; padding-bottom: 6px; text-transform: uppercase;
+`;
+
+const DiaCelula = styled.div`
+  height: 92px;
+  background: ${props => props.$vazio ? 'transparent' : '#ffffff'};
+  border: 1px solid ${props => props.$hoje ? '#007bff' : '#edf2f9'};
+  border-radius: 10px;
+  padding: 8px;
+  box-shadow: ${props => props.$vazio ? 'none' : '0 2px 8px rgba(0,0,0,0.03)'};
+  cursor: ${props => props.$temEmail ? 'pointer' : 'default'};
+  transition: all 0.15s ease;
+  overflow: hidden;
+  &:hover { ${props => props.$temEmail ? 'transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.08);' : ''} }
+  @media (max-width: 768px) { height: 64px; }
+  @media print {
+    height: auto; min-height: 70px; box-shadow: none; break-inside: avoid;
+    &:hover { transform: none; box-shadow: none; }
+  }
+`;
+
+const NumeroDia = styled.div`
+  font-size: 0.85rem; font-weight: 700; color: ${props => props.$hoje ? '#007bff' : '#2c3e50'}; margin-bottom: 6px;
+`;
+
+const ChipsWrapper = styled.div`
+  display: flex; flex-direction: column; gap: 3px;
+`;
+
+const Chip = styled.div`
+  font-size: 0.72rem; font-weight: 600; padding: 2px 6px; border-radius: 4px; border-left: 3px solid transparent;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  ${props => props.$arquivada ? 'background: #f3f4f6; color: #6b7280; border-left-color: #9ca3af;' : ''}
+`;
+
+const MaisChip = styled.div`
+  font-size: 0.7rem; color: #6c757d; font-weight: 600;
+`;
+
+const EmailRowCalendario = styled.div`
+  display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px; border: 1px solid #edf2f9; border-radius: 8px;
+  strong { color: #2c3e50; }
+  p { margin: 4px 0; color: #495057; font-size: 0.9rem; }
+  .meta { font-size: 0.78rem; color: #6c757d; }
+  button { border: 1px solid #007bff; background: #fff; color: #007bff; border-radius: 6px; padding: 6px 10px; font-size: 0.8rem; cursor: pointer; white-space: nowrap; }
+  button:hover { background: #007bff; color: #fff; }
+`;
+
+const BadgeArquivada = styled.span`
+  margin-left: 8px; font-size: 0.7rem; background: #f3f4f6; color: #6b7280; padding: 2px 6px; border-radius: 4px;
+`;
+
+const BadgeInativo = styled.span`
+  margin-left: 8px; font-size: 0.7rem; background: #fdecec; color: #dc3545; padding: 2px 6px; border-radius: 4px;
 `;
 
 /* CORREÇÃO DO LAYOUT DA TABELA (MODAL CLIQUES) PARA MOBILE */

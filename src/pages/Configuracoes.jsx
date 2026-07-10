@@ -35,6 +35,17 @@ export function Configuracoes() {
   const [perfilEditando, setPerfilEditando] = useState('vendedor');
   const [salvandoPermissoes, setSalvandoPermissoes] = useState(false);
 
+  // --- ESTADOS DE SETORES / CARGOS ---
+  const [cargosLista, setCargosLista] = useState([]);
+  const [carregandoCargos, setCarregandoCargos] = useState(false);
+  const [novoCargoNome, setNovoCargoNome] = useState('');
+  const [salvandoCargo, setSalvandoCargo] = useState(false);
+  const [cargoEditandoId, setCargoEditandoId] = useState(null);
+  const [nomeCargoEditando, setNomeCargoEditando] = useState('');
+  const [modalMesclarCargo, setModalMesclarCargo] = useState(null);
+  const [destinoMesclarId, setDestinoMesclarId] = useState('');
+  const [processandoCargo, setProcessandoCargo] = useState(false);
+
   // --- ESTADOS DE SENHA ---
   const [senhaAtual, setSenhaAtual] = useState('');
   const [novaSenha, setNovaSenha] = useState('');
@@ -75,10 +86,94 @@ export function Configuracoes() {
     }
   }, [API_URL, getHeaders, perfilUsuario]);
 
+  const carregarCargos = useCallback(async () => {
+    setCarregandoCargos(true);
+    try {
+      const res = await axios.get(`${API_URL}/cargos`, getHeaders());
+      setCargosLista(res.data);
+    } catch (error) {
+      console.error('Erro ao carregar setores/cargos', error);
+    } finally {
+      setCarregandoCargos(false);
+    }
+  }, [API_URL, getHeaders]);
+
   useEffect(() => {
     if (abaAtiva === 'perfil') carregarMeuPerfil();
     if (abaAtiva === 'equipe') carregarEquipe();
-  }, [abaAtiva, carregarMeuPerfil, carregarEquipe]);
+    if (abaAtiva === 'setores') carregarCargos();
+  }, [abaAtiva, carregarMeuPerfil, carregarEquipe, carregarCargos]);
+
+  async function handleCriarCargo(e) {
+    e.preventDefault();
+    if (!novoCargoNome.trim()) return;
+    setSalvandoCargo(true);
+    try {
+      await axios.post(`${API_URL}/cargos`, { nome: novoCargoNome.trim() }, getHeaders());
+      setNovoCargoNome('');
+      carregarCargos();
+    } catch (error) {
+      alert(error.response?.data?.erro || 'Erro ao criar setor/cargo.');
+    } finally {
+      setSalvandoCargo(false);
+    }
+  }
+
+  function iniciarEdicaoCargo(cargo) {
+    setCargoEditandoId(cargo.id);
+    setNomeCargoEditando(cargo.nome);
+  }
+
+  async function salvarEdicaoCargo(cargo) {
+    const nomeNovo = nomeCargoEditando.trim();
+    if (!nomeNovo || nomeNovo === cargo.nome) {
+      setCargoEditandoId(null);
+      return;
+    }
+    setProcessandoCargo(true);
+    try {
+      await axios.put(`${API_URL}/cargos/${cargo.id}`, { nome: nomeNovo }, getHeaders());
+      setCargoEditandoId(null);
+      carregarCargos();
+    } catch (error) {
+      alert(error.response?.data?.erro || 'Erro ao renomear setor/cargo.');
+    } finally {
+      setProcessandoCargo(false);
+    }
+  }
+
+  async function excluirCargo(cargo) {
+    if (cargo.uso > 0) {
+      return alert(`Este setor/cargo está vinculado a ${cargo.uso} cadastro(s). Use "Mesclar" para juntá-lo a outro antes de excluir.`);
+    }
+    if (!window.confirm(`Excluir o setor/cargo "${cargo.nome}"? Ele não está vinculado a nenhum cadastro.`)) return;
+    setProcessandoCargo(true);
+    try {
+      await axios.delete(`${API_URL}/cargos/${cargo.id}`, getHeaders());
+      carregarCargos();
+    } catch (error) {
+      alert(error.response?.data?.erro || 'Erro ao excluir setor/cargo.');
+    } finally {
+      setProcessandoCargo(false);
+    }
+  }
+
+  async function confirmarMesclagemCargo(e) {
+    e.preventDefault();
+    if (!destinoMesclarId) return alert('Escolha o setor/cargo de destino.');
+    setProcessandoCargo(true);
+    try {
+      const res = await axios.post(`${API_URL}/cargos/${modalMesclarCargo.id}/mesclar`, { destino_id: destinoMesclarId }, getHeaders());
+      alert(res.data.mensagem || 'Setores/cargos mesclados com sucesso.');
+      setModalMesclarCargo(null);
+      setDestinoMesclarId('');
+      carregarCargos();
+    } catch (error) {
+      alert(error.response?.data?.erro || 'Erro ao mesclar setores/cargos.');
+    } finally {
+      setProcessandoCargo(false);
+    }
+  }
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
@@ -231,6 +326,11 @@ export function Configuracoes() {
               {perfilUsuario === 'admin' && (
                 <TabButton $active={abaAtiva === 'equipe'} onClick={() => setAbaAtiva('equipe')}>
                   <i className="fa-solid fa-users-gear"></i> Equipe
+                </TabButton>
+              )}
+              {perfilUsuario === 'admin' && (
+                <TabButton $active={abaAtiva === 'setores'} onClick={() => setAbaAtiva('setores')}>
+                  <i className="fa-solid fa-sitemap"></i> Setores / Cargos
                 </TabButton>
               )}
             </TabsContainer>
@@ -386,6 +486,141 @@ export function Configuracoes() {
               </Table>
             </TabelaResponsiva>
           </Panel>
+        )}
+
+        {abaAtiva === 'setores' && perfilUsuario === 'admin' && (
+          <Panel>
+            <PanelHeader>
+              <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#2c3e50' }}><i className="fa-solid fa-sitemap text-blue"></i> Setores / Cargos</h3>
+            </PanelHeader>
+            <p style={{ padding: '0 20px', color: '#64748b', fontSize: '0.85rem', marginTop: 0 }}>
+              Cada setor/cargo (ex: Controle Interno, Secretaria de Administração, Licitações) é usado para classificar contatos e priorizar campanhas.
+              Renomear atualiza automaticamente todos os cadastros já vinculados. Só é possível excluir um setor/cargo sem nenhum vínculo — use "Mesclar" para juntar duplicados.
+            </p>
+            <form onSubmit={handleCriarCargo} style={{ display: 'flex', gap: 10, padding: '0 20px 16px', flexWrap: 'wrap' }}>
+              <Input
+                type="text"
+                placeholder="Nome do novo setor/cargo..."
+                value={novoCargoNome}
+                onChange={(e) => setNovoCargoNome(e.target.value)}
+                style={{ flex: 1, minWidth: 220 }}
+              />
+              <PrimaryButton type="submit" disabled={salvandoCargo || !novoCargoNome.trim()}>
+                <i className="fa-solid fa-plus"></i> Adicionar
+              </PrimaryButton>
+            </form>
+            <TabelaResponsiva>
+              <Table>
+                <thead>
+                  <tr>
+                    <th>Setor / Cargo</th>
+                    <th style={{ width: '140px', textAlign: 'center' }}>Vinculados</th>
+                    <th style={{ width: '160px', textAlign: 'center' }}>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {carregandoCargos ? (
+                    <tr><td colSpan="3" className="text-center text-muted"><i className="fa-solid fa-spinner fa-spin"></i> Carregando...</td></tr>
+                  ) : cargosLista.length === 0 ? (
+                    <tr><td colSpan="3" className="text-center text-muted">Nenhum setor/cargo cadastrado ainda.</td></tr>
+                  ) : (
+                    cargosLista.map((cargo) => (
+                      <tr key={cargo.id}>
+                        <td data-label="Setor / Cargo">
+                          {cargoEditandoId === cargo.id ? (
+                            <Input
+                              type="text"
+                              autoFocus
+                              value={nomeCargoEditando}
+                              onChange={(e) => setNomeCargoEditando(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === 'Enter') salvarEdicaoCargo(cargo); if (e.key === 'Escape') setCargoEditandoId(null); }}
+                            />
+                          ) : (
+                            <strong>{cargo.nome}</strong>
+                          )}
+                        </td>
+                        <td data-label="Vinculados" style={{ textAlign: 'center' }}>
+                          <Badge className={cargo.uso > 0 ? 'badge-admin' : 'badge-vendedor'}>{cargo.uso}</Badge>
+                        </td>
+                        <td data-label="Ações" style={{ textAlign: 'center' }} className="actions-cell">
+                          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                            {cargoEditandoId === cargo.id ? (
+                              <>
+                                <ActionButton $isAtivo onClick={() => salvarEdicaoCargo(cargo)} disabled={processandoCargo} title="Salvar" style={{ color: '#28a745' }}>
+                                  <i className="fa-solid fa-check" />
+                                </ActionButton>
+                                <ActionButton $isAtivo onClick={() => setCargoEditandoId(null)} title="Cancelar" style={{ color: '#64748b' }}>
+                                  <i className="fa-solid fa-xmark" />
+                                </ActionButton>
+                              </>
+                            ) : (
+                              <>
+                                <ActionButton $isAtivo onClick={() => iniciarEdicaoCargo(cargo)} title="Renomear" style={{ color: '#007bff' }}>
+                                  <i className="fa-solid fa-pen" />
+                                </ActionButton>
+                                <ActionButton
+                                  $isAtivo
+                                  onClick={() => { setModalMesclarCargo(cargo); setDestinoMesclarId(''); }}
+                                  title="Mesclar em outro setor/cargo"
+                                  style={{ color: '#f59e0b' }}
+                                  disabled={cargosLista.length < 2}
+                                >
+                                  <i className="fa-solid fa-code-merge" />
+                                </ActionButton>
+                                <ActionButton
+                                  $isAtivo={cargo.uso === 0}
+                                  onClick={() => excluirCargo(cargo)}
+                                  title={cargo.uso > 0 ? 'Vinculado a cadastros — mescle antes de excluir' : 'Excluir'}
+                                  style={{ color: cargo.uso > 0 ? '#cbd5e1' : '#dc3545', cursor: cargo.uso > 0 ? 'not-allowed' : 'pointer' }}
+                                  disabled={processandoCargo}
+                                >
+                                  <i className="fa-solid fa-trash-can" />
+                                </ActionButton>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </Table>
+            </TabelaResponsiva>
+          </Panel>
+        )}
+
+        {modalMesclarCargo && (
+          <ModalOverlay onClick={() => setModalMesclarCargo(null)}>
+            <ModalContent onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480 }}>
+              <ModalHeader>
+                <h3 style={{ margin: 0 }}><i className="fa-solid fa-code-merge text-blue" /> Mesclar "{modalMesclarCargo.nome}"</h3>
+                <CloseButton onClick={() => setModalMesclarCargo(null)}>&times;</CloseButton>
+              </ModalHeader>
+              <form onSubmit={confirmarMesclagemCargo}>
+                <div style={{ padding: '25px' }}>
+                  <p style={{ color: '#64748b', fontSize: '0.9rem', marginTop: 0 }}>
+                    Todos os {modalMesclarCargo.uso} cadastro(s) vinculados a <strong>{modalMesclarCargo.nome}</strong> passarão a usar o setor/cargo escolhido abaixo,
+                    e "{modalMesclarCargo.nome}" será removido da lista. Use isso para corrigir duplicados (ex: nomes digitados de forma diferente).
+                  </p>
+                  <FormGroup>
+                    <label>Mesclar em:</label>
+                    <Select value={destinoMesclarId} onChange={(e) => setDestinoMesclarId(e.target.value)} required>
+                      <option value="">— Selecione o setor/cargo de destino —</option>
+                      {cargosLista.filter((c) => c.id !== modalMesclarCargo.id).map((c) => (
+                        <option key={c.id} value={c.id}>{c.nome}</option>
+                      ))}
+                    </Select>
+                  </FormGroup>
+                </div>
+                <ModalFooter>
+                  <SecondaryButton type="button" onClick={() => setModalMesclarCargo(null)}>Cancelar</SecondaryButton>
+                  <PrimaryButton type="submit" disabled={processandoCargo || !destinoMesclarId}>
+                    <i className="fa-solid fa-code-merge"></i> Mesclar
+                  </PrimaryButton>
+                </ModalFooter>
+              </form>
+            </ModalContent>
+          </ModalOverlay>
         )}
 
         {modalPermissoes && (

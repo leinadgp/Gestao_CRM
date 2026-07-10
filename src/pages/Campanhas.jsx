@@ -39,6 +39,36 @@ export function Campanhas() {
 
   const LISTA_UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO'];
 
+  // Filtro por tipo de órgão
+  const [tiposOrgaoAlvo, setTiposOrgaoAlvo] = useState([]); // vazio = todos os tipos
+
+  const TIPOS_ORGAO = [
+    { valor: 'prefeitura', rotulo: 'Prefeitura' },
+    { valor: 'camara', rotulo: 'Câmara Municipal' },
+    { valor: 'autarquia', rotulo: 'Autarquia' },
+    { valor: 'consorcio', rotulo: 'Consórcio' },
+  ];
+
+  // Prioridade de disparo por estado (ordem de envio, independente do público-alvo)
+  const [ufsPrioridade, setUfsPrioridade] = useState([]); // array ordenado, vazio = sem prioridade
+
+  function adicionarUfPrioridade(uf) {
+    if (!uf || ufsPrioridade.includes(uf)) return;
+    setUfsPrioridade(prev => [...prev, uf]);
+  }
+  function removerUfPrioridade(uf) {
+    setUfsPrioridade(prev => prev.filter(u => u !== uf));
+  }
+  function moverUfPrioridade(indice, direcao) {
+    setUfsPrioridade(prev => {
+      const novo = [...prev];
+      const alvo = indice + direcao;
+      if (alvo < 0 || alvo >= novo.length) return prev;
+      [novo[indice], novo[alvo]] = [novo[alvo], novo[indice]];
+      return novo;
+    });
+  }
+
   const etapasPadrao = ['CONTATO 1° E-MAIL', 'CONTATO TEL.', 'IDENTIFICAÇÃO DO INTERESSE','NÃO QUER LIGAÇÃO','PERDIDO', 'SE INSCREVEU E DESISTIU','VENDA REALIZADA'];
   const [etapas, setEtapas] = useState(etapasPadrao);
   const [novaEtapa, setNovaEtapa] = useState('');
@@ -120,6 +150,8 @@ export function Campanhas() {
     setApenasAdmin(false);
     setEmailRemetente('');
     setUfsAlvo([]);
+    setTiposOrgaoAlvo([]);
+    setUfsPrioridade([]);
     setEtapas(etapasPadrao);
     setEtapasFunil([]);
     setEtapaInscricaoId('');
@@ -141,6 +173,8 @@ export function Campanhas() {
     setEmailRemetente(camp.email_remetente || '');
     setCargosAlvo(parseJSONSeguro(camp.cargos_alvo, []));
     setUfsAlvo(parseJSONSeguro(camp.ufs_alvo, []));
+    setTiposOrgaoAlvo(parseJSONSeguro(camp.tipos_orgao_alvo, []));
+    setUfsPrioridade(parseJSONSeguro(camp.ufs_prioridade, []));
     setEtapaInscricaoId(camp.etapa_inscricao_id ? String(camp.etapa_inscricao_id) : '');
     setEtapaVendaId(camp.etapa_venda_id ? String(camp.etapa_venda_id) : '');
 
@@ -216,6 +250,8 @@ export function Campanhas() {
         data_fim: dataFim || null,
         cargos_alvo: cargosAlvo,
         ufs_alvo: ufsAlvo.length > 0 ? ufsAlvo : null,
+        tipos_orgao_alvo: tiposOrgaoAlvo.length > 0 ? tiposOrgaoAlvo : null,
+        ufs_prioridade: ufsPrioridade.length > 0 ? ufsPrioridade : null,
         apenas_admin: apenasAdmin,
         email_remetente: emailRemetente || null,
         modulos,
@@ -243,11 +279,23 @@ export function Campanhas() {
   // --- LÓGICA DE ARQUIVAR E EXCLUIR ---
   async function alternarArquivamento(id, statusAtualArquivado) {
     const acao = statusAtualArquivado ? 'desarquivar' : 'arquivar';
-    if (!window.confirm(`Tem certeza que deseja ${acao} este curso?`)) return;
+    const aviso = statusAtualArquivado
+      ? ''
+      : '\n\nAo encerrar: a landing page vinculada será despublicada e as negociações ainda em aberto desta campanha serão marcadas como perdidas automaticamente.';
+    if (!window.confirm(`Tem certeza que deseja ${acao} este curso?${aviso}`)) return;
 
     try {
-      await axios.put(`${API_URL}/campanhas/${id}/arquivar`, { arquivada: !statusAtualArquivado }, getHeaders());
-      mostrar(statusAtualArquivado ? 'Campanha desarquivada.' : 'Campanha arquivada.', 'success');
+      const res = await axios.put(`${API_URL}/campanhas/${id}/arquivar`, { arquivada: !statusAtualArquivado }, getHeaders());
+      const lpsDespublicadas = res.data?.landing_pages_despublicadas || [];
+      const negociacoesPerdidas = res.data?.negociacoes_marcadas_perdidas || [];
+      if (lpsDespublicadas.length > 0 || negociacoesPerdidas.length > 0) {
+        const partes = [];
+        if (lpsDespublicadas.length > 0) partes.push(`${lpsDespublicadas.length} landing page(s) despublicada(s)`);
+        if (negociacoesPerdidas.length > 0) partes.push(`${negociacoesPerdidas.length} negociação(ões) marcada(s) como perdida(s)`);
+        mostrar(`Campanha arquivada. ${partes.join(' e ')}.`, 'success');
+      } else {
+        mostrar(statusAtualArquivado ? 'Campanha desarquivada.' : 'Campanha arquivada.', 'success');
+      }
       carregarCampanhas();
     } catch (error) {
       mostrar('Erro ao alterar status de arquivamento.', 'error');
@@ -309,6 +357,9 @@ export function Campanhas() {
         data_inicio: '',
         data_fim: '',
         cargos_alvo: camp.cargos_alvo || '[]',
+        ufs_alvo: camp.ufs_alvo || null,
+        tipos_orgao_alvo: camp.tipos_orgao_alvo || null,
+        ufs_prioridade: camp.ufs_prioridade || null,
         apenas_admin: camp.apenas_admin || false,
         email_remetente: camp.email_remetente || '',
         etapas: etapasNomes.length > 0 ? etapasNomes : ['CONTATO', 'INSCRITO', 'VENDA REALIZADA'],
@@ -572,13 +623,94 @@ export function Campanhas() {
                         <CheckboxGroup>
                           {LISTA_UFS.map(uf => (
                             <CheckboxPill key={uf} $active={ufsAlvo.includes(uf)}
-                              style={{ minWidth: 52, justifyContent: 'center' }}
-                              onClick={() => setUfsAlvo(prev => prev.includes(uf) ? prev.filter(u => u !== uf) : [...prev, uf])}>
-                              <input type="checkbox" checked={ufsAlvo.includes(uf)} readOnly />
+                              style={{ minWidth: 52, justifyContent: 'center' }}>
+                              <input type="checkbox" checked={ufsAlvo.includes(uf)}
+                                onChange={() => setUfsAlvo(prev => prev.includes(uf) ? prev.filter(u => u !== uf) : [...prev, uf])} />
                               {uf}
                             </CheckboxPill>
                           ))}
                         </CheckboxGroup>
+                      </FormGroup>
+
+                      <FormGroup className="span-2">
+                        <Label>
+                          Tipos de órgão que receberão as negociações
+                          <span style={{ fontWeight: 400, color: '#64748b', marginLeft: 8 }}>
+                            ({tiposOrgaoAlvo.length === 0 ? 'Todos os tipos' : `${tiposOrgaoAlvo.length} selecionado${tiposOrgaoAlvo.length > 1 ? 's' : ''}`})
+                          </span>
+                        </Label>
+                        <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                          <button type="button" style={{ fontSize: '0.78rem', padding: '3px 10px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#f8fafc', cursor: 'pointer' }}
+                            onClick={() => setTiposOrgaoAlvo([])}>
+                            Todos
+                          </button>
+                          <button type="button" style={{ fontSize: '0.78rem', padding: '3px 10px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#f8fafc', cursor: 'pointer' }}
+                            onClick={() => setTiposOrgaoAlvo(TIPOS_ORGAO.map(t => t.valor))}>
+                            Selecionar todos
+                          </button>
+                        </div>
+                        <CheckboxGroup>
+                          {TIPOS_ORGAO.map(tipo => (
+                            <CheckboxPill key={tipo.valor} $active={tiposOrgaoAlvo.includes(tipo.valor)}>
+                              <input type="checkbox" checked={tiposOrgaoAlvo.includes(tipo.valor)}
+                                onChange={() => setTiposOrgaoAlvo(prev => prev.includes(tipo.valor) ? prev.filter(t => t !== tipo.valor) : [...prev, tipo.valor])} />
+                              {tipo.rotulo}
+                            </CheckboxPill>
+                          ))}
+                        </CheckboxGroup>
+                      </FormGroup>
+
+                      <FormGroup className="span-2">
+                        <Label>
+                          Prioridade de disparo por estado
+                          <span style={{ fontWeight: 400, color: '#64748b', marginLeft: 8 }}>
+                            (atende todo o público normalmente, mas envia primeiro pros estados aqui, na ordem definida)
+                          </span>
+                        </Label>
+                        <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+                          <Select
+                            value=""
+                            onChange={e => adicionarUfPrioridade(e.target.value)}
+                            style={{ maxWidth: 220 }}
+                          >
+                            <option value="">+ Adicionar estado à prioridade...</option>
+                            {LISTA_UFS.filter(uf => !ufsPrioridade.includes(uf)).map(uf => (
+                              <option key={uf} value={uf}>{uf}</option>
+                            ))}
+                          </Select>
+                        </div>
+                        {ufsPrioridade.length === 0 ? (
+                          <span style={{ fontSize: '0.85rem', color: '#6c757d', fontStyle: 'italic' }}>
+                            Nenhuma prioridade definida — envio segue ordem padrão (por nome do órgão).
+                          </span>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxWidth: 360 }}>
+                            {ufsPrioridade.map((uf, indice) => (
+                              <div key={uf} style={{
+                                display: 'flex', alignItems: 'center', gap: 8,
+                                padding: '6px 10px', borderRadius: 6,
+                                border: '1px solid #cbd5e1', background: '#e7f3ff'
+                              }}>
+                                <strong style={{ color: '#007bff', minWidth: 28 }}>{indice + 1}º</strong>
+                                <span style={{ flex: 1 }}>{uf}</span>
+                                <button type="button" title="Subir prioridade" disabled={indice === 0}
+                                  onClick={() => moverUfPrioridade(indice, -1)}
+                                  style={{ border: 'none', background: 'none', cursor: indice === 0 ? 'default' : 'pointer', opacity: indice === 0 ? 0.3 : 1 }}>
+                                  <i className="fa-solid fa-arrow-up"></i>
+                                </button>
+                                <button type="button" title="Descer prioridade" disabled={indice === ufsPrioridade.length - 1}
+                                  onClick={() => moverUfPrioridade(indice, 1)}
+                                  style={{ border: 'none', background: 'none', cursor: indice === ufsPrioridade.length - 1 ? 'default' : 'pointer', opacity: indice === ufsPrioridade.length - 1 ? 0.3 : 1 }}>
+                                  <i className="fa-solid fa-arrow-down"></i>
+                                </button>
+                                <button type="button" title="Remover" onClick={() => removerUfPrioridade(uf)}
+                                  style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#dc3545' }}>
+                                  <i className="fa-solid fa-times"></i>
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </FormGroup>
 
                       <FormGroup>

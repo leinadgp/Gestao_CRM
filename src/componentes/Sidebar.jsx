@@ -21,7 +21,7 @@ const MENU_CONFIG = [
     section: 'OPERAÇÃO',
     items: [
       { label: 'Contatos', path: '/contatos', icon: 'fa-users', modulo: 'contatos' },
-      { label: 'Prefeituras / Empresas', path: '/empresas', icon: 'fa-building', modulo: 'empresas' },
+      { label: 'Órgãos Públicos', path: '/empresas', icon: 'fa-building', modulo: 'empresas' },
     ]
   },
   {

@@ -7,6 +7,8 @@ import grapesjs from 'grapesjs';
 import 'grapesjs/dist/css/grapes.min.css';
 import gjsPresetWebpage from 'grapesjs-preset-webpage';
 import ptLocale from 'grapesjs/locale/pt';
+import { campanhaEstaAtiva } from '../utils/campanhaStatus.js';
+import { useBloqueioEdicao } from '../hooks/useBloqueioEdicao.js';
 
 export function LandingPages() {
   const [paginas, setPaginas] = useState([]);
@@ -16,10 +18,17 @@ export function LandingPages() {
   const chipInputRef = useRef(null);
   const [carregando, setCarregando] = useState(true);
   const [buscaGeral, setBuscaGeral] = useState('');
-  
+
   // === ESTADOS DO SUPER MODAL DO GRAPESJS ===
   const [mostrarModal, setMostrarModal] = useState(false);
   const [editandoId, setEditandoId] = useState(null);
+  const { tentarAbrir: tentarAbrirTravaLandingPage, liberar: liberarTravaLandingPage } = useBloqueioEdicao('landing_page', {
+    onTravaPerdida: () => {
+      alert('Sua edição expirou por inatividade — esta página foi liberada para outro usuário.');
+      setMostrarModal(false);
+    },
+  });
+  useEffect(() => () => { liberarTravaLandingPage(); }, [liberarTravaLandingPage]);
   
   const [nome, setNome] = useState('');
   const [slug, setSlug] = useState('');
@@ -1255,6 +1264,11 @@ export function LandingPages() {
   }
 
   async function abrirModalEdicao(lp) {
+    const trava = await tentarAbrirTravaLandingPage(lp.id);
+    if (!trava.ok) {
+      alert(`Esta página está sendo editada agora por ${trava.usuario_nome || 'outro usuário'}. Tente novamente em instantes.`);
+      return;
+    }
     try {
       const res = await axios.get(`${API_URL}/landing-pages/${lp.id}`, getHeaders());
       const lpCompleta = res.data;
@@ -1281,6 +1295,7 @@ export function LandingPages() {
     } catch (e) {
       console.error(e);
       alert('Erro ao carregar a página para edição.');
+      liberarTravaLandingPage();
     }
   }
 
@@ -1345,7 +1360,7 @@ export function LandingPages() {
 
   async function deletarPagina(id) {
     if (!window.confirm("Deseja realmente apagar esta Landing Page? Isso removerá a página do ar.")) return;
-    try { await axios.delete(`${API_URL}/landing-pages/${id}`, getHeaders()); setMostrarModal(false); carregarDados(); } catch { alert("Erro ao excluir página."); }
+    try { await axios.delete(`${API_URL}/landing-pages/${id}`, getHeaders()); liberarTravaLandingPage(); setMostrarModal(false); carregarDados(); } catch { alert("Erro ao excluir página."); }
   }
 
   async function duplicarPagina(pagina) {
@@ -1548,7 +1563,7 @@ export function LandingPages() {
                     <i className="fa-solid fa-eye"></i>
                   </TopBarBtn>
                 )}
-                <TopBarBtn title="Fechar editor" type="button" onClick={() => setMostrarModal(false)}>
+                <TopBarBtn title="Fechar editor" type="button" onClick={() => { liberarTravaLandingPage(); setMostrarModal(false); }}>
                   <i className="fa-solid fa-xmark"></i>
                 </TopBarBtn>
                 <TopBarSaveBtn type="submit" form="lpForm" title="Salvar rascunho">
@@ -1620,11 +1635,11 @@ export function LandingPages() {
                     </div>
                     {dropdownCampanhasAberto && (
                       <CampanhaDropdown>
-                        {campanhas.filter(c => !campanhasIds.includes(Number(c.id))).length === 0 && (
-                          <div className="vazio">Todas as campanhas já selecionadas</div>
+                        {campanhas.filter(c => !campanhasIds.includes(Number(c.id)) && campanhaEstaAtiva(c)).length === 0 && (
+                          <div className="vazio">Todas as campanhas ativas já selecionadas</div>
                         )}
                         {campanhas
-                          .filter(c => !campanhasIds.includes(Number(c.id)))
+                          .filter(c => !campanhasIds.includes(Number(c.id)) && campanhaEstaAtiva(c))
                           .map(c => (
                             <div
                               key={c.id}

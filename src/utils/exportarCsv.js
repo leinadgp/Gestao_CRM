@@ -43,6 +43,51 @@ function escapeCsv(val) {
   return s;
 }
 
+// Lê um CSV (texto puro) e devolve um array de objetos, usando a primeira linha
+// como cabeçalho. Suporta campos entre aspas com vírgula/quebra de linha dentro,
+// igual ao que o Excel gera ao "Salvar como CSV". Usado na importação (Bloco 11).
+export function parseCsv(texto) {
+  if (!texto) return [];
+  const limpo = texto.charCodeAt(0) === 0xFEFF ? texto.slice(1) : texto; // remove BOM, se houver
+  const linhas = [];
+  let campo = '';
+  let linha = [];
+  let dentroDeAspas = false;
+
+  for (let i = 0; i < limpo.length; i++) {
+    const char = limpo[i];
+    const proximo = limpo[i + 1];
+
+    if (dentroDeAspas) {
+      if (char === '"' && proximo === '"') { campo += '"'; i++; }
+      else if (char === '"') { dentroDeAspas = false; }
+      else { campo += char; }
+      continue;
+    }
+
+    if (char === '"') { dentroDeAspas = true; }
+    else if (char === ',') { linha.push(campo); campo = ''; }
+    else if (char === '\r') { /* ignora, o \n cuida da quebra */ }
+    else if (char === '\n') {
+      linha.push(campo); campo = '';
+      linhas.push(linha); linha = [];
+    } else {
+      campo += char;
+    }
+  }
+  if (campo !== '' || linha.length > 0) { linha.push(campo); linhas.push(linha); }
+
+  const linhasNaoVazias = linhas.filter((l) => l.some((c) => String(c).trim() !== ''));
+  if (linhasNaoVazias.length < 2) return [];
+
+  const cabecalho = linhasNaoVazias[0].map((c) => c.trim());
+  return linhasNaoVazias.slice(1).map((valores) => {
+    const obj = {};
+    cabecalho.forEach((chave, idx) => { obj[chave] = (valores[idx] ?? '').trim(); });
+    return obj;
+  });
+}
+
 export function downloadTexto(conteudo, nomeArquivo, mime = 'text/csv;charset=utf-8;') {
   const blob = new Blob(['﻿', conteudo], { type: mime });
   const url = URL.createObjectURL(blob);

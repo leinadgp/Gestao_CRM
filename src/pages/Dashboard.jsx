@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, Fragment } from 'react';
 import axios from 'axios';
 import styled from 'styled-components';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
@@ -6,6 +6,7 @@ import { emailDoFunilDisparo, TIPOS_FUNIL_BROADCAST } from '../config/disparos.j
 import { InscritosOportunidadeEditor } from '../componentes/InscritosOportunidadeEditor.jsx';
 import { exportarLinhasComoCsv, flattenExportInscritosDashboard } from '../utils/exportarCsv.js';
 import { temPermissaoEspecial } from '../utils/permissoes.js';
+import { campanhaEstaAtiva } from '../utils/campanhaStatus.js';
 
 // --- UTILITÁRIOS ---
 const parseJSONSeguro = (dado, fallback = []) => {
@@ -55,7 +56,12 @@ export function Dashboard() {
 
   const dataAtual = new Date();
   const mesAtualString = `${dataAtual.getFullYear()}-${String(dataAtual.getMonth() + 1).padStart(2, '0')}`;
-  const [mesFiltro, setMesFiltro] = useState(mesAtualString); 
+  const [mesFiltro, setMesFiltro] = useState(mesAtualString);
+
+  // --- ESTADOS: PRODUTIVIDADE DA EQUIPE (Bloco 10) ---
+  const [produtividade, setProdutividade] = useState([]);
+  const [carregandoProdutividade, setCarregandoProdutividade] = useState(false);
+  const [vendedorExpandido, setVendedorExpandido] = useState(null);
 
   const API_URL = import.meta.env?.VITE_API_URL || 'https://server-js-gestao.onrender.com';
 
@@ -132,6 +138,29 @@ export function Dashboard() {
     buscarDadosExtrasDaCampanha();
   }, [filtroCampanha, API_URL]);
 
+  // Carrega o relatório de produtividade da equipe para o mês selecionado
+  useEffect(() => {
+    async function carregarProdutividade() {
+      setCarregandoProdutividade(true);
+      try {
+        const [ano, mes] = (mesFiltro || mesAtualString).split('-').map(Number);
+        const dataInicio = new Date(ano, mes - 1, 1).toISOString().slice(0, 10);
+        const dataFim = new Date(ano, mes, 0).toISOString().slice(0, 10);
+        const res = await axios.get(`${API_URL}/relatorios/produtividade`, {
+          ...getHeaders(),
+          params: { data_inicio: dataInicio, data_fim: dataFim },
+        });
+        setProdutividade(res.data);
+      } catch (erro) {
+        console.error('Erro ao carregar produtividade da equipe', erro);
+        setProdutividade([]);
+      } finally {
+        setCarregandoProdutividade(false);
+      }
+    }
+    carregarProdutividade();
+  }, [mesFiltro, API_URL]);
+
 
   // --- FUNÇÕES DE FORMATAÇÃO ---
   const formatarMoeda = (valor) => Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -182,23 +211,50 @@ export function Dashboard() {
 
   const obterDataCompetencia = (op, idMod) => {
     const infoMod = idMod ? todosModulos.find((m) => Number(m.id) === Number(idMod)) : null;
+    // Quando não há data de curso definida, usa a data de CRIAÇÃO (estável) como
+    // competência — nunca atualizado_em, que muda a cada edição e faria uma venda
+    // antiga "pular" de mês toda vez que alguém editasse qualquer campo dela.
     return infoMod?.data_evento
       || infoMod?.data_evento_fim
       || infoMod?.data_inicio_vendas
-      || op.atualizado_em
       || op.criado_em
+      || op.atualizado_em
       || null;
   };
 
-  const campanhasAtivas = useMemo(() => campanhas.filter(c => !c.arquivada), [campanhas]);
-  const campanhaIdsAtivas = useMemo(() => new Set(campanhasAtivas.map(c => c.id)), [campanhasAtivas]);
+  // Lista para o seletor de campanha na tela (só as em andamento, pra não poluir o filtro).
+  const campanhasAtivas = useMemo(() => campanhas.filter(campanhaEstaAtiva), [campanhas]);
+  // Só as campanhas ativas com pelo menos um módulo configurado pro mês selecionado
+  // (mesFiltro) — evita listar cursos de outros meses no seletor.
+  const campanhasDoMes = useMemo(() => {
+    if (!mesFiltro) return campanhasAtivas;
+    return campanhasAtivas.filter(c =>
+      todosModulos.some(m =>
+        Number(m.campanha_id) === Number(c.id) &&
+        ((m.data_evento && m.data_evento.substring(0, 7) === mesFiltro) ||
+         (m.data_evento_fim && m.data_evento_fim.substring(0, 7) === mesFiltro))
+      )
+    );
+  }, [campanhasAtivas, todosModulos, mesFiltro]);
+
+  // Se o mês mudar e a campanha selecionada não pertencer mais a ele, limpa o filtro
+  // (evita ficar com um filtro aplicado que sumiu da lista do seletor).
+  useEffect(() => {
+    if (filtroCampanha && !campanhasDoMes.some(c => String(c.id) === filtroCampanha)) {
+      setFiltroCampanha('');
+    }
+  }, [campanhasDoMes, filtroCampanha]);
+  // Todas as campanhas conhecidas (incluindo arquivadas/encerradas) — usado para
+  // NÃO perder o histórico de vendas/negociações fechadas quando uma campanha é
+  // arquivada. Arquivar uma campanha não pode apagar o passado do dashboard.
+  const campanhaIdsTodas = useMemo(() => new Set(campanhas.map(c => c.id)), [campanhas]);
 
   const opsGeraisFiltradas = useMemo(() => {
-    const base = oportunidades.filter(op => campanhaIdsAtivas.has(Number(op.campanha_id)));
-    return filtroCampanha 
-      ? base.filter(op => op.campanha_id === parseInt(filtroCampanha)) 
+    const base = oportunidades.filter(op => campanhaIdsTodas.has(Number(op.campanha_id)));
+    return filtroCampanha
+      ? base.filter(op => op.campanha_id === parseInt(filtroCampanha))
       : base;
-  }, [oportunidades, filtroCampanha, campanhaIdsAtivas]);
+  }, [oportunidades, filtroCampanha, campanhaIdsTodas]);
 
   const opsPorCompetencia = useMemo(() => {
     const itens = [];
@@ -289,6 +345,26 @@ export function Dashboard() {
     });
     return Object.values(ranking).sort((a, b) => b.total - a.total);
   }, [vendasNoMes]);
+
+  // Produtividade da equipe (Bloco 10): contatos, conversões e vendas por vendedora,
+  // somados no mês selecionado, com o detalhamento por dia disponível ao expandir.
+  const produtividadePorVendedor = useMemo(() => {
+    const porVendedor = {};
+    produtividade.forEach((linha) => {
+      const nome = (linha.usuario_nome || '').trim() || 'Desconhecido';
+      if (!porVendedor[nome]) {
+        porVendedor[nome] = { nome, contatos: 0, conversoes: 0, vendas: 0, valorVendido: 0, dias: [] };
+      }
+      porVendedor[nome].contatos += linha.contatos;
+      porVendedor[nome].conversoes += linha.conversoes;
+      porVendedor[nome].vendas += linha.vendas;
+      porVendedor[nome].valorVendido += linha.valor_vendido;
+      porVendedor[nome].dias.push(linha);
+    });
+    return Object.values(porVendedor)
+      .map((v) => ({ ...v, dias: v.dias.sort((a, b) => new Date(b.data) - new Date(a.data)) }))
+      .sort((a, b) => b.contatos - a.contatos);
+  }, [produtividade]);
 
   const ultimasVendas = useMemo(() => {
     return opsGeraisFiltradas
@@ -396,7 +472,7 @@ export function Dashboard() {
     return rels.reduce((acc, r) => acc + (parseInt(r.total_cliques, 10) || 0), 0);
   }
 
-  const campanhaSelecionada = campanhasAtivas.find(c => c.id === parseInt(filtroCampanha));
+  const campanhaSelecionada = campanhasDoMes.find(c => c.id === parseInt(filtroCampanha));
 
   // --- RENDERIZAÇÃO ---
   if (erroGlobal) {
@@ -454,10 +530,10 @@ export function Dashboard() {
                 >
                   Visão Macro (Todos os Cursos)
                 </CustomDropdownItem>
-                {campanhasAtivas.map(c => (
-                  <CustomDropdownItem 
-                    key={c.id} 
-                    $active={filtroCampanha === String(c.id)} 
+                {campanhasDoMes.map(c => (
+                  <CustomDropdownItem
+                    key={c.id}
+                    $active={filtroCampanha === String(c.id)}
                     onClick={() => { setFiltroCampanha(String(c.id)); setDropdownCampanhaAberto(false); }}
                   >
                     {c.nome}
@@ -580,38 +656,110 @@ export function Dashboard() {
 
             <Panel>
               <PanelTitle><i className="fa-solid fa-medal text-blue"></i> Ranking de Vendas (Rateadas)</PanelTitle>
+              {dadosEquipe.length === 0 ? (
+                <RankingVazio>Nenhuma venda para este mês.</RankingVazio>
+              ) : (
+                <RankingLista>
+                  {dadosEquipe.map((v, index) => {
+                    const maior = dadosEquipe[0]?.total || 1;
+                    const percentual = Math.max(6, Math.round((v.total / maior) * 100));
+                    return (
+                      <RankingItem key={index}>
+                        <RankingPosicao $index={index}>
+                          {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : index + 1}
+                        </RankingPosicao>
+                        <RankingInfo>
+                          <div className="linha-topo">
+                            <span className="nome">{v.nome}</span>
+                            <span className="valor">{formatarMoeda(v.total)}</span>
+                          </div>
+                          <RankingBarraFundo>
+                            <RankingBarraPreenchida $index={index} style={{ width: `${percentual}%` }} />
+                          </RankingBarraFundo>
+                          <span className="qtd">{v.quantidade} inscrição{v.quantidade > 1 ? 'ões' : ''}</span>
+                        </RankingInfo>
+                      </RankingItem>
+                    );
+                  })}
+                </RankingLista>
+              )}
+            </Panel>
+
+            <Panel $fullWidth $borderTop="#6f42c1">
+              <PanelTitle><i className="fa-solid fa-chart-line text-purple"></i> Produtividade da Equipe (no mês)</PanelTitle>
               <TabelaResponsiva>
                 <Table>
                   <thead>
                     <tr>
                       <th>Vendedor</th>
-                      <th className="text-center">Inscrições</th>
-                      <th className="text-right">Receita Gerada</th>
+                      <th className="text-center">Contatos</th>
+                      <th className="text-center">Conversões</th>
+                      <th className="text-center">Vendas</th>
+                      <th className="text-right">Valor Vendido</th>
+                      <th className="text-center">Detalhe</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {dadosEquipe.length === 0 ? (
-                      <tr><td colSpan="3" className="text-center text-muted">Nenhuma venda para este mês.</td></tr>
+                    {carregandoProdutividade ? (
+                      <tr><td colSpan="6" className="text-center text-muted"><i className="fa-solid fa-spinner fa-spin"></i> Carregando...</td></tr>
+                    ) : produtividadePorVendedor.length === 0 ? (
+                      <tr><td colSpan="6" className="text-center text-muted">Sem registros de produtividade neste mês.</td></tr>
                     ) : (
-                      dadosEquipe.map((v, index) => (
-                        <tr key={index}>
-                          <td data-label="Vendedor">
-                            <strong>
-                              {index === 0 && <i className="fa-solid fa-crown text-yellow"></i>} {v.nome}
-                            </strong>
-                          </td>
-                          <td data-label="Inscrições" className="text-center">
-                            <Badge className="badge-gray">{v.quantidade}</Badge>
-                          </td>
-                          <td data-label="Receita Gerada" className="text-right text-green font-bold">
-                            {formatarMoeda(v.total)}
-                          </td>
-                        </tr>
+                      produtividadePorVendedor.map((v) => (
+                        <Fragment key={v.nome}>
+                          <tr>
+                            <td data-label="Vendedor"><strong>{v.nome}</strong></td>
+                            <td data-label="Contatos" className="text-center"><Badge className="badge-gray">{v.contatos}</Badge></td>
+                            <td data-label="Conversões" className="text-center"><Badge className="badge-gray">{v.conversoes}</Badge></td>
+                            <td data-label="Vendas" className="text-center"><Badge className="badge-gray">{v.vendas}</Badge></td>
+                            <td data-label="Valor Vendido" className="text-right text-green font-bold">{formatarMoeda(v.valorVendido)}</td>
+                            <td data-label="Detalhe" className="text-center">
+                              <button
+                                type="button"
+                                onClick={() => setVendedorExpandido(vendedorExpandido === v.nome ? null : v.nome)}
+                                style={{ background: 'none', border: 'none', color: '#007bff', cursor: 'pointer', fontSize: '0.85rem' }}
+                              >
+                                {vendedorExpandido === v.nome ? 'Ocultar dias' : 'Ver por dia'}
+                              </button>
+                            </td>
+                          </tr>
+                          {vendedorExpandido === v.nome && (
+                            <tr>
+                              <td colSpan="6" style={{ background: '#f8fafc', padding: '10px 16px' }}>
+                                <table style={{ width: '100%', fontSize: '0.85rem' }}>
+                                  <thead>
+                                    <tr style={{ color: '#64748b' }}>
+                                      <th style={{ textAlign: 'left', padding: '4px 8px' }}>Dia</th>
+                                      <th style={{ textAlign: 'center', padding: '4px 8px' }}>Contatos</th>
+                                      <th style={{ textAlign: 'center', padding: '4px 8px' }}>Conversões</th>
+                                      <th style={{ textAlign: 'center', padding: '4px 8px' }}>Vendas</th>
+                                      <th style={{ textAlign: 'right', padding: '4px 8px' }}>Valor</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {v.dias.map((d) => (
+                                      <tr key={d.data}>
+                                        <td style={{ padding: '4px 8px' }}>{formatarData(d.data)}</td>
+                                        <td style={{ textAlign: 'center', padding: '4px 8px' }}>{d.contatos}</td>
+                                        <td style={{ textAlign: 'center', padding: '4px 8px' }}>{d.conversoes}</td>
+                                        <td style={{ textAlign: 'center', padding: '4px 8px' }}>{d.vendas}</td>
+                                        <td style={{ textAlign: 'right', padding: '4px 8px' }}>{formatarMoeda(d.valor_vendido)}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
                       ))
                     )}
                   </tbody>
                 </Table>
               </TabelaResponsiva>
+              <p style={{ padding: '0 20px 16px', fontSize: '0.78rem', color: '#94a3b8', margin: 0 }}>
+                Contatos = tentativas de contato registradas pelo botão "Registrar Contato Agora" dentro de cada negociação. Conversões = avanços de etapa. Vendas = negociações fechadas. Só contam eventos registrados a partir da atualização deste recurso — o histórico anterior a essa data não é retroativo.
+              </p>
             </Panel>
           </DashboardGrid>
 
@@ -687,7 +835,7 @@ export function Dashboard() {
                     <span>Origem</span>
                     <span>Data/Hora</span>
                     <span>Nome</span>
-                    <span>Prefeitura</span>
+                    <span>Órgão</span>
                     <span>Curso</span>
                     <span className="col-qtd">Qtd.</span>
                   </InscritosListaHead>
@@ -716,7 +864,7 @@ export function Dashboard() {
                         <span className="col-nome" data-label="Nome" title={ins.contato_nome}>
                           {ins.contato_nome || '—'}
                         </span>
-                        <span className="col-pref" data-label="Prefeitura" title={ins.empresa_nome}>
+                        <span className="col-pref" data-label="Órgão" title={ins.empresa_nome}>
                           {ins.empresa_nome || '—'}
                         </span>
                         <span className="col-curso" data-label="Curso" title={ins.curso_nome}>
@@ -757,7 +905,7 @@ export function Dashboard() {
                     <div>{inscritoDetalhe.contato_nome || '—'}</div>
                   </DetalheItem>
                   <DetalheItem>
-                    <label>Prefeitura</label>
+                    <label>Órgão</label>
                     <div>{inscritoDetalhe.empresa_nome || '—'}</div>
                   </DetalheItem>
                   <DetalheItem>
@@ -1171,6 +1319,44 @@ const Badge = styled.span`
   &.badge-gray { background: #f1f5f9; color: #475569; } &.badge-blue { background: #e7f3ff; color: #007bff; } &.badge-primary { background: #eef4fa; color: #1F4E79; } &.badge-success { background: #f4fbf5; color: #28a745; }
 `;
 
+const CORES_RANKING = ['#d4a017', '#94a3b8', '#b87333', '#007bff', '#007bff', '#007bff', '#007bff', '#007bff'];
+
+const RankingVazio = styled.p`
+  text-align: center; color: #94a3b8; padding: 30px 10px; margin: 0; font-size: 0.9rem;
+`;
+
+const RankingLista = styled.div`
+  display: flex; flex-direction: column; gap: 14px; padding: 20px;
+`;
+
+const RankingItem = styled.div`
+  display: flex; align-items: center; gap: 14px;
+`;
+
+const RankingPosicao = styled.div`
+  flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: ${props => props.$index < 3 ? '1.2rem' : '0.9rem'}; font-weight: 800;
+  background: ${props => props.$index < 3 ? 'transparent' : '#f1f5f9'};
+  color: ${props => props.$index < 3 ? CORES_RANKING[props.$index] : '#64748b'};
+`;
+
+const RankingInfo = styled.div`
+  flex: 1; min-width: 0;
+  .linha-topo { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 5px; }
+  .nome { font-weight: 700; color: #2c3e50; font-size: 0.92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .valor { font-weight: 800; color: #218553; font-size: 0.95rem; white-space: nowrap; }
+  .qtd { font-size: 0.78rem; color: #94a3b8; }
+`;
+
+const RankingBarraFundo = styled.div`
+  width: 100%; height: 8px; border-radius: 5px; background: #f1f5f9; overflow: hidden; margin-bottom: 4px;
+`;
+
+const RankingBarraPreenchida = styled.div`
+  height: 100%; border-radius: 5px; background: ${props => CORES_RANKING[Math.min(props.$index, CORES_RANKING.length - 1)]};
+  transition: width 0.4s ease;
+`;
+
 const PanelHeaderRow = styled.div`
   display: flex;
   justify-content: space-between;
@@ -1294,7 +1480,7 @@ const InscritosListaRow = styled.button`
       margin-bottom: 2px;
     }
     .col-nome::before { content: 'Nome'; }
-    .col-pref::before { content: 'Prefeitura'; }
+    .col-pref::before { content: 'Órgão'; }
     .col-curso::before { content: 'Curso'; }
     .col-qtd::before { content: 'Qtd.'; }
     .col-qtd { width: fit-content; }

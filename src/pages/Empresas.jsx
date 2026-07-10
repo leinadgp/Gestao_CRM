@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import styled, { keyframes } from 'styled-components';
 import { Header } from '../componentes/Header.jsx';
@@ -7,7 +7,9 @@ import { Header } from '../componentes/Header.jsx';
 import { normalizarCargosJson, normalizarListaJson, cargosParaTexto } from '../utils/jsonHelpers.js';
 import { normalizarClassificacoesPorCargo, labelClassificacao, resolverScoringEmpresa } from '../utils/classificacaoEmpresa.js';
 import { BotaoExportar } from '../componentes/BotaoExportar.jsx';
+import { ModalImportarCsv } from '../componentes/ModalImportarCsv.jsx';
 import { normalizarTexto } from '../utils/normalizarTexto.js';
+import { estaForaDoHorario } from '../utils/horarioFuncionamento.js';
 import { useToast } from '../componentes/Toast.jsx';
 
 export function Empresas() {
@@ -23,6 +25,8 @@ export function Empresas() {
   const [buscaGeral, setBuscaGeral] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('');
   const [filtroClassificacao, setFiltroClassificacao] = useState('');
+  const [filtroTipoOrgao, setFiltroTipoOrgao] = useState('');
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
 
   // === ORDENAÇÃO DA TABELA ===
   const [sortColuna, setSortColuna] = useState('estrelas');
@@ -30,16 +34,23 @@ export function Empresas() {
 
   // === MODAIS AUXILIARES ===
   const [modalIBGEAberto, setModalIBGEAberto] = useState(false);
+  const [modalImportarCsvAberto, setModalImportarCsvAberto] = useState(false);
   const [ufImport, setUfImport] = useState('');
   const [importando, setImportando] = useState(false);
   const [modalDeleteEmpresa, setModalDeleteEmpresa] = useState(null); // empresa a deletar
   const [contaMathDelete, setContaMathDelete] = useState({ a: 0, b: 0, resultado: 0 });
   const [respostaMathDelete, setRespostaMathDelete] = useState('');
 
-  const [dropdownEstadoAberto, setDropdownEstadoAberto] = useState(false);
-  const [dropdownClassificacaoAberto, setDropdownClassificacaoAberto] = useState(false);
-  const dropdownEstadoRef = useRef(null);
-  const dropdownClassificacaoRef = useRef(null);
+
+  const TIPOS_ORGAO = [
+    { valor: 'prefeitura', rotulo: 'Prefeitura' },
+    { valor: 'camara', rotulo: 'Câmara Municipal' },
+    { valor: 'autarquia', rotulo: 'Autarquia' },
+    { valor: 'consorcio', rotulo: 'Consórcio' },
+  ];
+  function labelTipoOrgao(valor) {
+    return TIPOS_ORGAO.find((t) => t.valor === valor)?.rotulo || 'Prefeitura';
+  }
 
   const [paginaAtual, setPaginaAtual] = useState(1);
   const itensPorPagina = 15;
@@ -57,6 +68,7 @@ export function Empresas() {
   const [cidade, setCidade] = useState('');
   const [telefones, setTelefones] = useState('');
   const [horarioFuncionamento, setHorarioFuncionamento] = useState('');
+  const [tipoOrgao, setTipoOrgao] = useState('prefeitura');
   const [classificacao, setClassificacao] = useState('nao_assessorada');
   const [estrelas, setEstrelas] = useState(0);
   const [listaCargos, setListaCargos] = useState([]);
@@ -106,15 +118,6 @@ export function Empresas() {
   useEffect(() => {
     buscarEmpresas();
   }, [buscarEmpresas]);
-
-  useEffect(() => {
-    const handleClickFora = (event) => {
-      if (dropdownEstadoRef.current && !dropdownEstadoRef.current.contains(event.target)) setDropdownEstadoAberto(false);
-      if (dropdownClassificacaoRef.current && !dropdownClassificacaoRef.current.contains(event.target)) setDropdownClassificacaoAberto(false);
-    };
-    document.addEventListener('mousedown', handleClickFora);
-    return () => document.removeEventListener('mousedown', handleClickFora);
-  }, []);
 
   // ==========================================
   // PROTEÇÃO DO BOTÃO VOLTAR DO CELULAR
@@ -212,6 +215,7 @@ export function Empresas() {
   function abrirModalNovo() {
     setEditandoId(null);
     setNome(''); setEstado(''); setCidade(''); setTelefones(''); setHorarioFuncionamento('');
+    setTipoOrgao('prefeitura');
     setClassificacao('nao_assessorada'); setEstrelas(0);
     setClassificacoesPorCargo([]); setObservacoes('');
     setDetalhesEmpresa(null);
@@ -226,6 +230,7 @@ export function Empresas() {
     setCidade(emp.cidade || '');
     setTelefones(emp.telefones || '');
     setHorarioFuncionamento(emp.horario_funcionamento || '');
+    setTipoOrgao(emp.tipo_orgao || 'prefeitura');
     setClassificacao(emp.classificacao || 'nao_assessorada');
     setEstrelas(emp.estrelas !== undefined ? emp.estrelas : 0);
     setClassificacoesPorCargo(normalizarClassificacoesPorCargo(emp.classificacoes_por_cargo_json));
@@ -295,6 +300,7 @@ export function Empresas() {
       cidade,
       telefones,
       horario_funcionamento: horarioFuncionamento,
+      tipo_orgao: tipoOrgao,
       classificacao,
       estrelas,
       classificacoes_por_cargo_json: classificacoesPorCargo.filter((c) => c.cargo),
@@ -305,15 +311,15 @@ export function Empresas() {
         await axios.put(`${API_URL}/empresas/${editandoId}`, dados, getHeaders());
         setModoEdicaoEmpresa(false);
         recarregarVisao360(editandoId);
-        mostrar('Empresa atualizada com sucesso!', 'success');
+        mostrar('Órgão atualizado com sucesso!', 'success');
       } else {
         await axios.post(`${API_URL}/empresas`, dados, getHeaders());
         setMostrarModalEmpresa(false);
-        mostrar('Empresa criada com sucesso!', 'success');
+        mostrar('Órgão criado com sucesso!', 'success');
       }
       buscarEmpresas();
     } catch (erro) {
-      mostrar(erro.response?.data?.erro || 'Erro ao salvar empresa.', 'error');
+      mostrar(erro.response?.data?.erro || 'Erro ao salvar órgão.', 'error');
     }
   }
 
@@ -339,7 +345,7 @@ export function Empresas() {
       await axios.delete(`${API_URL}/empresas/${id}`, getHeaders());
       setModalDeleteEmpresa(null);
       setMostrarModalEmpresa(false);
-      mostrar('Empresa excluída.', 'success');
+      mostrar('Órgão excluído.', 'success');
       buscarEmpresas();
     } catch (erro) { 
       alert('Erro ao excluir. Verifique se existem contatos atrelados a esta prefeitura.'); 
@@ -379,10 +385,13 @@ export function Empresas() {
       const matchEstado = filtroEstado === '' || (emp.estado || '').toUpperCase() === filtroEstado.toUpperCase();
       
       const matchClass = filtroClassificacao === '' || (emp.classificacao || 'nao_assessorada') === filtroClassificacao;
-      
-      return matchBusca && matchEstado && matchClass;
+      const matchTipoOrgao = filtroTipoOrgao === '' || (emp.tipo_orgao || 'prefeitura') === filtroTipoOrgao;
+
+      return matchBusca && matchEstado && matchClass && matchTipoOrgao;
     });
-  }, [empresas, buscaGeral, filtroEstado, filtroClassificacao]);
+  }, [empresas, buscaGeral, filtroEstado, filtroClassificacao, filtroTipoOrgao]);
+
+  const filtrosAtivosCount = [filtroEstado, filtroClassificacao, filtroTipoOrgao].filter(Boolean).length;
 
   function toggleSort(coluna) {
     if (sortColuna === coluna) {
@@ -447,7 +456,7 @@ export function Empresas() {
       <PageContainer>
         <TopSection>
           <div>
-            <Title>Base de Prefeituras / Empresas</Title>
+            <Title>Base de Órgãos Públicos</Title>
             <Subtitle>Controle de temperatura, assessoria e cadastro de clientes.</Subtitle>
           </div>
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', width: '100%' }}>
@@ -459,8 +468,11 @@ export function Empresas() {
             <InfoButton onClick={() => setModalIBGEAberto(true)} className="btn-mobile">
               <i className="fa-solid fa-file-import"></i> Importar IBGE
             </InfoButton>
+            <InfoButton onClick={() => setModalImportarCsvAberto(true)} className="btn-mobile">
+              <i className="fa-solid fa-file-csv"></i> Importar CSV
+            </InfoButton>
             <PrimaryButton onClick={abrirModalNovo} className="btn-mobile">
-              <i className="fa-solid fa-plus-circle"></i> Nova Empresa
+              <i className="fa-solid fa-plus-circle"></i> Novo Órgão
             </PrimaryButton>
           </div>
         </TopSection>
@@ -477,44 +489,18 @@ export function Empresas() {
             />
           </SearchWrapper>
 
-          <FilterPillWrapper ref={dropdownEstadoRef}>
-            <FilterButton $hasValue={!!filtroEstado} onClick={() => setDropdownEstadoAberto(!dropdownEstadoAberto)}>
-              <i className="fa-solid fa-map-location-dot icon"></i> 
-              <span>UF: <strong>{filtroEstado || 'Todas'}</strong></span>
-              <i className={`fa-solid fa-chevron-${dropdownEstadoAberto ? 'up' : 'down'} arrow`}></i>
-            </FilterButton>
-            {dropdownEstadoAberto && (
-              <CustomDropdownMenu>
-                <CustomDropdownItem $active={filtroEstado === ''} onClick={() => { setFiltroEstado(''); setDropdownEstadoAberto(false); setPaginaAtual(1); }}>Todas as UFs</CustomDropdownItem>
-                {listaEstados.map(uf => (
-                  <CustomDropdownItem key={uf} $active={filtroEstado === uf} onClick={() => { setFiltroEstado(uf); setDropdownEstadoAberto(false); setPaginaAtual(1); }}>{uf}</CustomDropdownItem>
-                ))}
-              </CustomDropdownMenu>
-            )}
-          </FilterPillWrapper>
-
-          <FilterPillWrapper ref={dropdownClassificacaoRef}>
-            <FilterButton $hasValue={!!filtroClassificacao} onClick={() => setDropdownClassificacaoAberto(!dropdownClassificacaoAberto)}>
-              <i className="fa-solid fa-fire icon"></i> 
-              <span>Tipo: <strong>
-                {filtroClassificacao === 'assessorada' ? '👑 Assessoradas' : 
-                 filtroClassificacao === 'lead_quente' ? '🔥 Leads Quentes' : 
-                 filtroClassificacao === 'nao_assessorada' ? '❄️ Frios' : 'Todos'}
-              </strong></span>
-              <i className={`fa-solid fa-chevron-${dropdownClassificacaoAberto ? 'up' : 'down'} arrow`}></i>
-            </FilterButton>
-            {dropdownClassificacaoAberto && (
-              <CustomDropdownMenu>
-                <CustomDropdownItem $active={filtroClassificacao === ''} onClick={() => { setFiltroClassificacao(''); setDropdownClassificacaoAberto(false); setPaginaAtual(1); }}>Todos os Tipos</CustomDropdownItem>
-                <CustomDropdownItem $active={filtroClassificacao === 'assessorada'} onClick={() => { setFiltroClassificacao('assessorada'); setDropdownClassificacaoAberto(false); setPaginaAtual(1); }}>👑 Assessoradas (VIP)</CustomDropdownItem>
-                <CustomDropdownItem $active={filtroClassificacao === 'lead_quente'} onClick={() => { setFiltroClassificacao('lead_quente'); setDropdownClassificacaoAberto(false); setPaginaAtual(1); }}>🔥 Leads Quentes</CustomDropdownItem>
-                <CustomDropdownItem $active={filtroClassificacao === 'nao_assessorada'} onClick={() => { setFiltroClassificacao('nao_assessorada'); setDropdownClassificacaoAberto(false); setPaginaAtual(1); }}>❄️ Frios (Padrão)</CustomDropdownItem>
-              </CustomDropdownMenu>
-            )}
-          </FilterPillWrapper>
+          <FilterToggleButton
+            type="button"
+            $hasValue={filtrosAtivosCount > 0}
+            onClick={() => setFiltrosAbertos(true)}
+          >
+            <i className="fa-solid fa-filter"></i>
+            Filtros
+            {filtrosAtivosCount > 0 && <FiltrosBadge>{filtrosAtivosCount}</FiltrosBadge>}
+          </FilterToggleButton>
         </FilterBar>
 
-        {(filtroEstado || filtroClassificacao) && (
+        {(filtroEstado || filtroClassificacao || filtroTipoOrgao) && (
           <FiltrosAtivos>
             {filtroEstado && (
               <FiltroChip onClick={() => { setFiltroEstado(''); setPaginaAtual(1); }}>
@@ -527,7 +513,12 @@ export function Empresas() {
                 {' '}<i className="fa-solid fa-times" />
               </FiltroChip>
             )}
-            <button className="limpar" onClick={() => { setFiltroEstado(''); setFiltroClassificacao(''); setPaginaAtual(1); }}>
+            {filtroTipoOrgao && (
+              <FiltroChip onClick={() => { setFiltroTipoOrgao(''); setPaginaAtual(1); }}>
+                {labelTipoOrgao(filtroTipoOrgao)} <i className="fa-solid fa-times" />
+              </FiltroChip>
+            )}
+            <button className="limpar" onClick={() => { setFiltroEstado(''); setFiltroClassificacao(''); setFiltroTipoOrgao(''); setPaginaAtual(1); }}>
               Limpar filtros
             </button>
           </FiltrosAtivos>
@@ -539,7 +530,7 @@ export function Empresas() {
               <thead className="sticky-head">
                 <tr>
                   <SortableTh onClick={() => toggleSort('nome')} $active={sortColuna === 'nome'}>
-                    Prefeitura / Empresa
+                    Órgão
                     <SortIcon $dir={sortColuna === 'nome' ? sortDirecao : null} />
                   </SortableTh>
                   <th>Classificação</th>
@@ -559,13 +550,13 @@ export function Empresas() {
                   <tr><td colSpan={perfilUsuario === 'admin' ? 5 : 4} className="text-center text-muted"><i className="fa-solid fa-spinner fa-spin"></i> Carregando dados...</td></tr>
                 ) : itensAtuais.length === 0 ? (
                   <tr><td colSpan={perfilUsuario === 'admin' ? 5 : 4} className="text-center text-muted">
-                    Nenhuma empresa encontrada
+                    Nenhum órgão encontrado
                     {(filtroEstado || filtroClassificacao || buscaGeral) && <> para os filtros selecionados — <button style={{background:'none',border:'none',color:'#3b82f6',cursor:'pointer',textDecoration:'underline'}} onClick={() => { setBuscaGeral(''); setFiltroEstado(''); setFiltroClassificacao(''); }}>Limpar filtros</button></>}.
                   </td></tr>
                 ) : (
                   itensAtuais.map((empresa, index) => (
                     <ClickableRow key={empresa.id} style={{ animationDelay: `${index * 0.05}s` }}>
-                      <td data-label="Prefeitura / Empresa" onClick={() => abrirModalDetalhes(empresa)} title="Clique para ver o perfil">
+                      <td data-label="Órgão" onClick={() => abrirModalDetalhes(empresa)} title="Clique para ver o perfil">
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <EmpresaAvatar $seed={empresa.id}>
                             {(empresa.nome || '?').slice(0, 2).toUpperCase()}
@@ -574,6 +565,8 @@ export function Empresas() {
                             <div className="main-name">{empresa.nome}</div>
                             <div className="meta">
                               <span><i className="fa-solid fa-location-dot"></i> {empresa.cidade || '-'} {empresa.estado ? `(${empresa.estado})` : ''}</span>
+                              {' · '}
+                              <span><i className="fa-solid fa-landmark"></i> {labelTipoOrgao(empresa.tipo_orgao)}</span>
                             </div>
                           </div>
                         </div>
@@ -607,7 +600,7 @@ export function Empresas() {
 
           {!carregando && empresasOrdenadas.length > 0 && (
             <PaginationContainer>
-              <div className="info">Total: <strong>{empresasOrdenadas.length}</strong> empresas</div>
+              <div className="info">Total: <strong>{empresasOrdenadas.length}</strong> órgãos</div>
               <div className="controls">
                 <PageButton disabled={paginaAtual === 1} onClick={() => setPaginaAtual(1)}><i className="fa-solid fa-angles-left"></i></PageButton>
                 <PageButton disabled={paginaAtual === 1} onClick={() => setPaginaAtual(paginaAtual - 1)}>Anterior</PageButton>
@@ -627,7 +620,7 @@ export function Empresas() {
                 <div>
                   <h3>
                     {modoEdicaoEmpresa ? (
-                      <><i className="fa-solid fa-building"></i> {editandoId ? 'Editar Empresa' : 'Cadastrar Empresa'}</>
+                      <><i className="fa-solid fa-building"></i> {editandoId ? 'Editar Órgão' : 'Cadastrar Órgão'}</>
                     ) : (
                       <><i className="fa-solid fa-building-columns text-blue"></i> {nome}</>
                     )}
@@ -636,6 +629,7 @@ export function Empresas() {
                     <div className="subtitle">
                       {classificacao === 'assessorada' && <span className="vip-badge" style={{fontSize: '0.85rem'}}><i className="fa-solid fa-crown"></i> Assessorada VIP</span>}
                       {classificacao === 'lead_quente' && <span className="vip-badge text-red" style={{fontSize: '0.85rem'}}><i className="fa-solid fa-fire"></i> Lead Quente</span>}
+                      <span><i className="fa-solid fa-landmark"></i> {labelTipoOrgao(tipoOrgao)}</span>
                       <span><i className="fa-solid fa-location-dot"></i> {cidade} - {estado}</span>
                     </div>
                   )}
@@ -709,7 +703,14 @@ export function Empresas() {
                               </span>
                             ) : ' - '}
                           </div>
-                          <div className="info-line"><strong>Horário de Func.:</strong> {detalhesEmpresa.empresa.horario_funcionamento || '-'}</div>
+                          <div className="info-line">
+                            <strong>Horário de Func.:</strong> {detalhesEmpresa.empresa.horario_funcionamento || '-'}
+                            {estaForaDoHorario(detalhesEmpresa.empresa.horario_funcionamento) === true && (
+                              <span style={{ marginLeft: 10, color: '#b45309', background: '#fff4e5', padding: '2px 8px', borderRadius: 999, fontSize: '0.75rem', fontWeight: 700 }}>
+                                <i className="fa-solid fa-moon"></i> Fora de horário agora
+                              </span>
+                            )}
+                          </div>
                           <div className="info-line"><strong>Cadastrada em:</strong> {formatarData(detalhesEmpresa.empresa.criado_em)}</div>
                         </InfoCard>
 
@@ -735,7 +736,7 @@ export function Empresas() {
 
                       {detalhesEmpresa.empresa?.observacoes && (
                         <HistorySection style={{ background: '#fffbeb', border: '1px solid #fcd34d', marginBottom: '16px' }}>
-                          <h4><i className="fa-solid fa-note-sticky" style={{ color: '#d97706' }}></i> Observações da Prefeitura</h4>
+                          <h4><i className="fa-solid fa-note-sticky" style={{ color: '#d97706' }}></i> Observações do Órgão</h4>
                           <p style={{ color: '#92400e', margin: '8px 0 0', whiteSpace: 'pre-wrap', lineHeight: 1.6, fontSize: '0.9rem' }}>{detalhesEmpresa.empresa.observacoes}</p>
                         </HistorySection>
                       )}
@@ -784,8 +785,16 @@ export function Empresas() {
                   <form onSubmit={salvarEmpresa}>
                     <FormGrid $columns="1fr 1fr">
                       <FormGroup className="span-2">
-                        <label>Nome da Prefeitura / Empresa *</label>
+                        <label>Nome do Órgão *</label>
                         <Input type="text" value={nome} onChange={e => setNome(e.target.value)} required />
+                      </FormGroup>
+                      <FormGroup>
+                        <label>Tipo de Órgão</label>
+                        <Select value={tipoOrgao} onChange={e => setTipoOrgao(e.target.value)}>
+                          {TIPOS_ORGAO.map((t) => (
+                            <option key={t.valor} value={t.valor}>{t.rotulo}</option>
+                          ))}
+                        </Select>
                       </FormGroup>
                       <FormGroup>
                         <label>Estado (UF)</label>
@@ -806,7 +815,7 @@ export function Empresas() {
                       </FormGroup>
                       <FormGroup>
                         <label>Horário de Funcionamento</label>
-                        <Input type="text" value={horarioFuncionamento} onChange={e => setHorarioFuncionamento(e.target.value)} placeholder="Ex: 08:00 às 17:00" />
+                        <Input type="text" value={horarioFuncionamento} onChange={e => setHorarioFuncionamento(e.target.value)} placeholder="Ex: 08:00 às 11:30 e 13:30 às 16:00" />
                       </FormGroup>
                     </FormGrid>
 
@@ -876,7 +885,7 @@ export function Empresas() {
                     
                     <SectionCard style={{ marginTop: '20px' }}>
                       <label style={{ display: 'block', marginBottom: '10px', color: '#d97706', fontSize: '0.9rem', fontWeight: 'bold' }}>
-                        <i className="fa-solid fa-note-sticky"></i> Observações da Prefeitura
+                        <i className="fa-solid fa-note-sticky"></i> Observações do Órgão
                       </label>
                       <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '0 0 10px' }}>
                         Anotações gerais sobre esta prefeitura — visíveis em todas as campanhas.
@@ -892,7 +901,7 @@ export function Empresas() {
 
                     <ModalFooter $justify="flex-end" style={{border: 'none', padding: '20px 0 0'}}>
                       <SecondaryButton type="button" onClick={() => editandoId ? setModoEdicaoEmpresa(false) : setMostrarModalEmpresa(false)}>Cancelar</SecondaryButton>
-                      <PrimaryButton type="submit"><i className="fa-solid fa-save"></i> {editandoId ? 'Atualizar Empresa' : 'Salvar Empresa'}</PrimaryButton>
+                      <PrimaryButton type="submit"><i className="fa-solid fa-save"></i> {editandoId ? 'Atualizar Órgão' : 'Salvar Órgão'}</PrimaryButton>
                     </ModalFooter>
                   </form>
                 )}
@@ -1045,12 +1054,21 @@ export function Empresas() {
           </ModalOverlay>
         )}
 
+        <ModalImportarCsv
+          aberto={modalImportarCsvAberto}
+          onFechar={() => setModalImportarCsvAberto(false)}
+          endpoint="/import/empresas"
+          titulo="Importar Órgãos via CSV"
+          colunasModelo={['empresa_nome', 'empresa_uf', 'empresa_cidade', 'empresa_classificacao', 'tipo_orgao', 'telefones', 'horario_funcionamento']}
+          onImportado={buscarEmpresas}
+        />
+
         {/* MODAL CONFIRMAÇÃO DE EXCLUSÃO DE EMPRESA */}
         {modalDeleteEmpresa && (
           <ModalOverlay onClick={() => setModalDeleteEmpresa(null)} style={{zIndex: 10001}}>
             <ModalContent $small onClick={e => e.stopPropagation()} style={{maxWidth: 440}}>
               <ModalHeader $bg="#dc3545" $color="#fff">
-                <h3><i className="fa-solid fa-triangle-exclamation"></i> Excluir Empresa</h3>
+                <h3><i className="fa-solid fa-triangle-exclamation"></i> Excluir Órgão</h3>
                 <CloseButton $color="#fff" onClick={() => setModalDeleteEmpresa(null)}>&times;</CloseButton>
               </ModalHeader>
               <ModalBody>
@@ -1075,8 +1093,53 @@ export function Empresas() {
               <ModalFooter>
                 <SecondaryButton onClick={() => setModalDeleteEmpresa(null)}>Cancelar</SecondaryButton>
                 <DangerButton onClick={processarExclusaoEmpresa}>
-                  <i className="fa-solid fa-trash-can" /> Excluir Empresa
+                  <i className="fa-solid fa-trash-can" /> Excluir Órgão
                 </DangerButton>
+              </ModalFooter>
+            </ModalContent>
+          </ModalOverlay>
+        )}
+
+        {/* MODAL DE FILTROS */}
+        {filtrosAbertos && (
+          <ModalOverlay onClick={() => setFiltrosAbertos(false)} style={{ zIndex: 10001 }}>
+            <ModalContent $small onClick={e => e.stopPropagation()} style={{ maxWidth: 440 }}>
+              <ModalHeader>
+                <h3><i className="fa-solid fa-filter"></i> Filtros</h3>
+                <CloseButton onClick={() => setFiltrosAbertos(false)}>&times;</CloseButton>
+              </ModalHeader>
+              <ModalBody>
+                <FiltroModalCampo>
+                  <label><i className="fa-solid fa-map-location-dot"></i> Estado (UF)</label>
+                  <Select value={filtroEstado} onChange={(e) => { setFiltroEstado(e.target.value); setPaginaAtual(1); }}>
+                    <option value="">Todas as UFs</option>
+                    {listaEstados.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
+                  </Select>
+                </FiltroModalCampo>
+
+                <FiltroModalCampo>
+                  <label><i className="fa-solid fa-fire"></i> Classificação</label>
+                  <Select value={filtroClassificacao} onChange={(e) => { setFiltroClassificacao(e.target.value); setPaginaAtual(1); }}>
+                    <option value="">Todos os Tipos</option>
+                    <option value="assessorada">👑 Assessoradas (VIP)</option>
+                    <option value="lead_quente">🔥 Leads Quentes</option>
+                    <option value="nao_assessorada">❄️ Frios (Padrão)</option>
+                  </Select>
+                </FiltroModalCampo>
+
+                <FiltroModalCampo>
+                  <label><i className="fa-solid fa-landmark"></i> Tipo de Órgão</label>
+                  <Select value={filtroTipoOrgao} onChange={(e) => { setFiltroTipoOrgao(e.target.value); setPaginaAtual(1); }}>
+                    <option value="">Todos os Órgãos</option>
+                    {TIPOS_ORGAO.map((t) => <option key={t.valor} value={t.valor}>{t.rotulo}</option>)}
+                  </Select>
+                </FiltroModalCampo>
+              </ModalBody>
+              <ModalFooter $justify="space-between">
+                <SecondaryButton onClick={() => { setFiltroEstado(''); setFiltroClassificacao(''); setFiltroTipoOrgao(''); setPaginaAtual(1); }}>
+                  Limpar filtros
+                </SecondaryButton>
+                <PrimaryButton onClick={() => setFiltrosAbertos(false)}>Aplicar</PrimaryButton>
               </ModalFooter>
             </ModalContent>
           </ModalOverlay>
@@ -1181,6 +1244,20 @@ const FilterButton = styled.button`
   .icon { color: #6c757d; } .arrow { color: #007bff; font-size: 0.8rem; }
   &:hover { background: #e7f3ff; border-color: #007bff; }
 `;
+const FilterToggleButton = styled.button`
+  display: flex; align-items: center; gap: 8px;
+  background: ${props => props.$hasValue ? '#eef4fa' : '#f8fafc'};
+  border: 1px solid ${props => props.$hasValue ? '#b8cde1' : '#cbd5e1'};
+  color: ${props => props.$hasValue ? '#007bff' : '#2c3e50'};
+  padding: 12px 18px; border-radius: 10px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: 0.2s;
+  &:hover { background: #e7f3ff; border-color: #007bff; }
+  .arrow { color: #007bff; font-size: 0.8rem; }
+`;
+const FiltrosBadge = styled.span`
+  background: #007bff; color: #fff; font-size: 0.72rem; font-weight: 700;
+  border-radius: 999px; min-width: 18px; height: 18px; display: inline-flex;
+  align-items: center; justify-content: center; padding: 0 5px;
+`;
 const CustomDropdownMenu = styled.ul`
   position: absolute; top: calc(100% + 8px); right: 0; background: #fff; border: 1px solid #edf2f9; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); min-width: 230px; 
   max-height: 250px; overflow-y: auto; overflow-x: hidden; z-index: 100; list-style: none; padding: 8px 0; margin: 0; animation: fadeInDown 0.2s ease-out;
@@ -1249,6 +1326,11 @@ const ClickableRow = styled.tr`
   @media (max-width: 768px) {
     .meta { flex-direction: column; gap: 4px; }
   }
+`;
+
+const FiltroModalCampo = styled.div`
+  margin-bottom: 18px;
+  label { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 600; color: #334155; margin-bottom: 6px; i { color: #94a3b8; width: 14px; } }
 `;
 
 const StatusBadge = styled.span`

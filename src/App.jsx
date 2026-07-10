@@ -112,7 +112,7 @@ export function App() {
           <Route path="/funil" element={<RotaProtegida titulo="Funil de Vendas"><Funil /></RotaProtegida>} />
           <Route path="/tarefas" element={<RotaProtegida titulo="Tarefas"><Tarefas /></RotaProtegida>} />
           <Route path="/dashboard" element={<RotaProtegida titulo="Métricas Globais"><Dashboard /></RotaProtegida>} />
-          <Route path="/empresas" element={<RotaProtegida titulo="Prefeituras / Empresas"><Empresas /></RotaProtegida>} />
+          <Route path="/empresas" element={<RotaProtegida titulo="Órgãos Públicos"><Empresas /></RotaProtegida>} />
           <Route path="/disparos" element={<RotaProtegida titulo="Máquina de Disparos"><Disparos /></RotaProtegida>} />
           <Route path="/landing-pages" element={<RotaProtegida titulo="Landing Pages"><LandingPages /></RotaProtegida>} />
           <Route path="/configuracoes" element={<RotaProtegida titulo="Configurações"><Configuracoes /></RotaProtegida>} />

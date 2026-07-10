@@ -8,6 +8,7 @@ import { listarMinhasTarefas, classificarTarefa } from '../utils/tarefasService.
 
 import { normalizarCargosJson, normalizarListaJson, cargosParaTexto } from '../utils/jsonHelpers.js';
 import { normalizarClassificacoesPorCargo, resolverScoringEmpresa, PESOS_CLASSIFICACAO } from '../utils/classificacaoEmpresa.js';
+import { estaForaDoHorario } from '../utils/horarioFuncionamento.js';
 import {
   calcularTotaisPacote,
   inscritosUsamModulosPorPessoa,
@@ -17,6 +18,7 @@ import {
 import { UFS_BRASIL } from '../constants/ufsBrasil.js';
 import { normalizarTexto } from '../utils/normalizarTexto.js';
 import { exportarLinhasComoCsv } from '../utils/exportarCsv.js';
+import { useBloqueioEdicao } from '../hooks/useBloqueioEdicao.js';
 
 const inscritoVazio = (modulosPadrao = []) => ({
   nome: '', email: '', telefone: '', formacao: '', cargo: '', contato_id: null,
@@ -52,7 +54,14 @@ export function Funil() {
   const [ultimaAtualizacaoFunil, setUltimaAtualizacaoFunil] = useState(null);
   const [filtroCampanha, setFiltroCampanha] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('');
-  const [sortPorColuna, setSortPorColuna] = useState({});
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
+  const { tentarAbrir: tentarAbrirTravaOportunidade, liberar: liberarTravaOportunidade } = useBloqueioEdicao('oportunidade', {
+    onTravaPerdida: () => {
+      alert('Sua edição expirou por inatividade — esta negociação foi liberada para outro usuário.');
+      fecharModalPrincipal(false);
+    },
+  });
+  useEffect(() => () => { liberarTravaOportunidade(); }, [liberarTravaOportunidade]);
   const [mostrarModalDiagnostico, setMostrarModalDiagnostico] = useState(false);
   const [diagnostico, setDiagnostico] = useState({ com_negociacao: [], sem_negociacao: [] });
   const [carregandoDiagnostico, setCarregandoDiagnostico] = useState(false);
@@ -70,12 +79,33 @@ export function Funil() {
     }
   });
   const [dropdownCampanhaAberto, setDropdownCampanhaAberto] = useState(false);
-  const [dropdownEstadoAberto, setDropdownEstadoAberto] = useState(false);
   const [filtroVendedor, setFiltroVendedor] = useState('');
-  const [dropdownVendedorAberto, setDropdownVendedorAberto] = useState(false);
+  const [filtroFaixaAlfabetica, setFiltroFaixaAlfabetica] = useState('');
+  const [filtroEstrelasMin, setFiltroEstrelasMin] = useState(0);
   const dropdownCampanhaRef = useRef(null);
-  const dropdownEstadoRef = useRef(null);
-  const dropdownVendedorRef = useRef(null);
+
+  const FAIXAS_ALFABETICAS = [
+    { valor: 'A-M', label: 'A – M' },
+    { valor: 'N-Z', label: 'N – Z' },
+  ];
+  function letraDentroDaFaixa(letra, faixa) {
+    if (!faixa) return true;
+    const [ini, fim] = faixa.split('-');
+    return letra >= ini && letra <= fim;
+  }
+  // Nome do órgão quase sempre começa com "Prefeitura"/"Câmara Municipal"/etc,
+  // então cortar só a 1ª letra do nome inteiro faz tudo cair na mesma faixa
+  // (ex: quase tudo em "N-Z" por causa do "P" de "Prefeitura"). Usar a cidade
+  // (campo próprio, mais confiável) e, na falta dela, tirar o prefixo
+  // institucional do nome antes de pegar a letra.
+  const PREFIXO_ORGAO_REGEX = /^(prefeitura( municipal)?( de)?|c[aâ]mara( municipal)?( de)?|autarquia( municipal)?( de)?|cons[oó]rcio( intermunicipal)?( de)?)\s+/i;
+  function letraInicialFaixa(op, empresaObj) {
+    const cidade = (empresaObj?.cidade || '').trim();
+    if (cidade) return cidade.charAt(0).toUpperCase();
+    const nome = (op.empresa_nome || empresaObj?.nome || op.titulo || '').trim();
+    const semPrefixo = nome.replace(PREFIXO_ORGAO_REGEX, '').trim();
+    return (semPrefixo || nome).charAt(0).toUpperCase();
+  }
   const buscaWrapperRef = useRef(null);
 
   // --- DADOS DO USUÁRIO ---
@@ -151,6 +181,7 @@ export function Funil() {
   const [contatoNaoQuerEmail, setContatoNaoQuerEmail] = useState(false);
   const [contatoNaoQuerLigacao, setContatoNaoQuerLigacao] = useState(false);
   const [contatoCongeladoAte, setContatoCongeladoAte] = useState('');
+  const [contatoObservacoes, setContatoObservacoes] = useState('');
 
   // --- ESTADOS DO SUB-MODAL DE EMPRESA ---
   const [mostrarModalEmpresa, setMostrarModalEmpresa] = useState(false);
@@ -283,12 +314,6 @@ export function Funil() {
       }
       if (dropdownCampanhaRef.current && !dropdownCampanhaRef.current.contains(event.target)) {
         setDropdownCampanhaAberto(false);
-      }
-      if (dropdownEstadoRef.current && !dropdownEstadoRef.current.contains(event.target)) {
-        setDropdownEstadoAberto(false);
-      }
-      if (dropdownVendedorRef.current && !dropdownVendedorRef.current.contains(event.target)) {
-        setDropdownVendedorAberto(false);
       }
       if (buscaWrapperRef.current && !buscaWrapperRef.current.contains(event.target)) {
         setMostrarSugestoesBusca(false);
@@ -490,6 +515,11 @@ export function Funil() {
         if (estadoOp !== filtroEstado.toUpperCase()) return false;
       }
       if (filtroVendedor && String(op.vendedor_id) !== String(filtroVendedor)) return false;
+      if (filtroFaixaAlfabetica) {
+        const empresaObj = empresas.find(e => e.id === op.empresa_id);
+        const letra = letraInicialFaixa(op, empresaObj);
+        if (!letra || !letraDentroDaFaixa(letra, filtroFaixaAlfabetica)) return false;
+      }
       return true;
     });
 
@@ -510,6 +540,7 @@ export function Funil() {
       );
       const dataRef = op.atualizado_em || op.criado_em;
       const diasNaEtapa = dataRef ? Math.floor((agora - new Date(dataRef).getTime()) / 86400000) : 0;
+      const horarioFuncionamento = op.empresa_horario_funcionamento ?? emp.horario_funcionamento;
       return {
         ...op,
         classificacao: scoring.classificacao,
@@ -517,10 +548,15 @@ export function Funil() {
         cargoPrioridade: scoring.cargoRef,
         assessoradasCargos,
         diasNaEtapa,
+        foraDoHorario: estaForaDoHorario(horarioFuncionamento),
       };
     });
 
-    opsEnriquecidas.sort((a, b) => {
+    const opsPosFiltroEstrelas = filtroEstrelasMin > 0
+      ? opsEnriquecidas.filter((op) => (op.estrelas || 0) >= filtroEstrelasMin)
+      : opsEnriquecidas;
+
+    opsPosFiltroEstrelas.sort((a, b) => {
       if (b.estrelas !== a.estrelas) return b.estrelas - a.estrelas;
       const pesoA = PESOS_CLASSIFICACAO[a.classificacao] || 1;
       const pesoB = PESOS_CLASSIFICACAO[b.classificacao] || 1;
@@ -528,22 +564,17 @@ export function Funil() {
       return new Date(b.criado_em) - new Date(a.criado_em);
     });
 
-    opsEnriquecidas.forEach(op => {
+    // Ordem dentro de cada coluna é sempre por prioridade (estrelas → classificação
+    // → mais recente primeiro) — sem alternativa de A-Z/Z-A por coluna. Separar
+    // a carteira por região/consultor agora é feito pelo filtro "Faixa Alfabética"
+    // (no modal de Filtros), que já resolve isso de forma mais confiável.
+    opsPosFiltroEstrelas.forEach(op => {
       if (!mapa[op.etapa_id]) mapa[op.etapa_id] = [];
       mapa[op.etapa_id].push(op);
     });
 
-    for (const etapaId of Object.keys(mapa)) {
-      const sort = sortPorColuna[etapaId] || 'padrao';
-      if (sort === 'az') {
-        mapa[etapaId].sort((a, b) => (a.titulo || '').localeCompare(b.titulo || '', 'pt-BR', { sensitivity: 'base' }));
-      } else if (sort === 'za') {
-        mapa[etapaId].sort((a, b) => (b.titulo || '').localeCompare(a.titulo || '', 'pt-BR', { sensitivity: 'base' }));
-      }
-    }
-
     return mapa;
-  }, [etapas, oportunidades, filtroEstado, filtroVendedor, empresas, cargosAlvoCampanha, sortPorColuna]);
+  }, [etapas, oportunidades, filtroEstado, filtroVendedor, filtroFaixaAlfabetica, filtroEstrelasMin, empresas, cargosAlvoCampanha]);
 
   const sugestoesBusca = useMemo(() => {
     const termo = normalizarTexto(buscaGeral);
@@ -733,6 +764,7 @@ export function Funil() {
     setContatoNaoQuerEmail(!!contato?.nao_quero_email);
     setContatoNaoQuerLigacao(!!contato?.nao_quero_ligacao);
     setContatoCongeladoAte(contato?.congelado_ate ? String(contato.congelado_ate).slice(0, 10) : '');
+    setContatoObservacoes(contato?.observacoes || '');
   }
 
   function abrirEditarContato(contato) {
@@ -756,6 +788,7 @@ export function Funil() {
     setContatoNaoQuerEmail(false);
     setContatoNaoQuerLigacao(false);
     setContatoCongeladoAte('');
+    setContatoObservacoes('');
     setModoContatoModal('novo');
     setEditandoContatoRapido(true);
     setMostrarModalContato(true);
@@ -879,6 +912,7 @@ export function Funil() {
       nao_quero_email: contatoNaoQuerEmail,
       nao_quero_ligacao: contatoNaoQuerLigacao,
       congelado_ate: contatoCongeladoAte || null,
+      observacoes: contatoObservacoes || null,
     };
 
     try {
@@ -1098,6 +1132,7 @@ export function Funil() {
   }
 
   function fecharModalPrincipal(recarregar = true) {
+    liberarTravaOportunidade();
     setMostrarModal(false);
     setEditandoId(null);
     setTitulo(''); setValor(''); setEmpresaId(''); setEmpresaTelefones(''); setEmpresaHorario(''); setContatoId(''); setObservacoes('');
@@ -1111,7 +1146,13 @@ export function Funil() {
     if (recarregar && filtroCampanha) carregarFunilDaCampanha(filtroCampanha, true);
   }
 
-  function abrirModalEdicao(op) {
+  async function abrirModalEdicao(op) {
+    const trava = await tentarAbrirTravaOportunidade(op.id);
+    if (!trava.ok) {
+      alert(`Esta negociação está sendo atendida agora por ${trava.usuario_nome || 'outro usuário'}. Tente novamente em instantes.`);
+      return;
+    }
+
     setEditandoId(op.id); setTitulo(op.titulo); setValor(op.valor);
     setEmpresaId(op.empresa_id || '');
     if (!op.empresa_id) {
@@ -1238,7 +1279,7 @@ export function Funil() {
       return;
     }
 
-    const tituloFinal = titulo.trim() || `Negociação - ${buscaEmpresaNoModal || 'Prefeitura'}`;
+    const tituloFinal = titulo.trim() || `Negociação - ${buscaEmpresaNoModal || 'Órgão'}`;
     const inscritosSalvar = inscritos
       .slice(0, Math.max(qtdInscritos, inscritos.length))
       .map((ins) => ({
@@ -1289,7 +1330,9 @@ export function Funil() {
       }
       fecharModalPrincipal();
     } catch (erro) {
-      alert(erro.response?.data?.erro || 'Erro ao salvar oportunidade.');
+      console.error('Erro ao salvar oportunidade.', erro);
+      const msg = [erro.response?.data?.erro, erro.response?.data?.detalhe].filter(Boolean).join(' — ');
+      alert(msg || 'Erro ao salvar oportunidade.');
     }
   }
 
@@ -1364,6 +1407,9 @@ export function Funil() {
   const telefonePrincipalPrefeitura = empresaTelefones
     ? empresaTelefones.split(',').map((tel) => tel.trim()).find(Boolean)
     : '';
+
+  const filtrosAtivosCount = [filtroEstado, filtroVendedor, filtroFaixaAlfabetica, filtroEstrelasMin > 0 ? 'x' : '']
+    .filter(Boolean).length;
 
   return (
     <PageContainer>
@@ -1479,66 +1525,15 @@ export function Funil() {
           </FilterPillWrapper>
 
           {filtroCampanha && (
-            <FilterPillWrapper ref={dropdownEstadoRef}>
-              <FilterButton
-                $hasValue={!!filtroEstado}
-                onClick={() => setDropdownEstadoAberto(!dropdownEstadoAberto)}
-              >
-                <i className="fa-solid fa-map-location-dot icon"></i>
-                <span>Estado: <strong>{filtroEstado || 'Todos'}</strong></span>
-                <i className="fa-solid fa-chevron-down arrow" style={{ transform: dropdownEstadoAberto ? 'rotate(180deg)' : 'rotate(0)' }}></i>
-              </FilterButton>
-              {dropdownEstadoAberto && (
-                <CustomDropdownMenu>
-                  <CustomDropdownItem
-                    $active={filtroEstado === ''}
-                    onClick={() => { setFiltroEstado(''); setDropdownEstadoAberto(false); }}
-                  >
-                    Todos os Estados
-                  </CustomDropdownItem>
-                  {UFS_BRASIL.map((uf) => (
-                    <CustomDropdownItem
-                      key={uf}
-                      $active={filtroEstado === uf}
-                      onClick={() => { setFiltroEstado(uf); setDropdownEstadoAberto(false); }}
-                    >
-                      {uf}
-                    </CustomDropdownItem>
-                  ))}
-                </CustomDropdownMenu>
-              )}
-            </FilterPillWrapper>
-          )}
-          {filtroCampanha && equipe.length > 0 && (
-            <FilterPillWrapper ref={dropdownVendedorRef}>
-              <FilterButton
-                $hasValue={!!filtroVendedor}
-                onClick={() => setDropdownVendedorAberto(!dropdownVendedorAberto)}
-              >
-                <i className="fa-solid fa-user-tie icon"></i>
-                <span>Vendedor: <strong>{filtroVendedor ? (equipe.find(u => String(u.id) === String(filtroVendedor))?.nome || 'Todos') : 'Todos'}</strong></span>
-                <i className="fa-solid fa-chevron-down arrow" style={{ transform: dropdownVendedorAberto ? 'rotate(180deg)' : 'rotate(0)' }}></i>
-              </FilterButton>
-              {dropdownVendedorAberto && (
-                <CustomDropdownMenu>
-                  <CustomDropdownItem
-                    $active={filtroVendedor === ''}
-                    onClick={() => { setFiltroVendedor(''); setDropdownVendedorAberto(false); }}
-                  >
-                    Todos os Vendedores
-                  </CustomDropdownItem>
-                  {equipe.map((u) => (
-                    <CustomDropdownItem
-                      key={u.id}
-                      $active={String(filtroVendedor) === String(u.id)}
-                      onClick={() => { setFiltroVendedor(String(u.id)); setDropdownVendedorAberto(false); }}
-                    >
-                      {u.nome}
-                    </CustomDropdownItem>
-                  ))}
-                </CustomDropdownMenu>
-              )}
-            </FilterPillWrapper>
+            <FilterToggleButton
+              type="button"
+              $hasValue={filtrosAtivosCount > 0}
+              onClick={() => setFiltrosAbertos(true)}
+            >
+              <i className="fa-solid fa-filter"></i>
+              Filtros
+              {filtrosAtivosCount > 0 && <FiltrosBadge>{filtrosAtivosCount}</FiltrosBadge>}
+            </FilterToggleButton>
           )}
           {filtroCampanha && (
             <BotaoExportar
@@ -1600,23 +1595,6 @@ export function Funil() {
                   <div className="header-top">
                     <span className="title">{etapa.nome}</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <SortGroup>
-                        <SortBtn
-                          $active={!sortPorColuna[etapa.id] || sortPorColuna[etapa.id] === 'padrao'}
-                          title="Ordenar por relevância"
-                          onClick={() => setSortPorColuna(prev => ({ ...prev, [etapa.id]: 'padrao' }))}
-                        ><i className="fa-solid fa-star" /></SortBtn>
-                        <SortBtn
-                          $active={sortPorColuna[etapa.id] === 'az'}
-                          title="Ordenar A→Z"
-                          onClick={() => setSortPorColuna(prev => ({ ...prev, [etapa.id]: 'az' }))}
-                        >A·Z</SortBtn>
-                        <SortBtn
-                          $active={sortPorColuna[etapa.id] === 'za'}
-                          title="Ordenar Z→A"
-                          onClick={() => setSortPorColuna(prev => ({ ...prev, [etapa.id]: 'za' }))}
-                        >Z·A</SortBtn>
-                      </SortGroup>
                       <BotaoExportar
                         compact
                         tipo="oportunidades"
@@ -1684,7 +1662,7 @@ export function Funil() {
                               <span style={{ fontSize: '0.72rem', color: '#198754' }}>· {op.qtd_inscritos} insc.</span>
                             )}
                             {(op.classificacao === 'assessorada' || (op.assessoradasCargos?.length > 0)) && (
-                              <span className="badge-vip" title={op.assessoradasCargos?.length ? `Assessorada em ${op.assessoradasCargos.join(', ')}` : 'Prefeitura Assessorada VIP'}>
+                              <span className="badge-vip" title={op.assessoradasCargos?.length ? `Assessorada em ${op.assessoradasCargos.join(', ')}` : 'Órgão Assessorado VIP'}>
                                 <i className="fa-solid fa-crown"></i>
                                 {op.assessoradasCargos?.length ? op.assessoradasCargos.join(', ') : 'Assessorada'}
                               </span>
@@ -1712,6 +1690,11 @@ export function Funil() {
                             {op.diasNaEtapa} {op.diasNaEtapa >= 14 ? 'dias parado' : 'dias'}
                           </RottingBadge>
                         )}
+                        {op.foraDoHorario === true && (
+                          <RottingBadge title="Fora do horário de atendimento deste órgão — ligar agora pode ser em vão">
+                            <i className="fa-solid fa-moon"></i> Fora de horário
+                          </RottingBadge>
+                        )}
                         {op.ultima_interacao && (
                           <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
                             <i className="fa-solid fa-phone" style={{ color: '#94a3b8', fontSize: '0.65rem' }}></i>
@@ -1729,6 +1712,63 @@ export function Funil() {
       )}
 
       {/* MODAL DIAGNÓSTICO DE NEGOCIAÇÕES */}
+      {filtrosAbertos && (
+        <ModalOverlay onClick={() => setFiltrosAbertos(false)}>
+          <ModalContent $small onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+            <ModalHeader>
+              <h3><i className="fa-solid fa-filter" style={{ color: '#3b82f6' }}></i> Filtros</h3>
+              <CloseButton onClick={() => setFiltrosAbertos(false)}>&times;</CloseButton>
+            </ModalHeader>
+            <ModalBody style={{ padding: '20px' }}>
+              <FiltroModalCampo>
+                <label><i className="fa-solid fa-map-location-dot"></i> Estado</label>
+                <Select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)}>
+                  <option value="">Todos os Estados</option>
+                  {UFS_BRASIL.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
+                </Select>
+              </FiltroModalCampo>
+
+              {equipe.length > 0 && (
+                <FiltroModalCampo>
+                  <label><i className="fa-solid fa-user-tie"></i> Vendedor</label>
+                  <Select value={filtroVendedor} onChange={(e) => setFiltroVendedor(e.target.value)}>
+                    <option value="">Todos os Vendedores</option>
+                    {equipe.map((u) => <option key={u.id} value={u.id}>{u.nome}</option>)}
+                  </Select>
+                </FiltroModalCampo>
+              )}
+
+              <FiltroModalCampo>
+                <label><i className="fa-solid fa-arrow-down-a-z"></i> Faixa alfabética</label>
+                <Select value={filtroFaixaAlfabetica} onChange={(e) => setFiltroFaixaAlfabetica(e.target.value)}>
+                  <option value="">Todas as Faixas</option>
+                  {FAIXAS_ALFABETICAS.map((f) => <option key={f.valor} value={f.valor}>{f.label}</option>)}
+                </Select>
+                <span className="ajuda">Divide a carteira pela letra inicial da cidade do órgão (não pelo nome, que quase sempre começa com "Prefeitura"/"Câmara") — combine com Vendedor para separar quem trabalha cada faixa.</span>
+              </FiltroModalCampo>
+
+              <FiltroModalCampo>
+                <label><i className="fa-solid fa-star"></i> Estrelas mínimas</label>
+                <Select value={filtroEstrelasMin} onChange={(e) => setFiltroEstrelasMin(Number(e.target.value))}>
+                  <option value={0}>Todas</option>
+                  {[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{'★'.repeat(n)} ou mais</option>)}
+                </Select>
+              </FiltroModalCampo>
+
+              <FiltroModalRodape>
+                <SecondaryButton
+                  type="button"
+                  onClick={() => { setFiltroEstado(''); setFiltroVendedor(''); setFiltroFaixaAlfabetica(''); setFiltroEstrelasMin(0); }}
+                >
+                  Limpar filtros
+                </SecondaryButton>
+                <PrimaryButton type="button" onClick={() => setFiltrosAbertos(false)}>Aplicar</PrimaryButton>
+              </FiltroModalRodape>
+            </ModalBody>
+          </ModalContent>
+        </ModalOverlay>
+      )}
+
       {mostrarModalDiagnostico && (
         <ModalOverlay onClick={() => setMostrarModalDiagnostico(false)}>
           <ModalContent $small onClick={e => e.stopPropagation()} style={{ maxWidth: 780 }}>
@@ -1789,7 +1829,7 @@ export function Funil() {
                     <thead>
                       <tr>
                         <th>#</th>
-                        <th>Prefeitura / Empresa</th>
+                        <th>Órgão</th>
                         <th>UF</th>
                         {abaDiagnostico === 'criadas' ? (
                           <>
@@ -1860,7 +1900,7 @@ export function Funil() {
                   <i className="fa-solid fa-bullhorn"></i> Vinculado à campanha: {campanhaSelecionadaObj?.nome}
                 </div>
               </div>
-              <CloseButton onClick={() => setMostrarModal(false)}>&times;</CloseButton>
+              <CloseButton onClick={() => fecharModalPrincipal()}>&times;</CloseButton>
             </ModalHeader>
 
             <form onSubmit={salvarOportunidade} style={{ display: 'flex', flexDirection: 'column', maxHeight: '100%', overflow: 'hidden' }}>
@@ -1938,7 +1978,7 @@ export function Funil() {
                 <SectionCard style={{ marginTop: '15px' }}>
                   <FormGrid $columns="1fr 1fr">
                     <FormGroup>
-                      <label><i className="fa-solid fa-building text-blue"></i> Empresa/Prefeitura Alvo</label>
+                      <label><i className="fa-solid fa-building text-blue"></i> Órgão Alvo</label>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                         <AutocompleteContainer ref={dropdownEmpresaRef} style={{ flex: 1 }}>
                           <Input
@@ -1993,13 +2033,18 @@ export function Funil() {
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#475569', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
                             <i className="fa-solid fa-clock"></i>
                             {empresaHorario}
+                            {estaForaDoHorario(empresaHorario) === true && (
+                              <span style={{ color: '#b45309', background: '#fff4e5', padding: '2px 8px', borderRadius: 999, fontSize: '0.75rem', fontWeight: 700 }}>
+                                <i className="fa-solid fa-moon"></i> Fora de horário agora
+                              </span>
+                            )}
                           </span>
                         )}
                       </div>
                     </FormGroup>
 
                     <FormGroup className="span-2">
-                      <label><i className="fa-solid fa-note-sticky" style={{ color: '#d97706' }}></i> Observações da Prefeitura <span style={{ fontSize: '0.75rem', fontWeight: 400, color: '#92400e' }}>(visível em todas as negociações desta prefeitura)</span></label>
+                      <label><i className="fa-solid fa-note-sticky" style={{ color: '#d97706' }}></i> Observações do Órgão <span style={{ fontSize: '0.75rem', fontWeight: 400, color: '#92400e' }}>(visível em todas as negociações deste órgão)</span></label>
                       <TextArea
                         value={observacoesEmpresa}
                         onChange={(e) => setObservacoesEmpresa(e.target.value)}
@@ -2067,6 +2112,11 @@ export function Funil() {
                                       )}
                                       {isPrincipal && vinculado && (
                                         <span className="badge-principal"><i className="fa-solid fa-star" /> Principal</span>
+                                      )}
+                                      {cont.observacoes && (
+                                        <small style={{ display: 'block', marginTop: 4, padding: '4px 8px', background: '#fffbeb', color: '#92400e', borderRadius: 6, whiteSpace: 'pre-wrap' }}>
+                                          <i className="fa-solid fa-note-sticky"></i> {cont.observacoes}
+                                        </small>
                                       )}
                                     </span>
 
@@ -2389,7 +2439,7 @@ export function Funil() {
 
                   <SectionCard $bgColor="#f8fafc" $borderColor="#e2e8f0">
                     <label style={{ display: 'block', marginBottom: '12px', color: '#475569', fontSize: '0.9rem', fontWeight: 'bold' }}>
-                      <i className="fa-solid fa-clock-rotate-left" style={{ color: '#6f42c1' }}></i> Histórico de Negociações da Prefeitura
+                      <i className="fa-solid fa-clock-rotate-left" style={{ color: '#6f42c1' }}></i> Histórico de Negociações do Órgão
                     </label>
                     {carregandoHistorico ? (
                       <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>Carregando histórico...</div>
@@ -2540,6 +2590,12 @@ export function Funil() {
                         </div>
                       </InfoBox>
                     )}
+                    {contatoObservacoes && (
+                      <InfoBox className="span-2">
+                        <label><i className="fa-solid fa-note-sticky"></i> Observações do Contato</label>
+                        <div style={{ whiteSpace: 'pre-wrap', color: '#92400e', background: '#fffbeb', padding: '10px 12px', borderRadius: 8 }}>{contatoObservacoes}</div>
+                      </InfoBox>
+                    )}
                   </FormGrid>
                   <ModalFooter $justify="flex-end">
                     <SecondaryButton type="button" onClick={fecharModalContato}>Voltar</SecondaryButton>
@@ -2566,9 +2622,15 @@ export function Funil() {
                             <i className="fa-solid fa-plus"></i> Novo Cargo
                           </AddLinkBtn>
                         </div>
+                        <p style={{ margin: '0 0 10px', fontSize: '0.78rem', color: '#64748b' }}>
+                          O primeiro é o cargo principal (usado na classificação). Os demais são secundários — recebe e-mails/campanhas desses setores também, sem mudar o cargo principal.
+                        </p>
                         <div className="dynamic-grid">
                           {contatoCargos.map((cg, i) => (
                             <DynamicInputRow key={i}>
+                              <span style={{ fontSize: '0.72rem', fontWeight: 700, minWidth: 76, color: i === 0 ? '#1F4E79' : '#92400e' }} title={i === 0 ? 'Cargo principal, usado na classificação do órgão' : 'Cargo secundário — só para receber campanhas deste setor'}>
+                                {i === 0 ? 'PRINCIPAL' : 'SECUNDÁRIO'}
+                              </span>
                               <Select value={cg} onChange={(e) => handleContatoCargoChange(e, i)}>
                                 <option value="">-- Selecione ou adicione novo --</option>
                                 <option disabled>──────────</option>
@@ -2681,6 +2743,10 @@ export function Funil() {
                       </div>
                     </FormGroup>
                     <FormGroup className="span-2">
+                      <label><i className="fa-solid fa-note-sticky" style={{ color: '#d97706' }}></i> Observações do Contato <span style={{ fontSize: '0.75rem', fontWeight: 400, color: '#92400e' }}>(visível em qualquer negociação/campanha deste contato)</span></label>
+                      <TextArea rows={3} value={contatoObservacoes} onChange={(e) => setContatoObservacoes(e.target.value)} placeholder="Ex: está de férias até dia 20/07. Recebe e-mails de Controle Interno mesmo sendo Secretária." />
+                    </FormGroup>
+                    <FormGroup className="span-2">
                       <label>Preferências de contato</label>
                       <div style={{ display: 'grid', gap: '10px' }}>
                         <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
@@ -2757,7 +2823,7 @@ export function Funil() {
                 <ModalBody>
                   <FormGrid $columns="1fr 1fr" style={{ marginBottom: '20px' }}>
                     <InfoBox className="span-2">
-                      <label>NOME DA EMPRESA / PREFEITURA</label>
+                      <label>NOME DO ÓRGÃO</label>
                       <div>{empresaNome}</div>
                     </InfoBox>
                     <InfoBox>
@@ -2812,7 +2878,7 @@ export function Funil() {
                 <ModalBody>
                   <FormGrid $columns="1fr 1fr" style={{ marginBottom: '20px' }}>
                     <FormGroup className="span-2">
-                      <label>Nome da Empresa *</label>
+                      <label>Nome do Órgão *</label>
                       <Input type="text" required value={empresaNome} onChange={e => setEmpresaNome(e.target.value)} />
                     </FormGroup>
                     <FormGroup>
@@ -3088,6 +3154,35 @@ const FilterButton = styled.button`
   .arrow { color: #94a3b8; font-size: 0.8rem; transition: transform 0.3s ease; }
 `;
 
+const FilterToggleButton = styled.button`
+  display: flex; align-items: center; gap: 8px;
+  background: ${props => props.$hasValue ? '#f0f7ff' : '#ffffff'};
+  border: 1px solid ${props => props.$hasValue ? '#007bff' : '#e2e8f0'};
+  color: ${props => props.$hasValue ? '#007bff' : '#334155'};
+  padding: 8px 14px; border-radius: 10px; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+  transition: all 0.2s ease-in-out; box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+
+  &:hover { background: #f8fafc; border-color: #007bff; box-shadow: 0 4px 12px rgba(0,123,255,0.1); transform: translateY(-1px); }
+  .arrow { color: #94a3b8; font-size: 0.8rem; }
+`;
+
+const FiltrosBadge = styled.span`
+  background: #007bff; color: #fff; font-size: 0.72rem; font-weight: 700;
+  border-radius: 999px; min-width: 18px; height: 18px; display: inline-flex;
+  align-items: center; justify-content: center; padding: 0 5px;
+`;
+
+const FiltroModalCampo = styled.div`
+  margin-bottom: 18px;
+  label { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 600; color: #334155; margin-bottom: 6px; i { color: #94a3b8; width: 14px; } }
+  .ajuda { display: block; margin-top: 6px; font-size: 0.75rem; color: #94a3b8; }
+`;
+
+const FiltroModalRodape = styled.div`
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  margin-top: 8px; padding-top: 16px; border-top: 1px solid #edf2f9;
+`;
+
 const CustomDropdownMenu = styled.ul`
   position: absolute; top: calc(100% + 10px); right: 0; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 10px 40px -10px rgba(0,0,0,0.15); min-width: 260px; max-height: 300px; overflow-y: auto; z-index: 1000; padding: 10px; list-style: none; margin: 0; animation: fadeInDown 0.2s ease-out forwards;
   @media (max-width: 768px) { width: 100%; left: 0; }
@@ -3209,26 +3304,7 @@ const TaskBadge = styled.div`
   i { font-size: 0.7rem; }
 `;
 
-// --- SORT & DIAGNÓSTICO ---
-const SortGroup = styled.div`
-  display: inline-flex; border: 1px solid #d1d5db; border-radius: 6px; overflow: hidden;
-`;
-
-const SortBtn = styled.button`
-  background: ${p => p.$active ? '#3b82f6' : '#fff'};
-  color: ${p => p.$active ? '#fff' : '#6b7280'};
-  border: none;
-  border-right: 1px solid #d1d5db;
-  padding: 3px 7px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  cursor: pointer;
-  line-height: 1.4;
-  transition: background 0.15s, color 0.15s;
-  &:last-child { border-right: none; }
-  &:hover:not([disabled]) { background: ${p => p.$active ? '#2563eb' : '#f3f4f6'}; color: ${p => p.$active ? '#fff' : '#374151'}; }
-`;
-
+// --- DIAGNÓSTICO ---
 const DiagnosticoBtn = styled.button`
   display: inline-flex; align-items: center; gap: 6px; background: #f0f9ff; color: #0369a1;
   border: 1px solid #bae6fd; border-radius: 8px; padding: 7px 14px; font-size: 0.85rem; font-weight: 600;

@@ -4,7 +4,7 @@ export const MODULOS_CRM = [
   { id: 'funil', label: 'Funil de Vendas', path: '/funil' },
   { id: 'tarefas', label: 'Tarefas', path: '/tarefas' },
   { id: 'contatos', label: 'Contatos', path: '/contatos' },
-  { id: 'empresas', label: 'Prefeituras / Empresas', path: '/empresas' },
+  { id: 'empresas', label: 'Órgãos Públicos', path: '/empresas' },
   { id: 'campanhas', label: 'Cursos e Campanhas', path: '/campanhas' },
   { id: 'disparos', label: 'Máquina de Disparos', path: '/disparos' },
   { id: 'landing_pages', label: 'Landing Pages', path: '/landing-pages' },

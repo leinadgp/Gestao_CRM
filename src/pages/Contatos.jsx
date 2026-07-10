@@ -4,6 +4,7 @@ import styled, { keyframes } from 'styled-components';
 
 import { normalizarCargosJson, normalizarListaJson, cargosParaTexto } from '../utils/jsonHelpers.js';
 import { BotaoExportar } from '../componentes/BotaoExportar.jsx';
+import { ModalImportarCsv } from '../componentes/ModalImportarCsv.jsx';
 
 export function Contatos() {
   const [contatos, setContatos] = useState([]);
@@ -54,6 +55,7 @@ export function Contatos() {
   const [naoQuerEmail, setNaoQuerEmail] = useState(false);
   const [naoQuerLigacao, setNaoQuerLigacao] = useState(false);
   const [contatoCongeladoAte, setContatoCongeladoAte] = useState('');
+  const [observacoesContato, setObservacoesContato] = useState('');
   
   // Autocomplete de Prefeituras
   const [buscaEmpresaNoForm, setBuscaEmpresaNoForm] = useState('');
@@ -62,6 +64,7 @@ export function Contatos() {
 
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [itensPorPagina, setItensPorPagina] = useState(25);
+  const [modalImportarCsvAberto, setModalImportarCsvAberto] = useState(false);
 
   const getHeaders = useCallback(() => {
     const token = localStorage.getItem('token');
@@ -181,6 +184,7 @@ export function Contatos() {
     setEditandoId(null); setNome(''); setCargos(['']); setEmpresaId(''); setBuscaEmpresaNoForm('');
     setEmails(['']); setTelefones(['']); setEmailsComErroForm([]);
     setNaoQuerEmail(false); setNaoQuerLigacao(false); setContatoCongeladoAte('');
+    setObservacoesContato('');
     setModoEdicao(true); setMostrarModalContato(true);
   };
 
@@ -196,6 +200,7 @@ export function Contatos() {
     setNaoQuerEmail(!!c.nao_quero_email);
     setNaoQuerLigacao(!!c.nao_quero_ligacao);
     setContatoCongeladoAte(c.congelado_ate || '');
+    setObservacoesContato(c.observacoes || '');
     setEmailsComErroForm(c.emails_com_erro || []);
     setModoEdicao(false); setMostrarModalContato(true); setCarregandoHistorico(true);
 
@@ -254,6 +259,7 @@ export function Contatos() {
       nao_quero_email: naoQuerEmail,
       nao_quero_ligacao: naoQuerLigacao,
       congelado_ate: contatoCongeladoAte || null,
+      observacoes: observacoesContato || null,
     };
     try {
       if (editandoId) {
@@ -318,6 +324,9 @@ export function Contatos() {
           </div>
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
             <BotaoExportar tipo="contatos" params={{ estado: filtroEstado || undefined }} />
+            <SecondaryButton type="button" onClick={() => setModalImportarCsvAberto(true)}>
+              <i className="fa-solid fa-file-csv"></i> Importar CSV
+            </SecondaryButton>
             <PrimaryButton onClick={abrirModalNovo} className="btn-novo">
               <i className="fa-solid fa-plus"></i> Novo Contato
             </PrimaryButton>
@@ -329,7 +338,7 @@ export function Contatos() {
             <i className="fa-solid fa-search icon"></i>
             <input
               type="text"
-              placeholder="Nome, Prefeitura, E-mail..."
+              placeholder="Nome, Órgão, E-mail..."
               value={buscaGeral}
               onChange={e => { setBuscaGeral(e.target.value); setPaginaAtual(1); }}
             />
@@ -380,7 +389,7 @@ export function Contatos() {
               <thead className="sticky-head">
                 <tr>
                   <th>Contato (Lead)</th>
-                  <th>Prefeitura / Vínculo</th>
+                  <th>Órgão / Vínculo</th>
                   <th>Função / Cargos</th>
                 </tr>
               </thead>
@@ -428,7 +437,7 @@ export function Contatos() {
                         <td data-label="Cargos">
                           <div style={{display: 'flex', gap: '5px', flexWrap: 'wrap'}}>
                             {carLista.length > 0 ? carLista.map((cg, idx) => (
-                              <Badge key={idx} className="badge-gray">{cg}</Badge>
+                              <Badge key={idx} className={idx === 0 ? 'badge-blue' : 'badge-gray'} title={idx === 0 ? 'Cargo principal' : 'Cargo secundário'}>{cg}</Badge>
                             )) : '-'}
                           </div>
                         </td>
@@ -496,13 +505,13 @@ export function Contatos() {
                       </FormGroup>
 
                       <FormGroup>
-                        <label>Prefeitura / Empresa Vínculo</label>
+                        <label>Órgão Vínculo</label>
                         <AutocompleteContainer ref={dropdownRef}>
-                          <Input value={buscaEmpresaNoForm} onFocus={() => setMostrarDropdown(true)} onChange={e => setBuscaEmpresaNoForm(e.target.value)} placeholder="Buscar prefeitura..." />
+                          <Input value={buscaEmpresaNoForm} onFocus={() => setMostrarDropdown(true)} onChange={e => setBuscaEmpresaNoForm(e.target.value)} placeholder="Buscar órgão..." />
                           {mostrarDropdown && (
                             <AutocompleteList>
                               <AutocompleteOption className="danger" onClick={() => { setEmpresaId(''); setBuscaEmpresaNoForm(''); setMostrarDropdown(false); }}>
-                                <i className="fa-solid fa-eraser"></i> Limpar Prefeitura
+                                <i className="fa-solid fa-eraser"></i> Limpar Órgão
                               </AutocompleteOption>
                               {empresasFiltradasParaSelect.map(emp => (
                                 <AutocompleteOption key={emp.id} onClick={() => { setEmpresaId(emp.id); setBuscaEmpresaNoForm(emp.nome); setMostrarDropdown(false); }}>
@@ -518,9 +527,15 @@ export function Contatos() {
                     <FormGrid $columns="1fr 1fr" style={{ marginTop: '20px' }}>
                       <DynamicInputBox className="span-2">
                         <div className="box-header"><span>Cargos e Funções</span> <AddLinkBtn type="button" onClick={() => gerenciarCampo('cargo', 'add')}><i className="fa-solid fa-plus"></i> Novo Cargo</AddLinkBtn></div>
+                        <p style={{ margin: '0 0 10px', fontSize: '0.78rem', color: '#64748b' }}>
+                          O primeiro é o cargo principal (usado na classificação). Os demais são secundários — o contato passa a receber e-mails/campanhas desses setores também, sem mudar o cargo principal.
+                        </p>
                         <div className="dynamic-grid">
                           {cargos.map((cg, i) => (
                             <DynamicInputRow key={i}>
+                              <span style={{ fontSize: '0.72rem', fontWeight: 700, minWidth: 76, color: i === 0 ? '#1F4E79' : '#92400e' }} title={i === 0 ? 'Cargo principal, usado na classificação do órgão' : 'Cargo secundário — só para receber campanhas deste setor'}>
+                                {i === 0 ? 'PRINCIPAL' : 'SECUNDÁRIO'}
+                              </span>
                               <Select value={cg} onChange={(e) => handleCargoChange(e, i)}>
                                 <option value="">-- Selecione ou digite novo --</option>
                                 <option disabled>──────────</option>
@@ -571,6 +586,10 @@ export function Contatos() {
                         <label>Congelar contato até</label>
                         <Input type="date" value={contatoCongeladoAte} onChange={e => setContatoCongeladoAte(e.target.value)} />
                       </FormGroup>
+                      <FormGroup className="span-2">
+                        <label><i className="fa-solid fa-note-sticky" style={{ color: '#d97706' }}></i> Observações do Contato <span style={{ fontSize: '0.75rem', fontWeight: 400, color: '#92400e' }}>(visível em todas as negociações/campanhas deste contato)</span></label>
+                        <TextArea rows={3} value={observacoesContato} onChange={e => setObservacoesContato(e.target.value)} placeholder="Ex: está de férias até dia 20/07. Recebe e-mails de Controle Interno mesmo sendo Secretária." />
+                      </FormGroup>
                     </FormGrid>
 
                     <ModalFooter $justify="flex-end">
@@ -579,6 +598,12 @@ export function Contatos() {
                   </form>
                 ) : (
                   <>
+                    {observacoesContato && (
+                      <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
+                        <h4 style={{ margin: '0 0 6px', fontSize: '0.9rem', color: '#92400e' }}><i className="fa-solid fa-note-sticky"></i> Observações do Contato</h4>
+                        <p style={{ color: '#92400e', margin: 0, whiteSpace: 'pre-wrap', lineHeight: 1.6, fontSize: '0.9rem' }}>{observacoesContato}</p>
+                      </div>
+                    )}
                     <ProfileGrid>
                       <InfoCard $borderTop="#007bff">
                         <h4><i className="fa-regular fa-envelope"></i> E-mails</h4>
@@ -674,6 +699,15 @@ export function Contatos() {
             </ModalContent>
           </ModalOverlay>
         )}
+
+        <ModalImportarCsv
+          aberto={modalImportarCsvAberto}
+          onFechar={() => setModalImportarCsvAberto(false)}
+          endpoint="/import/contatos"
+          titulo="Importar Contatos via CSV"
+          colunasModelo={['contato_nome', 'contato_emails', 'contato_telefones', 'contato_cargos', 'empresa_nome']}
+          onImportado={carregarDados}
+        />
 
         {/* SUB-MODAL DE NOTAS */}
         {mostrarModalOp && (
@@ -799,7 +833,7 @@ const ClickableRow = styled.tr`
   span { display: flex; align-items: center; gap: 5px;}
 `;
 
-const Badge = styled.span` padding: 4px 10px; border-radius: 10px; font-size: 0.75rem; font-weight: 700; &.badge-gray { background: #f1f5f9; color: #475569; } &.badge-warning { background: #fff4e5; color: #b45309; } &.badge-danger { background: #ffe4e6; color: #991b1b; } `;
+const Badge = styled.span` padding: 4px 10px; border-radius: 10px; font-size: 0.75rem; font-weight: 700; &.badge-gray { background: #f1f5f9; color: #475569; } &.badge-warning { background: #fff4e5; color: #b45309; } &.badge-danger { background: #ffe4e6; color: #991b1b; } &.badge-blue { background: #dbeafe; color: #1e40af; } `;
 
 const PaginationContainer = styled.div`
   padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; background: #fbfbfc; border-top: 1px solid #edf2f9; gap: 12px; flex-wrap: wrap;
@@ -833,6 +867,7 @@ const WarningButton = styled(ButtonBase)` background: #ffc107; color: #333; padd
 const DangerButton = styled(ButtonBase)` background: #fff5f5; color: #dc3545; border: 1px solid #f8d7da; &:hover { background: #dc3545; color: #fff; box-shadow: 0 4px 10px rgba(220,53,69,0.2); } `;
 
 const Input = styled.input` width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; outline: none; transition: 0.2s; &:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); } `;
+const TextArea = styled.textarea` width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; outline: none; resize: vertical; transition: 0.2s; box-sizing: border-box; &:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); } `;
 const Select = styled.select` width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; font-size: 0.95rem; outline: none; transition: 0.2s; &:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); } `;
 const FormGrid = styled.div` display: grid; grid-template-columns: ${props => props.$columns}; gap: 15px; .span-2 { grid-column: span 2; } @media (max-width: 600px) { grid-template-columns: 1fr; .span-2 { grid-column: span 1; } } `;
 const FormGroup = styled.div` display: flex; flex-direction: column; label { font-weight: 700; margin-bottom: 6px; font-size: 0.85rem; color: #475569; } `;
