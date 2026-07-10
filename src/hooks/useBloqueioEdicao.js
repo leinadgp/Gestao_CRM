@@ -34,8 +34,12 @@ export function useBloqueioEdicao(recursoTipo, { onTravaPerdida } = {}) {
         await axios.post(`${API_URL}/bloqueios`, { recurso_tipo: recursoTipo, recurso_id: recursoId }, getHeaders());
         falhasRef.current = 0;
       } catch (e) {
-        falhasRef.current += 1;
         console.error('Falha ao renovar bloqueio de edição.', e);
+        // Só considera "perdeu a trava de verdade" quando o servidor confirma
+        // que outra pessoa já assumiu (409). Erro de rede/servidor fora do ar
+        // não pode expulsar quem está editando no meio do trabalho.
+        if (e.response?.status !== 409) return;
+        falhasRef.current += 1;
         if (falhasRef.current >= FALHAS_ANTES_DE_DESISTIR) {
           pararHeartbeat();
           recursoIdRef.current = null;
@@ -53,8 +57,16 @@ export function useBloqueioEdicao(recursoTipo, { onTravaPerdida } = {}) {
       iniciarHeartbeat(recursoId);
       return { ok: true };
     } catch (e) {
-      const dados = e.response?.data || {};
-      return { ok: false, usuario_nome: dados.usuario_nome || null, expira_em: dados.expira_em || null };
+      // Só bloqueia de verdade quando o servidor confirma (409 = outra pessoa
+      // já tem a trava). Qualquer outro erro (rota fora do ar, rede, servidor
+      // desatualizado etc.) não pode travar TODO MUNDO de editar — nesse caso
+      // deixa abrir mesmo assim (sem trava ativa) em vez de bloquear geral.
+      if (e.response?.status === 409) {
+        const dados = e.response?.data || {};
+        return { ok: false, usuario_nome: dados.usuario_nome || null, expira_em: dados.expira_em || null };
+      }
+      console.error('Falha ao tentar travar edição (seguindo sem trava):', e);
+      return { ok: true };
     }
   }, [recursoTipo, iniciarHeartbeat]);
 

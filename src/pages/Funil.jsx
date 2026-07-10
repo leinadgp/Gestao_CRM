@@ -2342,7 +2342,18 @@ export function Funil() {
                       </div>
                       <div>
                         <label className="text-blue">Desconto (%)</label>
-                        <Input type="number" min="0" max="100" value={desconto} onChange={e => setDesconto(e.target.value)} className="highlight-blue" style={{ width: '90px' }} />
+                        <Input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={desconto}
+                          onChange={e => {
+                            const v = e.target.value;
+                            if (v === '' || (Number(v) >= 0 && Number(v) <= 100)) setDesconto(v);
+                          }}
+                          className="highlight-blue"
+                          style={{ width: '90px' }}
+                        />
                       </div>
                       <div>
                         <label style={{ color: '#fd7e14' }}>Desconto (R$)</label>
