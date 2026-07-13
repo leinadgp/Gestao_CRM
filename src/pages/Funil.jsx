@@ -159,6 +159,9 @@ export function Funil() {
   // --- ÚLTIMA INTERAÇÃO ---
   const [ultimaInteracao, setUltimaInteracao] = useState(null);
   const [salvandoInteracao, setSalvandoInteracao] = useState(false);
+  const [cooldownContato, setCooldownContato] = useState(0);
+  const [abrindoNegociacaoId, setAbrindoNegociacaoId] = useState(null);
+  const [salvandoOportunidade, setSalvandoOportunidade] = useState(false);
 
   // --- ESTADOS DE TAREFAS ---
   const [tarefasPorOp, setTarefasPorOp] = useState({});
@@ -418,7 +421,7 @@ export function Funil() {
       }
     } catch (erro) {
       console.error('Erro ao buscar dados base do Funil:', erro);
-      alert('Falha ao carregar dados. Verifique a conexão.');
+      if (!erro.sessaoExpirada) alert('Falha ao carregar dados. Verifique a conexão.');
     } finally {
       setCarregando(false);
     }
@@ -430,12 +433,11 @@ export function Funil() {
       const config = getHeaders();
       const [resEtapas, resOps] = await Promise.all([
         axios.get(`${API_URL}/campanhas/${campanhaId}/etapas`, config),
-        axios.get(`${API_URL}/oportunidades`, config)
+        axios.get(`${API_URL}/oportunidades`, { ...config, params: { campanha_id: campanhaId } })
       ]);
 
       setEtapas(resEtapas.data);
-      const opsDestaCampanha = resOps.data.filter(op => Number(op.campanha_id) === Number(campanhaId));
-      setOportunidades(opsDestaCampanha);
+      setOportunidades(resOps.data);
       setUltimaAtualizacaoFunil(new Date());
     } catch (erro) {
       console.error(erro);
@@ -505,18 +507,20 @@ export function Funil() {
     try { return JSON.parse(raw); } catch { return []; }
   }, [campanhaSelecionadaObj]);
 
+  const empresasPorId = useMemo(() => new Map(empresas.map((e) => [e.id, e])), [empresas]);
+
   const oportunidadesPorEtapa = useMemo(() => {
     const mapa = {};
     etapas.forEach(e => mapa[e.id] = []);
 
     const opsFiltradasEstado = oportunidades.filter(op => {
       if (filtroEstado) {
-        const estadoOp = (op.empresa_estado || empresas.find(e => e.id === op.empresa_id)?.estado || '').toUpperCase();
+        const estadoOp = (op.empresa_estado || empresasPorId.get(op.empresa_id)?.estado || '').toUpperCase();
         if (estadoOp !== filtroEstado.toUpperCase()) return false;
       }
       if (filtroVendedor && String(op.vendedor_id) !== String(filtroVendedor)) return false;
       if (filtroFaixaAlfabetica) {
-        const empresaObj = empresas.find(e => e.id === op.empresa_id);
+        const empresaObj = empresasPorId.get(op.empresa_id);
         const letra = letraInicialFaixa(op, empresaObj);
         if (!letra || !letraDentroDaFaixa(letra, filtroFaixaAlfabetica)) return false;
       }
@@ -525,7 +529,7 @@ export function Funil() {
 
     const agora = Date.now();
     const opsEnriquecidas = opsFiltradasEstado.map((op) => {
-      const emp = empresas.find((e) => e.id === op.empresa_id) || {};
+      const emp = empresasPorId.get(op.empresa_id) || {};
       const cargosCont = normalizarCargosJson(op.contato_cargos_json, []);
       const classificacoesJson = op.empresa_classificacoes_por_cargo_json ?? emp.classificacoes_por_cargo_json;
       const assessoradasCargos = extrairCargosAssessorados(classificacoesJson);
@@ -574,7 +578,7 @@ export function Funil() {
     });
 
     return mapa;
-  }, [etapas, oportunidades, filtroEstado, filtroVendedor, filtroFaixaAlfabetica, filtroEstrelasMin, empresas, cargosAlvoCampanha]);
+  }, [etapas, oportunidades, filtroEstado, filtroVendedor, filtroFaixaAlfabetica, filtroEstrelasMin, empresasPorId, cargosAlvoCampanha]);
 
   const sugestoesBusca = useMemo(() => {
     const termo = normalizarTexto(buscaGeral);
@@ -1147,7 +1151,14 @@ export function Funil() {
   }
 
   async function abrirModalEdicao(op) {
-    const trava = await tentarAbrirTravaOportunidade(op.id);
+    if (abrindoNegociacaoId) return; // já tem uma verificação de trava em andamento
+    setAbrindoNegociacaoId(op.id);
+    let trava;
+    try {
+      trava = await tentarAbrirTravaOportunidade(op.id);
+    } finally {
+      setAbrindoNegociacaoId(null);
+    }
     if (!trava.ok) {
       alert(`Esta negociação está sendo atendida agora por ${trava.usuario_nome || 'outro usuário'}. Tente novamente em instantes.`);
       return;
@@ -1204,6 +1215,7 @@ export function Funil() {
 
     setBuscaEmpresaNoModal(op.empresa_nome || ''); setBuscaContatoNoModal(op.contato_nome || '');
     setUltimaInteracao(op.ultima_interacao || null);
+    setCooldownContato(0);
     setNotas([]); cancelarEdicaoNota(); carregarNotas(op.id);
     setHistoricoEmpresa([]); setNotasHistorico([]); setHistoricoOpSelecionada(null); setObservacoesEmpresa('');
     if (op.empresa_id) carregarHistoricoEmpresa(op.empresa_id, op.id);
@@ -1211,7 +1223,7 @@ export function Funil() {
   }
 
   async function registrarInteracao() {
-    if (!editandoId) return;
+    if (!editandoId || cooldownContato > 0) return;
     setSalvandoInteracao(true);
     try {
       const res = await axios.patch(`${API_URL}/oportunidades/${editandoId}/interacao`, {}, getHeaders());
@@ -1219,12 +1231,22 @@ export function Funil() {
       setOportunidades(prev => prev.map(o =>
         o.id === editandoId ? { ...o, ultima_interacao: res.data.ultima_interacao } : o
       ));
+      // Uma ligação de verdade não se repete em segundos — trava o botão por
+      // 1 min (mesmo cooldown do backend) pra clique duplo/repetido não inflar
+      // a contagem de produtividade.
+      setCooldownContato(60);
     } catch (e) {
       console.error('Erro ao registrar interação', e);
     } finally {
       setSalvandoInteracao(false);
     }
   }
+
+  useEffect(() => {
+    if (cooldownContato <= 0) return;
+    const t = setTimeout(() => setCooldownContato((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldownContato]);
 
   async function adicionarMotivo() {
     if (!novoMotivoNome.trim()) return;
@@ -1260,6 +1282,7 @@ export function Funil() {
 
   async function salvarOportunidade(e) {
     e.preventDefault();
+    if (salvandoOportunidade) return; // evita clique duplo/reenvio enquanto já está salvando
     const usaCalculoModulos = modulosSelecionados.length > 0
       || (modoPacoteInscricao === 'por_inscrito' && subtotalModulos > 0);
     const valorEnviar = usaCalculoModulos
@@ -1312,6 +1335,7 @@ export function Funil() {
       desconto: modulosSelecionados.length > 0 ? Number(desconto) : 0,
     };
 
+    setSalvandoOportunidade(true);
     try {
       if (editandoId) {
         await axios.put(`${API_URL}/oportunidades/${editandoId}`, dados, getHeaders());
@@ -1332,7 +1356,9 @@ export function Funil() {
     } catch (erro) {
       console.error('Erro ao salvar oportunidade.', erro);
       const msg = [erro.response?.data?.erro, erro.response?.data?.detalhe].filter(Boolean).join(' — ');
-      alert(msg || 'Erro ao salvar oportunidade.');
+      if (!erro.sessaoExpirada) alert(msg || 'Erro ao salvar oportunidade.');
+    } finally {
+      setSalvandoOportunidade(false);
     }
   }
 
@@ -1630,9 +1656,24 @@ export function Funil() {
                       return m ? m.nome : null;
                     }).filter(Boolean);
 
+                    const carregandoEstaNegociacao = abrindoNegociacaoId === op.id;
                     return (
-                      <KanbanCard key={op.id} className="kanban-card" $status={statusConfig} onClick={() => abrirModalEdicao(op)}>
-
+                      <KanbanCard
+                        key={op.id}
+                        className="kanban-card"
+                        $status={statusConfig}
+                        onClick={() => abrirModalEdicao(op)}
+                        style={{
+                          opacity: carregandoEstaNegociacao ? 0.6 : 1,
+                          cursor: abrindoNegociacaoId ? 'wait' : 'pointer',
+                          position: 'relative',
+                        }}
+                      >
+                        {carregandoEstaNegociacao && (
+                          <div style={{ position: 'absolute', top: 8, right: 8, color: '#3b82f6' }}>
+                            <i className="fa-solid fa-spinner fa-spin"></i>
+                          </div>
+                        )}
                         <div className="card-header">
                           <div className="card-title">{op.titulo}</div>
                           {op.estrelas > 0 && (
@@ -1962,11 +2003,11 @@ export function Funil() {
                   <button
                     type="button"
                     onClick={registrarInteracao}
-                    disabled={salvandoInteracao}
-                    style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 16px', borderRadius: 8, border: '1px solid #3b82f6', background: salvandoInteracao ? '#e0eaff' : '#eff6ff', color: '#1d4ed8', fontWeight: 600, fontSize: '0.85rem', cursor: salvandoInteracao ? 'not-allowed' : 'pointer' }}
+                    disabled={salvandoInteracao || cooldownContato > 0}
+                    style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 16px', borderRadius: 8, border: '1px solid #3b82f6', background: (salvandoInteracao || cooldownContato > 0) ? '#e0eaff' : '#eff6ff', color: '#1d4ed8', fontWeight: 600, fontSize: '0.85rem', cursor: (salvandoInteracao || cooldownContato > 0) ? 'not-allowed' : 'pointer' }}
                   >
                     <i className="fa-solid fa-phone"></i>
-                    {salvandoInteracao ? 'Salvando...' : 'Registrar Contato Agora'}
+                    {salvandoInteracao ? 'Salvando...' : cooldownContato > 0 ? `Aguarde ${cooldownContato}s` : 'Registrar Contato Agora'}
                   </button>
                   {ultimaInteracao && (
                     <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
@@ -2505,8 +2546,10 @@ export function Funil() {
               <ModalFooter>
                 {editandoId ? <DangerButton type="button" onClick={deletarOportunidade}><i className="fa-solid fa-trash-can"></i> Excluir</DangerButton> : <div></div>}
                 <div style={{ display: 'flex', gap: '10px' }}>
-                  <SecondaryButton type="button" onClick={() => fecharModalPrincipal()}>Cancelar</SecondaryButton>
-                  <PrimaryButton type="submit"><i className="fa-solid fa-save"></i> Salvar Negócio</PrimaryButton>
+                  <SecondaryButton type="button" onClick={() => fecharModalPrincipal()} disabled={salvandoOportunidade}>Cancelar</SecondaryButton>
+                  <PrimaryButton type="submit" disabled={salvandoOportunidade}>
+                    <i className={`fa-solid ${salvandoOportunidade ? 'fa-spinner fa-spin' : 'fa-save'}`}></i> {salvandoOportunidade ? 'Salvando...' : 'Salvar Negócio'}
+                  </PrimaryButton>
                 </div>
               </ModalFooter>
 
