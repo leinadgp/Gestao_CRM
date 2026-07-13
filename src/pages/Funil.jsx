@@ -269,7 +269,15 @@ export function Funil() {
     const op = oportunidades.find(o => Number(o.id) === Number(opId));
     if (op) {
       abrirModalEdicao(op);
-      window.history.replaceState({}, '', window.location.pathname);
+      // Precisa limpar via navigate (não window.history.replaceState) — o
+      // react-router mantém seu PRÓPRIO estado de location, então mexer só
+      // na History API do navegador não zera location.state pro react-router.
+      // Sem isso, "abrirOportunidadeId" continuava vivo pra sempre, e QUALQUER
+      // atualização de "oportunidades" (ex: clicar em "Registrar Contato
+      // Agora", que atualiza o array) fazia esse efeito rodar de novo e reabrir
+      // à força a negociação antiga por cima da que a pessoa estava editando —
+      // exatamente o "troca de negociação sozinha" relatado.
+      navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location.state, oportunidades]);
 
