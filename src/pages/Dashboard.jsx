@@ -167,6 +167,15 @@ export function Dashboard() {
   
   const formatarData = (dataIso) => {
     if (!dataIso) return '-';
+    // Uma data "pura" (ex: "2026-07-15", sem hora) não deve passar por
+    // conversão de fuso — new Date("2026-07-15") é interpretado como meia-noite
+    // UTC, e convertendo pra America/Sao_Paulo (UTC-3) isso vira 21h do dia
+    // ANTERIOR, jogando a data um dia pra trás. Só reformata o texto direto.
+    const somenteData = /^\d{4}-\d{2}-\d{2}$/.exec(dataIso);
+    if (somenteData) {
+      const [ano, mes, dia] = dataIso.split('-');
+      return `${dia}/${mes}/${ano}`;
+    }
     return new Date(dataIso).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
   };
 
