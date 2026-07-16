@@ -4,6 +4,7 @@ import axios from 'axios';
 import styled, { keyframes } from 'styled-components';
 import { TarefasOportunidade } from '../componentes/TarefasOportunidade.jsx';
 import { BotaoExportar } from '../componentes/BotaoExportar.jsx';
+import { HorarioFuncionamentoInput } from '../componentes/HorarioFuncionamentoInput.jsx';
 import { listarMinhasTarefas, classificarTarefa } from '../utils/tarefasService.js';
 
 import { normalizarCargosJson, normalizarListaJson, cargosParaTexto } from '../utils/jsonHelpers.js';
@@ -2981,7 +2982,11 @@ export function Funil() {
                     </FormGroup>
                     <FormGroup className="span-2">
                       <label><i className="fa-solid fa-clock text-blue"></i> Horário de Funcionamento</label>
-                      <Input type="text" value={empresaHorario} onChange={e => setEmpresaHorario(e.target.value)} placeholder="Ex: Seg a Sex, 08:00 - 17:00" />
+                      <HorarioFuncionamentoInput
+                        key={empresaId || 'novo'}
+                        value={empresaHorario}
+                        onChange={setEmpresaHorario}
+                      />
                     </FormGroup>
 
                     <div className="span-2" style={{ background: '#f8fafc', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0', marginTop: '10px' }}>

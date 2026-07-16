@@ -8,6 +8,7 @@ import { normalizarCargosJson, normalizarListaJson, cargosParaTexto } from '../u
 import { normalizarClassificacoesPorCargo, labelClassificacao, resolverScoringEmpresa } from '../utils/classificacaoEmpresa.js';
 import { BotaoExportar } from '../componentes/BotaoExportar.jsx';
 import { ModalImportarCsv } from '../componentes/ModalImportarCsv.jsx';
+import { HorarioFuncionamentoInput } from '../componentes/HorarioFuncionamentoInput.jsx';
 import { normalizarTexto } from '../utils/normalizarTexto.js';
 import { estaForaDoHorario } from '../utils/horarioFuncionamento.js';
 import { useToast } from '../componentes/Toast.jsx';
@@ -815,7 +816,11 @@ export function Empresas() {
                       </FormGroup>
                       <FormGroup>
                         <label>Horário de Funcionamento</label>
-                        <Input type="text" value={horarioFuncionamento} onChange={e => setHorarioFuncionamento(e.target.value)} placeholder="Ex: 08:00 às 11:30 e 13:30 às 16:00" />
+                        <HorarioFuncionamentoInput
+                          key={editandoId || 'novo'}
+                          value={horarioFuncionamento}
+                          onChange={setHorarioFuncionamento}
+                        />
                       </FormGroup>
                     </FormGrid>
 
