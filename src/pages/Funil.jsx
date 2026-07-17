@@ -54,7 +54,8 @@ export function Funil() {
   const [carregando, setCarregando] = useState(false);
   const [ultimaAtualizacaoFunil, setUltimaAtualizacaoFunil] = useState(null);
   const [filtroCampanha, setFiltroCampanha] = useState('');
-  const [filtroEstado, setFiltroEstado] = useState('');
+  const [filtrosEstado, setFiltrosEstado] = useState([]); // array de UFs — vazio = todos os estados
+  const [filtroStatus, setFiltroStatus] = useState('');
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const { tentarAbrir: tentarAbrirTravaOportunidade, liberar: liberarTravaOportunidade } = useBloqueioEdicao('oportunidade', {
     onTravaPerdida: () => {
@@ -523,10 +524,11 @@ export function Funil() {
     etapas.forEach(e => mapa[e.id] = []);
 
     const opsFiltradasEstado = oportunidades.filter(op => {
-      if (filtroEstado) {
+      if (filtrosEstado.length > 0) {
         const estadoOp = (op.empresa_estado || empresasPorId.get(op.empresa_id)?.estado || '').toUpperCase();
-        if (estadoOp !== filtroEstado.toUpperCase()) return false;
+        if (!filtrosEstado.includes(estadoOp)) return false;
       }
+      if (filtroStatus && op.status !== filtroStatus) return false;
       if (filtroVendedor && String(op.vendedor_id) !== String(filtroVendedor)) return false;
       if (filtroFaixaAlfabetica) {
         const empresaObj = empresasPorId.get(op.empresa_id);
@@ -587,16 +589,16 @@ export function Funil() {
     });
 
     return mapa;
-  }, [etapas, oportunidades, filtroEstado, filtroVendedor, filtroFaixaAlfabetica, filtroEstrelasMin, empresasPorId, cargosAlvoCampanha]);
+  }, [etapas, oportunidades, filtrosEstado, filtroStatus, filtroVendedor, filtroFaixaAlfabetica, filtroEstrelasMin, empresasPorId, cargosAlvoCampanha]);
 
   const sugestoesBusca = useMemo(() => {
     const termo = normalizarTexto(buscaGeral);
     if (!termo || termo.length < 2) return [];
 
     const base = (oportunidades || []).filter((op) => {
-      if (filtroEstado) {
+      if (filtrosEstado.length > 0) {
         const estadoOp = (op.empresa_estado || empresas.find(e => e.id === op.empresa_id)?.estado || '').toUpperCase();
-        if (estadoOp !== filtroEstado.toUpperCase()) return false;
+        if (!filtrosEstado.includes(estadoOp)) return false;
       }
       return true;
     });
@@ -620,7 +622,7 @@ export function Funil() {
       .map((x) => x.op);
 
     return scored;
-  }, [buscaGeral, oportunidades, filtroEstado, empresas]);
+  }, [buscaGeral, oportunidades, filtrosEstado, empresas]);
 
   const historicoBuscaGeral = useMemo(() => {
     if (buscaGeral.trim() !== '') return [];
@@ -1443,7 +1445,7 @@ export function Funil() {
     ? empresaTelefones.split(',').map((tel) => tel.trim()).find(Boolean)
     : '';
 
-  const filtrosAtivosCount = [filtroEstado, filtroVendedor, filtroFaixaAlfabetica, filtroEstrelasMin > 0 ? 'x' : '']
+  const filtrosAtivosCount = [filtrosEstado.length > 0 ? 'x' : '', filtroStatus, filtroVendedor, filtroFaixaAlfabetica, filtroEstrelasMin > 0 ? 'x' : '']
     .filter(Boolean).length;
 
   return (
@@ -1575,7 +1577,7 @@ export function Funil() {
               tipo="oportunidades"
               params={{
                 campanha_id: filtroCampanha,
-                estado: filtroEstado || undefined,
+                estado: filtrosEstado.length === 1 ? filtrosEstado[0] : undefined,
               }}
               label="Exportar "
             />
@@ -1636,7 +1638,7 @@ export function Funil() {
                         params={{
                           campanha_id: filtroCampanha,
                           etapa_id: etapa.id,
-                          estado: filtroEstado || undefined,
+                          estado: filtrosEstado.length === 1 ? filtrosEstado[0] : undefined,
                         }}
                       />
                       <span className="badge">{cardsDestaColuna.length}</span>
@@ -1771,10 +1773,48 @@ export function Funil() {
             </ModalHeader>
             <ModalBody style={{ padding: '20px' }}>
               <FiltroModalCampo>
-                <label><i className="fa-solid fa-map-location-dot"></i> Estado</label>
-                <Select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)}>
-                  <option value="">Todos os Estados</option>
-                  {UFS_BRASIL.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
+                <label>
+                  <i className="fa-solid fa-map-location-dot"></i> Estado
+                  <span style={{ fontWeight: 400, color: '#94a3b8', marginLeft: 8 }}>
+                    ({filtrosEstado.length === 0 ? 'todos os estados' : `${filtrosEstado.length} selecionado${filtrosEstado.length > 1 ? 's' : ''}`})
+                  </span>
+                </label>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                  <button type="button" style={{ fontSize: '0.78rem', padding: '3px 10px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#f8fafc', cursor: 'pointer' }}
+                    onClick={() => setFiltrosEstado([])}>
+                    Todos
+                  </button>
+                  <button type="button" style={{ fontSize: '0.78rem', padding: '3px 10px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#f8fafc', cursor: 'pointer' }}
+                    onClick={() => setFiltrosEstado([...UFS_BRASIL])}>
+                    Selecionar todos
+                  </button>
+                </div>
+                <UfCheckboxGroup>
+                  {UFS_BRASIL.map((uf) => (
+                    <UfCheckboxPill key={uf} $active={filtrosEstado.includes(uf)}>
+                      <input
+                        type="checkbox"
+                        checked={filtrosEstado.includes(uf)}
+                        onChange={() => setFiltrosEstado((prev) => prev.includes(uf) ? prev.filter((u) => u !== uf) : [...prev, uf])}
+                      />
+                      {uf}
+                    </UfCheckboxPill>
+                  ))}
+                </UfCheckboxGroup>
+              </FiltroModalCampo>
+
+              <FiltroModalCampo>
+                <label><i className="fa-solid fa-signal"></i> Status da Negociação</label>
+                <Select value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)}>
+                  <option value="">Todos os Status</option>
+                  <option value="aberto">⚪ Em Aberto</option>
+                  <option value="avaliar">🟢 Avaliar</option>
+                  <option value="interessada">🟢 Interessada</option>
+                  <option value="ganho">🏆 Vendido</option>
+                  <option value="inscricao">📝 Inscrito (automático)</option>
+                  <option value="naoatendeu">🟠 Não Atendeu</option>
+                  <option value="naofunciona">🟡 Não Funciona</option>
+                  <option value="perdido">🔴 Perdido</option>
                 </Select>
               </FiltroModalCampo>
 
@@ -1808,7 +1848,7 @@ export function Funil() {
               <FiltroModalRodape>
                 <SecondaryButton
                   type="button"
-                  onClick={() => { setFiltroEstado(''); setFiltroVendedor(''); setFiltroFaixaAlfabetica(''); setFiltroEstrelasMin(0); }}
+                  onClick={() => { setFiltrosEstado([]); setFiltroStatus(''); setFiltroVendedor(''); setFiltroFaixaAlfabetica(''); setFiltroEstrelasMin(0); }}
                 >
                   Limpar filtros
                 </SecondaryButton>
@@ -3243,6 +3283,18 @@ const FiltroModalCampo = styled.div`
   margin-bottom: 18px;
   label { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 600; color: #334155; margin-bottom: 6px; i { color: #94a3b8; width: 14px; } }
   .ajuda { display: block; margin-top: 6px; font-size: 0.75rem; color: #94a3b8; }
+`;
+
+const UfCheckboxGroup = styled.div`
+  display: flex; flex-wrap: wrap; gap: 8px;
+`;
+const UfCheckboxPill = styled.label`
+  display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 44px; padding: 5px 10px; border-radius: 16px; font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+  background: ${props => props.$active ? '#e7f3ff' : '#ffffff'};
+  border: 1px solid ${props => props.$active ? '#007bff' : '#cbd5e1'};
+  color: ${props => props.$active ? '#007bff' : '#64748b'};
+  input { display: none; }
+  &:hover { background: ${props => props.$active ? '#d6ebff' : '#f8fafc'}; }
 `;
 
 const FiltroModalRodape = styled.div`
