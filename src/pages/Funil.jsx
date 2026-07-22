@@ -187,6 +187,7 @@ export function Funil() {
   const [contatoNaoQuerLigacao, setContatoNaoQuerLigacao] = useState(false);
   const [contatoCongeladoAte, setContatoCongeladoAte] = useState('');
   const [contatoObservacoes, setContatoObservacoes] = useState('');
+  const [contatoFormacao, setContatoFormacao] = useState('');
 
   // --- ESTADOS DO SUB-MODAL DE EMPRESA ---
   const [mostrarModalEmpresa, setMostrarModalEmpresa] = useState(false);
@@ -780,6 +781,7 @@ export function Funil() {
     setContatoNaoQuerLigacao(!!contato?.nao_quero_ligacao);
     setContatoCongeladoAte(contato?.congelado_ate ? String(contato.congelado_ate).slice(0, 10) : '');
     setContatoObservacoes(contato?.observacoes || '');
+    setContatoFormacao(contato?.formacao || '');
   }
 
   function abrirEditarContato(contato) {
@@ -804,6 +806,7 @@ export function Funil() {
     setContatoNaoQuerLigacao(false);
     setContatoCongeladoAte('');
     setContatoObservacoes('');
+    setContatoFormacao('');
     setModoContatoModal('novo');
     setEditandoContatoRapido(true);
     setMostrarModalContato(true);
@@ -928,6 +931,7 @@ export function Funil() {
       nao_quero_ligacao: contatoNaoQuerLigacao,
       congelado_ate: contatoCongeladoAte || null,
       observacoes: contatoObservacoes || null,
+      formacao: contatoFormacao || null,
     };
 
     try {
@@ -2637,6 +2641,10 @@ export function Funil() {
                           : '-'}
                       </div>
                     </InfoBox>
+                    <InfoBox>
+                      <label><i className="fa-solid fa-graduation-cap"></i> Formação</label>
+                      <div>{contatoFormacao || '-'}</div>
+                    </InfoBox>
                     <InfoBox className="span-2">
                       <label><i className="fa-regular fa-envelope"></i> E-MAILS (Lista de Disparo)</label>
                       <div style={{ display: 'grid', gap: '6px' }}>
@@ -2716,6 +2724,10 @@ export function Funil() {
                     <FormGroup>
                       <label>Nome *</label>
                       <Input type="text" required value={contatoNome} onChange={e => setContatoNome(e.target.value)} />
+                    </FormGroup>
+                    <FormGroup>
+                      <label>Formação</label>
+                      <Input type="text" value={contatoFormacao} onChange={e => setContatoFormacao(e.target.value)} placeholder="Ex: Engenheiro Civil, Bacharel em Direito..." />
                     </FormGroup>
                     <FormGroup className="span-2" style={{ gridColumn: '1 / -1' }}>
                       <DynamicInputBox>

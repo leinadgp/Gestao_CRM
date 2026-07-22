@@ -56,6 +56,7 @@ export function Contatos() {
   const [naoQuerLigacao, setNaoQuerLigacao] = useState(false);
   const [contatoCongeladoAte, setContatoCongeladoAte] = useState('');
   const [observacoesContato, setObservacoesContato] = useState('');
+  const [formacaoContato, setFormacaoContato] = useState('');
   
   // Autocomplete de Prefeituras
   const [buscaEmpresaNoForm, setBuscaEmpresaNoForm] = useState('');
@@ -184,7 +185,7 @@ export function Contatos() {
     setEditandoId(null); setNome(''); setCargos(['']); setEmpresaId(''); setBuscaEmpresaNoForm('');
     setEmails(['']); setTelefones(['']); setEmailsComErroForm([]);
     setNaoQuerEmail(false); setNaoQuerLigacao(false); setContatoCongeladoAte('');
-    setObservacoesContato('');
+    setObservacoesContato(''); setFormacaoContato('');
     setModoEdicao(true); setMostrarModalContato(true);
   };
 
@@ -201,6 +202,7 @@ export function Contatos() {
     setNaoQuerLigacao(!!c.nao_quero_ligacao);
     setContatoCongeladoAte(c.congelado_ate || '');
     setObservacoesContato(c.observacoes || '');
+    setFormacaoContato(c.formacao || '');
     setEmailsComErroForm(c.emails_com_erro || []);
     setModoEdicao(false); setMostrarModalContato(true); setCarregandoHistorico(true);
 
@@ -260,6 +262,7 @@ export function Contatos() {
       nao_quero_ligacao: naoQuerLigacao,
       congelado_ate: contatoCongeladoAte || null,
       observacoes: observacoesContato || null,
+      formacao: formacaoContato || null,
     };
     try {
       if (editandoId) {
@@ -522,6 +525,11 @@ export function Contatos() {
                           )}
                         </AutocompleteContainer>
                       </FormGroup>
+
+                      <FormGroup>
+                        <label>Formação</label>
+                        <Input type="text" value={formacaoContato} onChange={e => setFormacaoContato(e.target.value)} placeholder="Ex: Engenheiro Civil, Bacharel em Direito..." />
+                      </FormGroup>
                     </FormGrid>
 
                     <FormGrid $columns="1fr 1fr" style={{ marginTop: '20px' }}>
@@ -618,6 +626,10 @@ export function Contatos() {
                             );
                           })}
                         </ul>
+                      </InfoCard>
+                      <InfoCard $borderTop="#8b5cf6">
+                        <h4><i className="fa-solid fa-graduation-cap"></i> Formação</h4>
+                        <p style={{ margin: 0 }}>{formacaoContato || 'Não informado'}</p>
                       </InfoCard>
                       <InfoCard $borderTop="#28a745">
                         <h4><i className="fa-brands fa-whatsapp"></i> Telefones</h4>
