@@ -871,7 +871,7 @@ export function Dashboard() {
                           {dataHora}
                         </span>
                         <span className="col-nome" data-label="Nome" title={ins.contato_nome}>
-                          {ins.contato_nome || '—'}
+                          {ins.contato_nome || '—'}{qtd > 1 ? ` (+${qtd - 1})` : ''}
                         </span>
                         <span className="col-pref" data-label="Órgão" title={ins.empresa_nome}>
                           {ins.empresa_nome || '—'}
