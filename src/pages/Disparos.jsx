@@ -475,7 +475,11 @@ export function Disparos() {
       : `🚀 Deseja iniciar a automação para "${campanhaSelecionada.nome}"?\nIsso vai injetar os leads selecionados no Kanban e na fila de e-mails.`;
     if (!window.confirm(msg)) return;
     try {
-      const res = await axios.post(`${API_URL}/campanhas/${campanhaSelecionada.id}/iniciar`, {}, getHeaders());
+      const res = await axios.post(
+        `${API_URL}/campanhas/${campanhaSelecionada.id}/iniciar`,
+        { recriar_apenas: recriarApenas },
+        getHeaders()
+      );
       const qtd = res.data.negociacoes_criadas ?? 0;
       alert(`✅ ${res.data.mensagem}\nNegociações novas criadas: ${qtd}`);
       carregarCampanhas();
