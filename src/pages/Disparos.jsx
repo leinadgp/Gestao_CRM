@@ -85,6 +85,11 @@ export function Disparos() {
   const [filaDisparoTotalPaginas, setFilaDisparoTotalPaginas] = useState(1);
   const [filaDisparoCampanhaFiltro, setFilaDisparoCampanhaFiltro] = useState('');
 
+  // PAUSAR MOTOR COM RETOMADA AGENDADA
+  const [mostrarPausarModal, setMostrarPausarModal] = useState(false);
+  const [retomarEmInput, setRetomarEmInput] = useState('');
+  const [salvandoPausa, setSalvandoPausa] = useState(false);
+
   const [tituloemail, setTituloemail] = useState('');
   const [cabecalhoEmail, setCabecalhoEmail] = useState('');
   const [emailCru, setEmailCru] = useState('');
@@ -495,14 +500,35 @@ export function Disparos() {
     } catch (erro) { alert(erro.response?.data?.erro || 'Erro ao iniciar a automação.'); }
   }
 
-  async function alternarStatusMotor() {
-    const novoStatus = campanhaSelecionada.status_motor === 'rodando' ? 'pausado' : 'rodando';
-    const acao = novoStatus === 'pausado' ? 'PAUSAR' : 'RETOMAR';
-    if (!window.confirm(`Deseja ${acao} os disparos automáticos para a campanha "${campanhaSelecionada.nome}"?`)) return;
+  function abrirPausarMotor() {
+    setRetomarEmInput('');
+    setMostrarPausarModal(true);
+  }
+
+  async function confirmarPausarMotor() {
+    setSalvandoPausa(true);
     try {
-      await axios.put(`${API_URL}/campanhas/${campanhaSelecionada.id}/status-motor`, { status_motor: novoStatus }, getHeaders());
+      const retomarEm = retomarEmInput ? new Date(retomarEmInput).toISOString() : null;
+      await axios.put(
+        `${API_URL}/campanhas/${campanhaSelecionada.id}/status-motor`,
+        { status_motor: 'pausado', retomar_em: retomarEm },
+        getHeaders()
+      );
+      setMostrarPausarModal(false);
       carregarCampanhas();
-    } catch (erro) { alert('Erro ao alterar status do motor.'); }
+    } catch {
+      alert('Erro ao pausar os disparos.');
+    } finally {
+      setSalvandoPausa(false);
+    }
+  }
+
+  async function retomarMotorAgora() {
+    if (!window.confirm(`Deseja RETOMAR os disparos automáticos para a campanha "${campanhaSelecionada.nome}"?`)) return;
+    try {
+      await axios.put(`${API_URL}/campanhas/${campanhaSelecionada.id}/status-motor`, { status_motor: 'rodando' }, getHeaders());
+      carregarCampanhas();
+    } catch { alert('Erro ao retomar os disparos.'); }
   }
 
   async function alternarStatusEmail(email) {
@@ -1009,15 +1035,19 @@ export function Disparos() {
               {campanhaSelecionada.status_motor === 'rodando' ? (
                 <>
                   <StatusBadge $color="green"><i className="fa-solid fa-check-circle"></i> Rodando</StatusBadge>
-                  <MotorButton $color="yellow" onClick={alternarStatusMotor}><i className="fa-solid fa-pause"></i> Pausar</MotorButton>
+                  <MotorButton $color="yellow" onClick={abrirPausarMotor}><i className="fa-solid fa-pause"></i> Pausar</MotorButton>
                   <MotorButton $color="blue" onClick={() => iniciarCampanha(true)} title="Útil após limpar negociações no banco">
                     <i className="fa-solid fa-rotate"></i> Recriar negociações
                   </MotorButton>
                 </>
               ) : campanhaSelecionada.status_motor === 'pausado' ? (
                 <>
-                  <StatusBadge $color="yellow"><i className="fa-solid fa-pause-circle"></i> Pausada</StatusBadge>
-                  <MotorButton $color="green" onClick={alternarStatusMotor}><i className="fa-solid fa-play"></i> Retomar</MotorButton>
+                  <StatusBadge $color="yellow">
+                    <i className="fa-solid fa-pause-circle"></i> Pausada
+                    {campanhaSelecionada.retomar_em && ` · volta ${new Date(campanhaSelecionada.retomar_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`}
+                  </StatusBadge>
+                  <MotorButton $color="green" onClick={retomarMotorAgora}><i className="fa-solid fa-play"></i> Retomar agora</MotorButton>
+                  <MotorButton $color="yellow" onClick={abrirPausarMotor}><i className="fa-regular fa-clock"></i> {campanhaSelecionada.retomar_em ? 'Reagendar' : 'Agendar retomada'}</MotorButton>
                   <MotorButton $color="blue" onClick={() => iniciarCampanha(true)}>
                     <i className="fa-solid fa-rotate"></i> Recriar negociações
                   </MotorButton>
@@ -1029,6 +1059,39 @@ export function Disparos() {
               )}
             </div>
           </MotorControlPanel>
+        )}
+
+        {mostrarPausarModal && campanhaSelecionada && (
+          <ModalOverlay onClick={() => !salvandoPausa && setMostrarPausarModal(false)}>
+            <ModalContent onClick={e => e.stopPropagation()} style={{ maxWidth: 440 }}>
+              <ModalHeader>
+                <h3><i className="fa-solid fa-pause-circle"></i> Pausar disparos</h3>
+                <CloseButton onClick={() => setMostrarPausarModal(false)}>&times;</CloseButton>
+              </ModalHeader>
+              <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <p style={{ margin: 0, color: '#495057', fontSize: '0.9rem' }}>
+                  Pausando <strong>{campanhaSelecionada.nome}</strong>. Se quiser, agende um horário pra voltar
+                  sozinha — senão fica pausada até você clicar em "Retomar agora".
+                </p>
+                <FormGroup>
+                  <label>Retomar automaticamente em (opcional)</label>
+                  <input
+                    type="datetime-local"
+                    value={retomarEmInput}
+                    onChange={e => setRetomarEmInput(e.target.value)}
+                  />
+                </FormGroup>
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                  <MotorButton type="button" $color="blue" disabled={salvandoPausa} onClick={() => setMostrarPausarModal(false)}>
+                    Cancelar
+                  </MotorButton>
+                  <MotorButton type="button" $color="yellow" disabled={salvandoPausa} onClick={confirmarPausarMotor}>
+                    <i className="fa-solid fa-pause"></i> {salvandoPausa ? 'Pausando...' : 'Pausar'}
+                  </MotorButton>
+                </div>
+              </div>
+            </ModalContent>
+          </ModalOverlay>
         )}
 
         {cursoAlvo && !MULTIPLOS_FUNIS_DISPARO && (
