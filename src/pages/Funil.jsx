@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import styled, { keyframes } from 'styled-components';
 import { TarefasOportunidade } from '../componentes/TarefasOportunidade.jsx';
+import { NotasOportunidade } from '../componentes/NotasOportunidade.jsx';
 import { BotaoExportar } from '../componentes/BotaoExportar.jsx';
 import { HorarioFuncionamentoInput } from '../componentes/HorarioFuncionamentoInput.jsx';
 import { listarMinhasTarefas, classificarTarefa } from '../utils/tarefasService.js';
@@ -146,10 +147,6 @@ export function Funil() {
   const [modoPacoteInscricao, setModoPacoteInscricao] = useState('igual');
 
   // --- ESTADOS DE NOTAS ---
-  const [notas, setNotas] = useState([]);
-  const [novaNota, setNovaNota] = useState('');
-  const [editandoNotaId, setEditandoNotaId] = useState(null);
-  const [textoNotaEditada, setTextoNotaEditada] = useState('');
 
   // --- HISTÓRICO DA PREFEITURA (empresa-level) ---
   const [historicoEmpresa, setHistoricoEmpresa] = useState([]);
@@ -705,13 +702,6 @@ export function Funil() {
     return <StarsContainer $readonly={readonly}>{stars}</StarsContainer>;
   };
 
-  async function carregarNotas(opId) {
-    try {
-      const res = await axios.get(`${API_URL}/oportunidades/${opId}/notas`, getHeaders());
-      setNotas(res.data);
-    } catch (e) { console.error('Erro ao buscar notas', e); }
-  }
-
   async function salvarObservacoesEmpresa() {
     if (!empresaId) return;
     try {
@@ -742,30 +732,6 @@ export function Funil() {
     } catch (e) { console.error('Erro ao buscar notas do histórico', e); }
   }
 
-  async function adicionarNota() {
-    if (!novaNota.trim() || !editandoId) return;
-    try {
-      const res = await axios.post(
-        `${API_URL}/oportunidades/${editandoId}/notas`,
-        { nota: novaNota, criado_em: new Date().toISOString() },
-        getHeaders()
-      );
-      setNotas([res.data, ...notas]);
-      setNovaNota('');
-    } catch (e) { alert('Erro ao adicionar nota.'); }
-  }
-
-  function iniciarEdicaoNota(nota) { setEditandoNotaId(nota.id); setTextoNotaEditada(nota.nota); }
-  function cancelarEdicaoNota() { setEditandoNotaId(null); setTextoNotaEditada(''); }
-
-  async function salvarNotaEditada(id) {
-    if (!textoNotaEditada.trim()) return;
-    try {
-      const res = await axios.put(`${API_URL}/notas/${id}`, { nota: textoNotaEditada }, getHeaders());
-      setNotas(notas.map(n => n.id === id ? res.data : n));
-      cancelarEdicaoNota();
-    } catch (e) { alert('Erro ao editar a nota.'); }
-  }
 
   function preencherFormContato(contato) {
     setContatoSelecionado(contato);
@@ -1146,7 +1112,7 @@ export function Funil() {
       setModulosSelecionados([]); setValor(990.00);
     }
 
-    setBuscaEmpresaNoModal(''); setBuscaContatoNoModal(''); setNotas([]); setNovaNota(''); cancelarEdicaoNota();
+    setBuscaEmpresaNoModal(''); setBuscaContatoNoModal('');
     setMostrarModal(true);
   }
 
@@ -1161,7 +1127,7 @@ export function Funil() {
     setVendedorId(''); setVendedorOriginal('');
     setDesconto(0); setDescontoReais(0);
     setModulosSelecionados([]);
-    setBuscaEmpresaNoModal(''); setBuscaContatoNoModal(''); setNotas([]); setNovaNota(''); cancelarEdicaoNota();
+    setBuscaEmpresaNoModal(''); setBuscaContatoNoModal('');
     if (recarregar && filtroCampanha) carregarFunilDaCampanha(filtroCampanha, true);
   }
 
@@ -1231,7 +1197,6 @@ export function Funil() {
     setBuscaEmpresaNoModal(op.empresa_nome || ''); setBuscaContatoNoModal(op.contato_nome || '');
     setUltimaInteracao(op.ultima_interacao || null);
     setCooldownContato(0);
-    setNotas([]); cancelarEdicaoNota(); carregarNotas(op.id);
     setHistoricoEmpresa([]); setNotasHistorico([]); setHistoricoOpSelecionada(null); setObservacoesEmpresa('');
     if (op.empresa_id) carregarHistoricoEmpresa(op.empresa_id, op.id);
     setMostrarModal(true);
@@ -2489,49 +2454,7 @@ export function Funil() {
                     </Select>
                   </FormGroup>
 
-                  <SectionCard>
-                    <label style={{ display: 'block', marginBottom: '15px', color: '#333', fontSize: '0.95rem', fontWeight: 'bold' }}>
-                      <i className="fa-solid fa-comments text-blue"></i> Histórico de Interações (Notas)
-                    </label>
-
-                    <NotesFeed>
-                      {notas.length === 0 ? (
-                        <div className="empty-notes">Nenhuma nota registrada nesta negociação.</div>
-                      ) : (
-                        notas.map(n => (
-                          <NoteItem key={n.id}>
-                            {editandoNotaId === n.id ? (
-                              <>
-                                <TextArea value={textoNotaEditada} onChange={e => setTextoNotaEditada(e.target.value)} rows="2" className="highlight-blue" />
-                                <div className="note-actions">
-                                  <button type="button" className="btn-cancel" onClick={cancelarEdicaoNota}>Cancelar</button>
-                                  <button type="button" className="btn-save" onClick={() => salvarNotaEditada(n.id)}>Salvar</button>
-                                </div>
-                              </>
-                            ) : (
-                              <>
-                                <NoteHeader>
-                                  <strong className="user"><i className="fa-solid fa-user-circle"></i> {n.usuario_nome}</strong>
-                                  <div className="meta">
-                                    <span>{new Date(n.criado_em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span>
-                                    <button type="button" className="btn-edit" onClick={() => iniciarEdicaoNota(n)}><i className="fa-solid fa-pen"></i></button>
-                                  </div>
-                                </NoteHeader>
-                                <NoteBody>{n.nota}</NoteBody>
-                              </>
-                            )}
-                          </NoteItem>
-                        ))
-                      )}
-                    </NotesFeed>
-
-                    {editandoId && (
-                      <AddNoteBox>
-                        <Input type="text" value={novaNota} onChange={e => setNovaNota(e.target.value)} placeholder="Escreva o que conversou hoje..." onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); adicionarNota(); } }} />
-                        <button type="button" onClick={adicionarNota} className="btn-send"><i className="fa-solid fa-paper-plane"></i></button>
-                      </AddNoteBox>
-                    )}
-                  </SectionCard>
+                  <NotasOportunidade key={editandoId || 'nova'} oportunidadeId={editandoId} />
 
                   {editandoId && (
                     <SectionCard $bgColor="#faf5ff" $borderColor="#d6bcfa">
@@ -3823,34 +3746,6 @@ const TotalsBox = styled.div`
     .val { text-align: right; }
     input { width: 100% !important; }
   }
-`;
-
-// --- FEED DE NOTAS ---
-const NotesFeed = styled.div`
-  display: flex; flex-direction: column; gap: 12px; max-height: 250px; overflow-y: auto; padding-right: 5px; margin-bottom: 15px;
-  &::-webkit-scrollbar { width: 6px; } &::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-  .empty-notes { text-align: center; color: #94a3b8; font-size: 0.9rem; padding: 20px; font-style: italic; }
-`;
-const NoteItem = styled.div`
-  background: #ffffff; border: 1px solid #e2e8f0; border-left: 4px solid #007bff; border-radius: 8px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-  
-  .note-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
-  .btn-cancel { background: #f1f5f9; border: none; padding: 6px 12px; border-radius: 4px; color: #475569; font-weight: 600; cursor: pointer; }
-  .btn-save { background: #007bff; border: none; padding: 6px 12px; border-radius: 4px; color: #fff; font-weight: 600; cursor: pointer; }
-`;
-const NoteHeader = styled.div`
-  display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
-  .user { display: flex; align-items: center; gap: 6px; color: #2c3e50; font-size: 0.9rem; }
-  .meta { display: flex; align-items: center; gap: 10px; color: #94a3b8; font-size: 0.8rem; font-weight: 600; }
-  .btn-edit { background: none; border: none; color: #007bff; cursor: pointer; opacity: 0.5; transition: 0.2s; &:hover{ opacity: 1; transform: scale(1.1); } }
-`;
-const NoteBody = styled.div`
-  color: #475569; font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap;
-`;
-
-const AddNoteBox = styled.div`
-  display: flex; gap: 10px;
-  .btn-send { background: #28a745; color: #fff; border: none; padding: 0 20px; border-radius: 8px; font-size: 1.1rem; cursor: pointer; transition: 0.2s; &:hover{ background: #218838; } }
 `;
 
 // --- BOTÕES GENÉRICOS ---
