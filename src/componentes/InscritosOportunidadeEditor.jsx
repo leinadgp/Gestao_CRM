@@ -11,18 +11,18 @@ const inscritoVazio = () => ({
   telefone: '',
   formacao: '',
   cargo: '',
+  contato_id: null,
+  modulos_ids: [],
 });
 
+// Preserva todos os campos que vierem do backend (inclusive contato_id/modulos_ids) —
+// versões antigas deste componente só guardavam nome/email/telefone/cargo/formação no
+// estado local e reenviavam isso no PUT, apagando o vínculo com o contato de quem já
+// tinha um ao simplesmente abrir e salvar o editor.
 function normalizarListaInscritos(val) {
   if (!val) return [];
   const arr = Array.isArray(val) ? val : [];
-  return arr.map((i) => ({
-    nome: i?.nome || '',
-    email: i?.email || '',
-    telefone: i?.telefone || '',
-    formacao: i?.formacao || '',
-    cargo: i?.cargo || '',
-  }));
+  return arr.map((i) => ({ ...inscritoVazio(), ...i }));
 }
 
 export function InscritosOportunidadeEditor({
@@ -60,21 +60,20 @@ export function InscritosOportunidadeEditor({
     setInscritos((prev) => prev.map((item, i) => (i === index ? { ...item, [campo]: valor } : item)));
   }
 
-  function ajustarQtd(qtd) {
-    const n = Math.max(0, parseInt(qtd, 10) || 0);
-    setQtdInscritos(n);
-    setInscritos((prev) => {
-      const next = [...prev];
-      while (next.length < Math.max(n, 1)) next.push(inscritoVazio());
-      return next.slice(0, Math.max(n, 1));
-    });
+  function adicionarInscrito() {
+    setInscritos((prev) => [...prev, inscritoVazio()]);
+  }
+
+  function removerInscrito(index) {
+    const ins = inscritos[index];
+    const label = ins?.nome || ins?.email || `Inscrito ${index + 1}`;
+    if (!window.confirm(`Remover "${label}" desta negociação?`)) return;
+    setInscritos((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function salvar(e) {
     e?.preventDefault();
-    const lista = inscritos
-      .slice(0, Math.max(qtdInscritos, inscritos.length))
-      .filter((i) => i.nome || i.email);
+    const lista = inscritos.filter((i) => i.nome || i.email);
     if (!lista.length) {
       alert('Informe pelo menos um inscrito com nome ou e-mail.');
       return;
@@ -84,7 +83,7 @@ export function InscritosOportunidadeEditor({
       await axios.put(
         `${API_URL}/oportunidades/${oportunidadeId}/inscritos`,
         {
-          qtd_inscritos: Math.max(qtdInscritos, lista.length),
+          qtd_inscritos: Math.max(Number(qtdInscritos) || 0, lista.length),
           inscritos_json: lista,
         },
         getAuthHeaders()
@@ -142,18 +141,24 @@ export function InscritosOportunidadeEditor({
       ) : (
         <form onSubmit={salvar}>
           <Field>
-            <label>Qtd. inscritos</label>
+            <label>Quantidade oficial de inscritos</label>
             <input
               type="number"
-              min="1"
-              max="30"
+              min={inscritos.length || 1}
               value={qtdInscritos || ''}
-              onChange={(e) => ajustarQtd(e.target.value)}
+              onChange={(e) => setQtdInscritos(e.target.value)}
             />
+            <Hint>Use isso pra registrar um total maior do que a lista abaixo (ex.: gente confirmada sem nome ainda). Nunca fica menor que a quantidade de inscritos nomeados.</Hint>
           </Field>
-          {inscritos.slice(0, Math.max(qtdInscritos, 1)).map((ins, idx) => (
+
+          {inscritos.map((ins, idx) => (
             <Card key={idx} $edit>
-              <small>Inscrito {idx + 1}</small>
+              <CardTop>
+                <small>Inscrito {idx + 1}</small>
+                <BtnRemover type="button" onClick={() => removerInscrito(idx)} title="Remover este inscrito">
+                  <i className="fa-solid fa-trash" /> Remover
+                </BtnRemover>
+              </CardTop>
               <Field><label>Nome</label><input value={ins.nome} onChange={(e) => atualizar(idx, 'nome', e.target.value)} /></Field>
               <Field><label>E-mail</label><input type="email" value={ins.email} onChange={(e) => atualizar(idx, 'email', e.target.value)} /></Field>
               <Field><label>Telefone</label><input value={ins.telefone} onChange={(e) => atualizar(idx, 'telefone', e.target.value)} /></Field>
@@ -161,6 +166,10 @@ export function InscritosOportunidadeEditor({
               <Field><label>Formação</label><input value={ins.formacao} onChange={(e) => atualizar(idx, 'formacao', e.target.value)} /></Field>
             </Card>
           ))}
+
+          <Btn type="button" className="primary" onClick={adicionarInscrito} style={{ alignSelf: 'flex-start' }}>
+            <i className="fa-solid fa-plus" /> Adicionar inscrito
+          </Btn>
         </form>
       )}
     </Wrap>
@@ -199,6 +208,9 @@ const Btn = styled.button`
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   &.primary { background: #007bff; color: #fff; border-color: #007bff; }
   &.muted { background: #e2e8f0; }
   &:disabled { opacity: 0.6; }
@@ -212,15 +224,37 @@ const Card = styled.div`
   display: flex;
   flex-direction: column;
   gap: 8px;
+  margin-bottom: ${(p) => (p.$edit ? '10px' : '0')};
   strong { color: #0f172a; }
   small { font-weight: 700; color: #64748b; text-transform: uppercase; font-size: 0.7rem; }
 `;
+const CardTop = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+`;
+const BtnRemover = styled.button`
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid #fecaca;
+  background: #fff5f5;
+  color: #dc3545;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  &:hover { background: #dc3545; color: #fff; }
+`;
 const Line = styled.div` font-size: 0.85rem; color: #475569; `;
 const Muted = styled.p` margin: 0; color: #94a3b8; font-size: 0.85rem; font-style: italic; `;
+const Hint = styled.p` margin: 2px 0 0; color: #94a3b8; font-size: 0.72rem; `;
 const Field = styled.div`
   display: flex;
   flex-direction: column;
   gap: 4px;
+  margin-bottom: 8px;
   label { font-size: 0.75rem; font-weight: 600; color: #64748b; }
   input {
     padding: 8px 10px;
