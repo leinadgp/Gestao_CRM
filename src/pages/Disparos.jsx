@@ -75,7 +75,16 @@ export function Disparos() {
   const [emailsCalendario, setEmailsCalendario] = useState([]);
   const [carregandoCalendario, setCarregandoCalendario] = useState(true);
   const [diaSelecionadoCalendario, setDiaSelecionadoCalendario] = useState(null);
-  
+
+  // FILA DE DISPAROS (mesma ordem real de envio, ver GET /dashboard/fila-disparo)
+  const [mostrarFilaDisparo, setMostrarFilaDisparo] = useState(false);
+  const [carregandoFilaDisparo, setCarregandoFilaDisparo] = useState(false);
+  const [filaDisparo, setFilaDisparo] = useState([]);
+  const [filaDisparoTotal, setFilaDisparoTotal] = useState(0);
+  const [filaDisparoPagina, setFilaDisparoPagina] = useState(1);
+  const [filaDisparoTotalPaginas, setFilaDisparoTotalPaginas] = useState(1);
+  const [filaDisparoCampanhaFiltro, setFilaDisparoCampanhaFiltro] = useState('');
+
   const [tituloemail, setTituloemail] = useState('');
   const [cabecalhoEmail, setCabecalhoEmail] = useState('');
   const [emailCru, setEmailCru] = useState('');
@@ -548,6 +557,8 @@ export function Disparos() {
     htmlCorrigido = htmlCorrigido.replace(/([?&]|&amp;)tipo=[^&"']*/g, `$1tipo=${tipoSalvar}`);
     htmlCorrigido = htmlCorrigido.replace(/([?&]|&amp;)curso=[^&"']*/g, `$1curso=${cursoAlvo}`);
 
+    // Fora do modo multi-funil, tudo é Broadcast (TIPO_FUNIL_UNICO).
+    const ehBroadcast = MULTIPLOS_FUNIS_DISPARO ? tipoFunil.includes('BROADCAST') : true;
     const payload = {
       campanha_id: cursoAlvo,
       tipo_funil: tipoSalvar,
@@ -559,8 +570,13 @@ export function Disparos() {
         ? (tipoFunil.includes('BROADCAST') ? (horaDisparo || null) : null)
         : (horaDisparo || null),
       horas_espera: MULTIPLOS_FUNIS_DISPARO && tipoFunil === 'POS_CLIQUE' ? horasEspera : null,
-      dias_expiracao: MULTIPLOS_FUNIS_DISPARO && tipoFunil === 'POS_CLIQUE' && diasExpiracao ? parseInt(diasExpiracao) : null,
-      cargo_alvo: 'Todos', 
+      // Broadcast sempre leva validade: 2 dias por padrão se o campo ficar em branco, pra
+      // não deixar e-mail programado acumulando indefinidamente na fila quando não é enviado
+      // na hora certa. Pós-clique continua opcional (sem prazo = nunca expira).
+      dias_expiracao: ehBroadcast
+        ? (diasExpiracao ? parseInt(diasExpiracao) : 2)
+        : (MULTIPLOS_FUNIS_DISPARO && tipoFunil === 'POS_CLIQUE' && diasExpiracao ? parseInt(diasExpiracao) : null),
+      cargo_alvo: 'Todos',
       titulo_email: tituloemail, 
       cabecalho_email: cabecalhoEmail,
       nome_cliente_var: '{{$json.nome}}',
@@ -692,6 +708,28 @@ export function Disparos() {
     setDiaSelecionadoCalendario(null);
   }
 
+  async function carregarFilaDisparo(pagina, campanhaId) {
+    setCarregandoFilaDisparo(true);
+    try {
+      const params = { pagina, por_pagina: 50 };
+      if (campanhaId) params.campanha_id = campanhaId;
+      const res = await axios.get(`${API_URL}/dashboard/fila-disparo`, { ...getHeaders(), params });
+      setFilaDisparo(res.data.itens || []);
+      setFilaDisparoTotal(res.data.total || 0);
+      setFilaDisparoPagina(res.data.pagina || 1);
+      setFilaDisparoTotalPaginas(res.data.total_paginas || 1);
+    } catch {
+      alert('Erro ao carregar a fila de disparos.');
+    } finally {
+      setCarregandoFilaDisparo(false);
+    }
+  }
+
+  function abrirFilaDisparo() {
+    setMostrarFilaDisparo(true);
+    carregarFilaDisparo(1, filaDisparoCampanhaFiltro);
+  }
+
   const emailsPorDiaCalendario = useMemo(() => {
     const mapa = new Map();
     for (const email of emailsCalendario) {
@@ -793,6 +831,9 @@ export function Disparos() {
                   <button type="button" className="no-print" onClick={() => trocarMesCalendario(-1)}><i className="fa-solid fa-chevron-left"></i></button>
                   <span>{NOMES_MES[mesNumCalendario - 1]} de {anoCalendario}</span>
                   <button type="button" className="no-print" onClick={() => trocarMesCalendario(1)}><i className="fa-solid fa-chevron-right"></i></button>
+                  <ImprimirBtn type="button" className="no-print" onClick={abrirFilaDisparo}>
+                    <i className="fa-solid fa-list-ol"></i> Ver fila de disparos
+                  </ImprimirBtn>
                   <ImprimirBtn type="button" className="no-print" onClick={() => window.print()}>
                     <i className="fa-solid fa-print"></i> Imprimir / Exportar PDF
                   </ImprimirBtn>
@@ -860,6 +901,95 @@ export function Disparos() {
                     ))}
                     {emailsDoDiaSelecionadoCalendario.length === 0 && <p>Nenhum e-mail agendado neste dia.</p>}
                   </div>
+                </ModalContent>
+              </ModalOverlay>
+            )}
+
+            {mostrarFilaDisparo && (
+              <ModalOverlay onClick={() => setMostrarFilaDisparo(false)}>
+                <ModalContent $large onClick={e => e.stopPropagation()}>
+                  <ModalHeader>
+                    <div>
+                      <h3><i className="fa-solid fa-list-ol"></i> Fila de Disparos</h3>
+                      <div className="subtitle">{filaDisparoTotal} e-mail(s) elegível(is) agora, na ordem real de disparo</div>
+                    </div>
+                    <CloseButton onClick={() => setMostrarFilaDisparo(false)}>&times;</CloseButton>
+                  </ModalHeader>
+                  <FilaDisparoFiltro>
+                    <label>Campanha:</label>
+                    <select
+                      value={filaDisparoCampanhaFiltro}
+                      onChange={e => {
+                        const v = e.target.value;
+                        setFilaDisparoCampanhaFiltro(v);
+                        carregarFilaDisparo(1, v);
+                      }}
+                    >
+                      <option value="">Todas as campanhas</option>
+                      {campanhas.map(c => (
+                        <option key={c.id} value={c.id}>{c.nome}</option>
+                      ))}
+                    </select>
+                  </FilaDisparoFiltro>
+                  <div style={{ overflowY: 'auto', flex: 1 }}>
+                    {carregandoFilaDisparo ? (
+                      <CarregandoBox>Carregando fila...</CarregandoBox>
+                    ) : filaDisparo.length === 0 ? (
+                      <CarregandoBox>Nenhum e-mail elegível pra disparo agora.</CarregandoBox>
+                    ) : (
+                      <FilaTabela>
+                        <thead>
+                          <tr>
+                            <th>#</th>
+                            <th>UF</th>
+                            <th>Órgão</th>
+                            <th>Contato</th>
+                            <th>Campanha</th>
+                            <th>Etapa</th>
+                            <th>Tipo</th>
+                            <th>Previsto p/</th>
+                            <th>Atraso</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filaDisparo.map((item, idx) => (
+                            <tr key={`${item.contato_id}-${item.campanha_id}-${item.ordem_etapa}`}>
+                              <td>{(filaDisparoPagina - 1) * 50 + idx + 1}</td>
+                              <td>{item.estado || '—'}</td>
+                              <td>{item.empresa_nome || '—'}</td>
+                              <td>{item.contato_nome || '—'}</td>
+                              <td>{item.campanha_nome}</td>
+                              <td>{item.ordem_etapa}</td>
+                              <td>{item.tipo_funil_email}</td>
+                              <td>{item.data_disparo_exata ? new Date(item.data_disparo_exata).toLocaleDateString('pt-BR') : '—'}</td>
+                              <td>
+                                {item.dias_atraso > 0 ? (
+                                  <BadgeAtraso>{item.dias_atraso}d</BadgeAtraso>
+                                ) : '—'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </FilaTabela>
+                    )}
+                  </div>
+                  <FilaDisparoPaginacao>
+                    <button
+                      type="button"
+                      disabled={filaDisparoPagina <= 1 || carregandoFilaDisparo}
+                      onClick={() => carregarFilaDisparo(filaDisparoPagina - 1, filaDisparoCampanhaFiltro)}
+                    >
+                      <i className="fa-solid fa-chevron-left"></i> Anterior
+                    </button>
+                    <span>Página {filaDisparoPagina} de {filaDisparoTotalPaginas}</span>
+                    <button
+                      type="button"
+                      disabled={filaDisparoPagina >= filaDisparoTotalPaginas || carregandoFilaDisparo}
+                      onClick={() => carregarFilaDisparo(filaDisparoPagina + 1, filaDisparoCampanhaFiltro)}
+                    >
+                      Próxima <i className="fa-solid fa-chevron-right"></i>
+                    </button>
+                  </FilaDisparoPaginacao>
                 </ModalContent>
               </ModalOverlay>
             )}
@@ -1063,13 +1193,17 @@ export function Disparos() {
 
               {(!MULTIPLOS_FUNIS_DISPARO || tipoFunil.includes('BROADCAST')) ? (
                 <>
-                  <FormGroup className={MULTIPLOS_FUNIS_DISPARO ? '' : 'span-2'}>
+                  <FormGroup>
                     <label className="text-blue"><i className="fa-regular fa-calendar"></i> Data de Disparo *</label>
                     <input type="date" required value={dataDisparo} onChange={e => setDataDisparo(e.target.value)} />
                   </FormGroup>
                   <FormGroup>
                     <label className="text-blue"><i className="fa-regular fa-clock"></i> Hora de Início</label>
                     <input type="time" value={horaDisparo} onChange={e => setHoraDisparo(e.target.value)} />
+                  </FormGroup>
+                  <FormGroup>
+                    <label className="text-red"><i className="fa-solid fa-ban"></i> Validade (dias)</label>
+                    <input type="number" min="1" placeholder="2 (padrão)" value={diasExpiracao} onChange={e => setDiasExpiracao(e.target.value)} />
                   </FormGroup>
                 </>
               ) : (
@@ -1622,6 +1756,29 @@ const MesNav = styled.div`
 
 const CarregandoBox = styled.div`
   text-align: center; padding: 60px; color: #6c757d;
+`;
+
+/* FILA DE DISPAROS (modal com a ordem real de envio) */
+const FilaDisparoFiltro = styled.div`
+  display: flex; align-items: center; gap: 10px; padding: 14px 20px; border-bottom: 1px solid #edf2f9; flex-shrink: 0;
+  label { font-size: 0.85rem; font-weight: 600; color: #495057; }
+  select { padding: 6px 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.85rem; min-width: 220px; }
+`;
+const FilaTabela = styled.table`
+  width: 100%; border-collapse: collapse; font-size: 0.85rem;
+  th { position: sticky; top: 0; background: #f8fafc; text-align: left; padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 0.75rem; text-transform: uppercase; white-space: nowrap; }
+  td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; color: #334155; white-space: nowrap; }
+  tr:hover td { background: #f8fafc; }
+`;
+const BadgeAtraso = styled.span`
+  display: inline-block; padding: 2px 8px; border-radius: 999px; background: #fff3cd; color: #856404; font-weight: 700; font-size: 0.75rem;
+`;
+const FilaDisparoPaginacao = styled.div`
+  display: flex; align-items: center; justify-content: center; gap: 16px; padding: 12px 20px; border-top: 1px solid #edf2f9; flex-shrink: 0;
+  span { font-size: 0.85rem; color: #495057; font-weight: 600; }
+  button { display: flex; align-items: center; gap: 6px; border: 1px solid #cbd5e1; background: #fff; border-radius: 6px; padding: 6px 12px; font-size: 0.85rem; cursor: pointer; }
+  button:hover:not(:disabled) { background: #f8fafc; border-color: #007bff; color: #007bff; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
 `;
 
 const CalendarGrid = styled.div`
