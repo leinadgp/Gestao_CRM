@@ -115,7 +115,8 @@ export function exportarLinhasComoCsv(linhas, prefixoArquivo) {
   const keys = Object.keys(linhas[0]);
   const colunas = keys.map((k) => ({ key: k, label: k }));
   const csv = linhasParaCsv(linhas, colunas);
-  const data = new Date().toISOString().slice(0, 10);
+  // Data de Brasília, não UTC (toISOString já vira o dia seguinte a partir de ~21h aqui).
+  const data = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
   downloadTexto(csv, `${prefixoArquivo}_${data}.csv`);
   return true;
 }

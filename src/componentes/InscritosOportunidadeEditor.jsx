@@ -62,6 +62,7 @@ export function InscritosOportunidadeEditor({
 
   function adicionarInscrito() {
     setInscritos((prev) => [...prev, inscritoVazio()]);
+    setQtdInscritos((prev) => (Number(prev) || 0) + 1);
   }
 
   function removerInscrito(index) {
@@ -69,6 +70,10 @@ export function InscritosOportunidadeEditor({
     const label = ins?.nome || ins?.email || `Inscrito ${index + 1}`;
     if (!window.confirm(`Remover "${label}" desta negociação?`)) return;
     setInscritos((prev) => prev.filter((_, i) => i !== index));
+    // Acompanha a exclusão por padrão — nunca deixa cair abaixo do tamanho da lista
+    // resultante, mas some junto quando dá pra saber que a quantidade "oficial"
+    // representava justamente essas pessoas nomeadas.
+    setQtdInscritos((prev) => Math.max(inscritos.length - 1, (Number(prev) || 0) - 1));
   }
 
   async function salvar(e) {

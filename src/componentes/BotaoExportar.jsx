@@ -49,7 +49,8 @@ export function BotaoExportar({
     setExportando(true);
     try {
       const payload = await buscarDados();
-      const data = new Date().toISOString().slice(0, 10);
+      // Data de Brasília, não UTC (toISOString já vira o dia seguinte a partir de ~21h aqui).
+      const data = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
       if (formato === 'json') {
         downloadJson(payload, `export_${tipo}_${data}.json`);
         return;

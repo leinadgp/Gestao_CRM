@@ -850,7 +850,7 @@ export function Dashboard() {
                   </InscritosListaHead>
                   {listaInscritosFiltrada.map((ins) => {
                     const listaInsc = parseJSONSeguro(ins.inscritos_json, []).filter((p) => p.nome || p.email);
-                    const qtd = ins.qtd_inscritos || listaInsc.length || 0;
+                    const qtd = Math.max(Number(ins.qtd_inscritos) || 0, listaInsc.length);
                     const origem = ins.origem_lead || ins.origem_venda || '—';
                     const dataHora = ins.data_inscricao
                       ? new Date(ins.data_inscricao).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
@@ -894,7 +894,7 @@ export function Dashboard() {
         const emails = parseJSONSeguro(inscritoDetalhe.emails_json, []);
         const telefones = parseJSONSeguro(inscritoDetalhe.telefones_json, []);
         const listaInsc = parseJSONSeguro(inscritoDetalhe.inscritos_json, []).filter((p) => p.nome || p.email);
-        const qtd = inscritoDetalhe.qtd_inscritos || listaInsc.length || 0;
+        const qtd = Math.max(Number(inscritoDetalhe.qtd_inscritos) || 0, listaInsc.length);
 
         return (
           <ModalOverlay onClick={() => setInscritoDetalhe(null)}>

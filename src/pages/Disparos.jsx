@@ -780,6 +780,9 @@ export function Disparos() {
 
   const [anoCalendario, mesNumCalendario] = mesCalendario.split('-').map(Number);
   const emailsDoDiaSelecionadoCalendario = diaSelecionadoCalendario ? (emailsPorDiaCalendario.get(diaSelecionadoCalendario) || []) : [];
+  // Data de "hoje" no fuso de Brasília, no formato YYYY-MM-DD (bate com diaIso). Nunca usar
+  // toISOString() aqui: ele devolve UTC, que já é o dia seguinte a partir de ~21h em Brasília.
+  const hojeBrasilISO = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
 
   function abrirCampanhaDoCalendario(campanhaId) {
     setDiaSelecionadoCalendario(null);
@@ -875,7 +878,7 @@ export function Disparos() {
                     if (!diaIso) return <DiaCelula key={`vazio-${indice}`} $vazio />;
                     const emailsDoDia = emailsPorDiaCalendario.get(diaIso) || [];
                     const numeroDia = Number(diaIso.slice(8, 10));
-                    const ehHoje = diaIso === new Date().toISOString().slice(0, 10);
+                    const ehHoje = diaIso === hojeBrasilISO;
                     return (
                       <DiaCelula key={diaIso} $temEmail={emailsDoDia.length > 0} $hoje={ehHoje}
                         onClick={() => emailsDoDia.length > 0 && setDiaSelecionadoCalendario(diaIso)}>
