@@ -855,6 +855,12 @@ export function Dashboard() {
                     const dataHora = ins.data_inscricao
                       ? new Date(ins.data_inscricao).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
                       : '—';
+                    // Nome de quem de fato se inscreveu nesta campanha (inscritos_json), não o
+                    // contato titular da negociação — a mesma prefeitura pode ter um titular
+                    // antigo (do funil de prospecção) vinculado a várias campanhas, e mostrar
+                    // esse nome aqui escondia quem realmente se inscreveu em cada uma.
+                    const ultimoInscrito = listaInsc[listaInsc.length - 1];
+                    const nomeInscrito = ultimoInscrito?.nome || ultimoInscrito?.email || ins.contato_nome || '—';
                     return (
                       <InscritosListaRow
                         key={ins.oportunidade_id}
@@ -870,8 +876,8 @@ export function Dashboard() {
                         <span className="col-data" data-label="Data/Hora" title={dataHora}>
                           {dataHora}
                         </span>
-                        <span className="col-nome" data-label="Nome" title={ins.contato_nome}>
-                          {ins.contato_nome || '—'}{qtd > 1 ? ` (+${qtd - 1})` : ''}
+                        <span className="col-nome" data-label="Nome" title={nomeInscrito}>
+                          {nomeInscrito}{qtd > 1 ? ` (+${qtd - 1})` : ''}
                         </span>
                         <span className="col-pref" data-label="Órgão" title={ins.empresa_nome}>
                           {ins.empresa_nome || '—'}
