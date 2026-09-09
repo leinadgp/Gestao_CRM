@@ -5,12 +5,12 @@ import styled, { keyframes } from 'styled-components';
 import { TarefasOportunidade } from '../componentes/TarefasOportunidade.jsx';
 import { NotasOportunidade } from '../componentes/NotasOportunidade.jsx';
 import { BotaoExportar } from '../componentes/BotaoExportar.jsx';
-import { HorarioFuncionamentoInput } from '../componentes/HorarioFuncionamentoInput.jsx';
+import { HorarioSemanalInput } from '../componentes/HorarioSemanalInput.jsx';
 import { listarMinhasTarefas, classificarTarefa } from '../utils/tarefasService.js';
 
 import { normalizarCargosJson, normalizarListaJson, cargosParaTexto } from '../utils/jsonHelpers.js';
 import { normalizarClassificacoesPorCargo, resolverScoringEmpresa, PESOS_CLASSIFICACAO } from '../utils/classificacaoEmpresa.js';
-import { estaForaDoHorario } from '../utils/horarioFuncionamento.js';
+import { estaForaDoHorarioDaEmpresa, semanaTemAlgum } from '../utils/horarioSemanal.js';
 import {
   calcularTotaisPacote,
   inscritosUsamModulosPorPessoa,
@@ -165,6 +165,10 @@ export function Funil() {
   // --- ESTADOS DE TAREFAS ---
   const [tarefasPorOp, setTarefasPorOp] = useState({});
 
+  // --- ESTADOS DO ALERTA DE DESCONGELAMENTO ---
+  const [mostrarTodosDescongelamentos, setMostrarTodosDescongelamentos] = useState(false);
+  const [descongelandoContatoId, setDescongelandoContatoId] = useState(null);
+
   // --- ESTADOS DO SUB-MODAL DE CONTATO ---
   const [mostrarModalContato, setMostrarModalContato] = useState(false);
   const [modoContatoModal, setModoContatoModal] = useState('ver'); // ver | editar | novo
@@ -195,6 +199,7 @@ export function Funil() {
   const [empresaCidade, setEmpresaCidade] = useState('');
   const [empresaTelefones, setEmpresaTelefones] = useState('');
   const [empresaHorario, setEmpresaHorario] = useState('');
+  const [empresaHorarioSemanal, setEmpresaHorarioSemanal] = useState(null);
   const [empresaClassificacao, setEmpresaClassificacao] = useState('nao_assessorada');
   const [empresaEstrelas, setEmpresaEstrelas] = useState(0);
   const [empresaAssessoradasCargos, setEmpresaAssessoradasCargos] = useState([]);
@@ -339,9 +344,11 @@ export function Funil() {
     if (empresaSelecionada) {
       setEmpresaTelefones(empresaSelecionada.telefones || '');
       setEmpresaHorario(empresaSelecionada.horario_funcionamento || '');
+      setEmpresaHorarioSemanal(empresaSelecionada.horario_semanal_json || null);
     } else {
       setEmpresaTelefones('');
       setEmpresaHorario('');
+      setEmpresaHorarioSemanal(null);
     }
   }, [empresaId, empresas]);
 
@@ -554,6 +561,7 @@ export function Funil() {
       const dataRef = op.atualizado_em || op.criado_em;
       const diasNaEtapa = dataRef ? Math.floor((agora - new Date(dataRef).getTime()) / 86400000) : 0;
       const horarioFuncionamento = op.empresa_horario_funcionamento ?? emp.horario_funcionamento;
+      const horarioSemanal = op.empresa_horario_semanal_json ?? emp.horario_semanal_json;
       return {
         ...op,
         classificacao: scoring.classificacao,
@@ -561,7 +569,7 @@ export function Funil() {
         cargoPrioridade: scoring.cargoRef,
         assessoradasCargos,
         diasNaEtapa,
-        foraDoHorario: estaForaDoHorario(horarioFuncionamento),
+        foraDoHorario: estaForaDoHorarioDaEmpresa(horarioSemanal, horarioFuncionamento),
       };
     });
 
@@ -748,6 +756,23 @@ export function Funil() {
     setContatoCongeladoAte(contato?.congelado_ate ? String(contato.congelado_ate).slice(0, 10) : '');
     setContatoObservacoes(contato?.observacoes || '');
     setContatoFormacao(contato?.formacao || '');
+  }
+
+  // Descongela direto do alerta, sem abrir modal. Usa a rota dedicada de
+  // congelamento — o PUT completo de contato reescreveria campos que a listagem
+  // do funil nem carrega.
+  async function descongelarContato(contato) {
+    if (!window.confirm(`Descongelar "${contato.nome}" agora?\n\nEle volta a receber e-mails e ligações imediatamente.`)) return;
+    setDescongelandoContatoId(contato.id);
+    try {
+      await axios.patch(`${API_URL}/contatos/${contato.id}/congelamento`, { congelado_ate: null }, getHeaders());
+      const resC = await axios.get(`${API_URL}/contatos`, getHeaders());
+      setContatos(resC.data);
+    } catch (e) {
+      alert(e.response?.data?.erro || 'Erro ao descongelar contato.');
+    } finally {
+      setDescongelandoContatoId(null);
+    }
   }
 
   function abrirEditarContato(contato) {
@@ -968,6 +993,7 @@ export function Funil() {
     setEmpresaCidade(emp.cidade || '');
     setEmpresaTelefones(emp.telefones || '');
     setEmpresaHorario(emp.horario_funcionamento || '');
+    setEmpresaHorarioSemanal(emp.horario_semanal_json || null);
     setEmpresaClassificacao(classificacaoPadrao);
     setEmpresaEstrelas(estrelasPadrao);
     setEmpresaAssessoradasCargos(
@@ -1006,6 +1032,7 @@ export function Funil() {
         cidade: empresaCidade,
         telefones: empresaTelefones,
         horario_funcionamento: empresaHorario,
+        horario_semanal_json: empresaHorarioSemanal,
         classificacoes_por_cargo_json: classificacoesPorCargo,
         classificacao: empresaClassificacao,
         estrelas: Number(empresaEstrelas) || 0,
@@ -1568,11 +1595,43 @@ export function Funil() {
           <AlertBanner>
             <strong>Alerta de descongelamento:</strong> {contatosComDescongelamentoProximo.length} cliente(s) marcaram que não querem e-mail ou ligação e estão prestes a sair do congelamento.
             <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              {contatosComDescongelamentoProximo.slice(0, 3).map((contato) => (
-                <span key={contato.id} style={{ background: '#f8fafc', color: '#0f172a', padding: '6px 10px', borderRadius: '999px', border: '1px solid #cbd5e1' }}>
-                  {contato.nome} &mdash; {formatarData(contato.congelado_ate)}
-                </span>
+              {(mostrarTodosDescongelamentos
+                ? contatosComDescongelamentoProximo
+                : contatosComDescongelamentoProximo.slice(0, 3)
+              ).map((contato) => (
+                <ChipDescongelamento key={contato.id}>
+                  <button
+                    type="button"
+                    className="abrir"
+                    onClick={() => abrirEditarContato(contato)}
+                    title={`Abrir ${contato.nome} para ajustar a data de congelamento`}
+                  >
+                    <span className="nome">{contato.nome}</span>
+                    <span className="orgao">{contato.empresa_nome || 'Sem prefeitura'}</span>
+                    <span className="data"><i className="fa-solid fa-snowflake" /> {formatarData(contato.congelado_ate)}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="descongelar"
+                    disabled={descongelandoContatoId === contato.id}
+                    onClick={() => descongelarContato(contato)}
+                    title="Descongelar agora"
+                  >
+                    <i className={`fa-solid fa-${descongelandoContatoId === contato.id ? 'spinner fa-spin' : 'fire'}`} />
+                  </button>
+                </ChipDescongelamento>
               ))}
+              {contatosComDescongelamentoProximo.length > 3 && (
+                <button
+                  type="button"
+                  onClick={() => setMostrarTodosDescongelamentos((v) => !v)}
+                  style={{ background: 'none', border: 'none', color: '#7c4d0d', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', textDecoration: 'underline' }}
+                >
+                  {mostrarTodosDescongelamentos
+                    ? 'ver menos'
+                    : `ver todos (${contatosComDescongelamentoProximo.length})`}
+                </button>
+              )}
             </div>
           </AlertBanner>
         )}
@@ -2092,7 +2151,7 @@ export function Funil() {
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#475569', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
                             <i className="fa-solid fa-clock"></i>
                             {empresaHorario}
-                            {estaForaDoHorario(empresaHorario) === true && (
+                            {estaForaDoHorarioDaEmpresa(empresaHorarioSemanal, empresaHorario) === true && (
                               <span style={{ color: '#b45309', background: '#fff4e5', padding: '2px 8px', borderRadius: 999, fontSize: '0.75rem', fontWeight: 700 }}>
                                 <i className="fa-solid fa-moon"></i> Fora de horário agora
                               </span>
@@ -2478,12 +2537,24 @@ export function Funil() {
                         const statusMap = { ganho: ['#28a745','Vendido'], perdido: ['#dc3545','Perdido'], interessada: ['#28a745','Interessada'], inscricao: ['#195326','Inscrição'], avaliar: ['#2e8b57','Avaliar'] };
                         const [cor, label] = statusMap[op.status] || ['#64748b','Em Aberto'];
                         const aberta = historicoOpSelecionada === op.id;
+                        // O motivo da perda vai no próprio badge vermelho: saber QUE
+                        // perdeu sem saber POR QUE obrigava a abrir as notas de cada
+                        // negociação antiga uma por uma.
+                        const motivoPerda = op.status === 'perdido' && op.motivo_perda
+                          ? String(op.motivo_perda).trim()
+                          : '';
                         return (
                           <div key={op.id} style={{ border: '1px solid #e2e8f0', borderRadius: '10px', marginBottom: '8px', overflow: 'hidden' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: '#fff', cursor: 'pointer' }} onClick={() => verNotasHistorico(op)}>
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ fontWeight: 600, fontSize: '0.88rem', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                  {op.titulo} <span style={{ background: cor + '20', color: cor, borderRadius: '6px', padding: '2px 8px', fontSize: '0.75rem', fontWeight: 700 }}>{label}</span>
+                                  {op.titulo}{' '}
+                                  <span
+                                    style={{ background: cor + '20', color: cor, borderRadius: '6px', padding: '2px 8px', fontSize: '0.75rem', fontWeight: 700, maxWidth: '100%', display: 'inline-block', verticalAlign: 'middle', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                                    title={motivoPerda ? `Motivo da perda: ${motivoPerda}` : label}
+                                  >
+                                    {label}{motivoPerda ? ` · ${motivoPerda}` : ''}
+                                  </span>
                                 </div>
                                 <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '4px' }}>
                                   <span><i className="fa-solid fa-graduation-cap" style={{ marginRight: '4px' }}></i>{op.campanha_nome || '-'}</span>
@@ -2957,10 +3028,14 @@ export function Funil() {
                     </FormGroup>
                     <FormGroup className="span-2">
                       <label><i className="fa-solid fa-clock text-blue"></i> Horário de Funcionamento</label>
-                      <HorarioFuncionamentoInput
+                      <HorarioSemanalInput
                         key={empresaId || 'novo'}
-                        value={empresaHorario}
-                        onChange={setEmpresaHorario}
+                        valor={empresaHorarioSemanal}
+                        textoAtual={empresaHorario}
+                        onChange={({ semanal, texto }) => {
+                          setEmpresaHorarioSemanal(semanaTemAlgum(semanal) ? semanal : null);
+                          setEmpresaHorario(texto);
+                        }}
                       />
                     </FormGroup>
 
@@ -3263,6 +3338,35 @@ const CustomDropdownItem = styled.li`
 const AlertBanner = styled.div`
   width: 100%; margin-top: 18px; padding: 18px 20px; border-radius: 12px; background: #fff8e1; color: #7c4d0d; border: 1px solid #f5deb3; box-shadow: inset 0 1px 0 rgba(255,255,255,0.5); font-size: 0.95rem;
   strong { color: #5d4037; }
+`;
+
+const ChipDescongelamento = styled.div`
+  display: inline-flex; align-items: stretch; background: #f8fafc; border: 1px solid #cbd5e1;
+  border-radius: 999px; overflow: hidden; max-width: 100%;
+
+  button { background: none; border: none; cursor: pointer; font-family: inherit; }
+
+  button.abrir {
+    display: flex; align-items: center; gap: 8px; padding: 6px 12px; color: #0f172a;
+    min-width: 0; text-align: left;
+    &:hover { background: #eef2f7; }
+    .nome { font-weight: 600; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+    .orgao {
+      font-size: 0.78rem; color: #475569; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 190px;
+      &::before { content: '·'; margin-right: 8px; color: #94a3b8; }
+    }
+    .data { font-size: 0.78rem; color: #1d4ed8; white-space: nowrap; i { margin-right: 4px; } }
+  }
+
+  button.descongelar {
+    padding: 6px 12px; color: #b45309; border-left: 1px solid #cbd5e1;
+    &:hover:not(:disabled) { background: #fef3c7; color: #92400e; }
+    &:disabled { opacity: 0.6; cursor: default; }
+  }
+
+  @media (max-width: 640px) {
+    button.abrir { flex-wrap: wrap; .nome, .orgao { max-width: 140px; } }
+  }
 `;
 
 const EmptyState = styled.div`

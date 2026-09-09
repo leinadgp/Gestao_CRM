@@ -8,9 +8,9 @@ import { normalizarCargosJson, normalizarListaJson, cargosParaTexto } from '../u
 import { normalizarClassificacoesPorCargo, labelClassificacao, resolverScoringEmpresa } from '../utils/classificacaoEmpresa.js';
 import { BotaoExportar } from '../componentes/BotaoExportar.jsx';
 import { ModalImportarCsv } from '../componentes/ModalImportarCsv.jsx';
-import { HorarioFuncionamentoInput } from '../componentes/HorarioFuncionamentoInput.jsx';
 import { normalizarTexto } from '../utils/normalizarTexto.js';
-import { estaForaDoHorario } from '../utils/horarioFuncionamento.js';
+import { HorarioSemanalInput } from '../componentes/HorarioSemanalInput.jsx';
+import { estaForaDoHorarioDaEmpresa, semanaTemAlgum } from '../utils/horarioSemanal.js';
 import { useToast } from '../componentes/Toast.jsx';
 
 export function Empresas() {
@@ -69,6 +69,7 @@ export function Empresas() {
   const [cidade, setCidade] = useState('');
   const [telefones, setTelefones] = useState('');
   const [horarioFuncionamento, setHorarioFuncionamento] = useState('');
+  const [horarioSemanal, setHorarioSemanal] = useState(null);
   const [tipoOrgao, setTipoOrgao] = useState('prefeitura');
   const [classificacao, setClassificacao] = useState('nao_assessorada');
   const [estrelas, setEstrelas] = useState(0);
@@ -215,7 +216,7 @@ export function Empresas() {
   // --- AÇÕES DOS MODAIS ---
   function abrirModalNovo() {
     setEditandoId(null);
-    setNome(''); setEstado(''); setCidade(''); setTelefones(''); setHorarioFuncionamento('');
+    setNome(''); setEstado(''); setCidade(''); setTelefones(''); setHorarioFuncionamento(''); setHorarioSemanal(null);
     setTipoOrgao('prefeitura');
     setClassificacao('nao_assessorada'); setEstrelas(0);
     setClassificacoesPorCargo([]); setObservacoes('');
@@ -231,6 +232,7 @@ export function Empresas() {
     setCidade(emp.cidade || '');
     setTelefones(emp.telefones || '');
     setHorarioFuncionamento(emp.horario_funcionamento || '');
+    setHorarioSemanal(emp.horario_semanal_json || null);
     setTipoOrgao(emp.tipo_orgao || 'prefeitura');
     setClassificacao(emp.classificacao || 'nao_assessorada');
     setEstrelas(emp.estrelas !== undefined ? emp.estrelas : 0);
@@ -301,6 +303,7 @@ export function Empresas() {
       cidade,
       telefones,
       horario_funcionamento: horarioFuncionamento,
+      horario_semanal_json: horarioSemanal,
       tipo_orgao: tipoOrgao,
       classificacao,
       estrelas,
@@ -706,7 +709,7 @@ export function Empresas() {
                           </div>
                           <div className="info-line">
                             <strong>Horário de Func.:</strong> {detalhesEmpresa.empresa.horario_funcionamento || '-'}
-                            {estaForaDoHorario(detalhesEmpresa.empresa.horario_funcionamento) === true && (
+                            {estaForaDoHorarioDaEmpresa(detalhesEmpresa.empresa.horario_semanal_json, detalhesEmpresa.empresa.horario_funcionamento) === true && (
                               <span style={{ marginLeft: 10, color: '#b45309', background: '#fff4e5', padding: '2px 8px', borderRadius: 999, fontSize: '0.75rem', fontWeight: 700 }}>
                                 <i className="fa-solid fa-moon"></i> Fora de horário agora
                               </span>
@@ -816,10 +819,14 @@ export function Empresas() {
                       </FormGroup>
                       <FormGroup>
                         <label>Horário de Funcionamento</label>
-                        <HorarioFuncionamentoInput
+                        <HorarioSemanalInput
                           key={editandoId || 'novo'}
-                          value={horarioFuncionamento}
-                          onChange={setHorarioFuncionamento}
+                          valor={horarioSemanal}
+                          textoAtual={horarioFuncionamento}
+                          onChange={({ semanal, texto }) => {
+                            setHorarioSemanal(semanaTemAlgum(semanal) ? semanal : null);
+                            setHorarioFuncionamento(texto);
+                          }}
                         />
                       </FormGroup>
                     </FormGrid>

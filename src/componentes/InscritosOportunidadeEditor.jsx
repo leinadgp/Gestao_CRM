@@ -19,6 +19,23 @@ const inscritoVazio = () => ({
 // versões antigas deste componente só guardavam nome/email/telefone/cargo/formação no
 // estado local e reenviavam isso no PUT, apagando o vínculo com o contato de quem já
 // tinha um ao simplesmente abrir e salvar o editor.
+const MESES_CURTOS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+/**
+ * Mês do módulo (ex.: "mar/26") — é o que diferencia um módulo do outro na hora
+ * de escolher. Lê direto do texto da data em vez de `new Date`, porque uma data
+ * pura ("2026-03-01") convertida de UTC pra Brasília cai no dia anterior e pode
+ * trocar o mês.
+ */
+function rotuloMesModulo(mod) {
+  const data = mod?.data_evento || mod?.data_evento_fim || mod?.data_inicio_vendas;
+  if (!data) return '';
+  const m = /^(\d{4})-(\d{2})/.exec(String(data));
+  if (!m) return '';
+  const mes = MESES_CURTOS[Number(m[2]) - 1];
+  return mes ? `${mes}/${m[1].slice(2)}` : '';
+}
+
 function normalizarListaInscritos(val) {
   if (!val) return [];
   const arr = Array.isArray(val) ? val : [];
@@ -36,6 +53,7 @@ export function InscritosOportunidadeEditor({
   const [qtdInscritos, setQtdInscritos] = useState(0);
   const [inscritos, setInscritos] = useState([inscritoVazio()]);
   const [editando, setEditando] = useState(false);
+  const [modulos, setModulos] = useState([]);
 
   const carregar = useCallback(async () => {
     if (!oportunidadeId) return;
@@ -45,8 +63,10 @@ export function InscritosOportunidadeEditor({
       const lista = normalizarListaInscritos(res.data.inscritos_json);
       setQtdInscritos(res.data.qtd_inscritos || lista.length || 0);
       setInscritos(lista.length ? lista : [inscritoVazio()]);
+      setModulos(Array.isArray(res.data.modulos) ? res.data.modulos : []);
     } catch {
       setInscritos([inscritoVazio()]);
+      setModulos([]);
     } finally {
       setCarregando(false);
     }
@@ -58,6 +78,22 @@ export function InscritosOportunidadeEditor({
 
   function atualizar(index, campo, valor) {
     setInscritos((prev) => prev.map((item, i) => (i === index ? { ...item, [campo]: valor } : item)));
+  }
+
+  // Marca/desmarca em qual módulo do curso ESTA pessoa se inscreveu. Isso decide
+  // em que mês a inscrição dela é contabilizada no dashboard — cada módulo tem
+  // sua própria data. Quem fica sem módulo nenhum é contado no primeiro módulo
+  // da negociação.
+  function alternarModuloDoInscrito(index, moduloId) {
+    const id = Number(moduloId);
+    setInscritos((prev) => prev.map((item, i) => {
+      if (i !== index) return item;
+      const atuais = (item.modulos_ids || []).map(Number).filter(Boolean);
+      return {
+        ...item,
+        modulos_ids: atuais.includes(id) ? atuais.filter((m) => m !== id) : [...atuais, id],
+      };
+    }));
   }
 
   function adicionarInscrito() {
@@ -140,6 +176,16 @@ export function InscritosOportunidadeEditor({
               {ins.telefone && <Line><i className="fa-solid fa-phone" /> {ins.telefone}</Line>}
               {ins.cargo && <Line><i className="fa-solid fa-briefcase" /> {ins.cargo}</Line>}
               {ins.formacao && <Line>{ins.formacao}</Line>}
+              {modulos.length > 1 && (
+                <Line>
+                  <i className="fa-solid fa-layer-group" />{' '}
+                  {(() => {
+                    const meus = modulos.filter((m) => (ins.modulos_ids || []).map(Number).includes(Number(m.id)));
+                    if (!meus.length) return <em style={{ color: '#94a3b8' }}>módulo não definido</em>;
+                    return meus.map((m) => `${m.nome || `Módulo ${m.id}`}${rotuloMesModulo(m) ? ` (${rotuloMesModulo(m)})` : ''}`).join(', ');
+                  })()}
+                </Line>
+              )}
             </Card>
           ))}
         </Lista>
@@ -169,6 +215,33 @@ export function InscritosOportunidadeEditor({
               <Field><label>Telefone</label><input value={ins.telefone} onChange={(e) => atualizar(idx, 'telefone', e.target.value)} /></Field>
               <Field><label>Cargo</label><input value={ins.cargo} onChange={(e) => atualizar(idx, 'cargo', e.target.value)} /></Field>
               <Field><label>Formação</label><input value={ins.formacao} onChange={(e) => atualizar(idx, 'formacao', e.target.value)} /></Field>
+              {/* Com um módulo só não há o que escolher — a inscrição é dele. */}
+              {modulos.length > 1 && (
+                <Field>
+                  <label>Módulos em que se inscreveu</label>
+                  <ModulosChips>
+                    {modulos.map((mod) => {
+                      const marcado = (ins.modulos_ids || []).map(Number).includes(Number(mod.id));
+                      return (
+                        <button
+                          key={mod.id}
+                          type="button"
+                          className={marcado ? 'ativo' : ''}
+                          onClick={() => alternarModuloDoInscrito(idx, mod.id)}
+                        >
+                          <i className={`fa-${marcado ? 'solid fa-circle-check' : 'regular fa-circle'}`} />
+                          {mod.nome || `Módulo ${mod.id}`}
+                          {rotuloMesModulo(mod) && <span className="mes">{rotuloMesModulo(mod)}</span>}
+                        </button>
+                      );
+                    })}
+                  </ModulosChips>
+                  <Hint>
+                    Define em qual mês esta inscrição entra no dashboard. Sem nenhum módulo marcado,
+                    ela é contada no primeiro módulo da negociação.
+                  </Hint>
+                </Field>
+              )}
             </Card>
           ))}
 
@@ -252,6 +325,27 @@ const BtnRemover = styled.button`
   gap: 6px;
   &:hover { background: #dc3545; color: #fff; }
 `;
+const ModulosChips = styled.div`
+  display: flex; flex-wrap: wrap; gap: 6px;
+
+  button {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 10px; border-radius: 999px; cursor: pointer;
+    border: 1px solid #cbd5e1; background: #fff; color: #475569;
+    font-size: 0.8rem; font-weight: 600; font-family: inherit;
+
+    i { font-size: 0.85rem; color: #94a3b8; }
+    .mes { font-weight: 500; color: #94a3b8; font-size: 0.72rem; }
+
+    &:hover { border-color: #94a3b8; }
+    &.ativo {
+      background: #eff6ff; border-color: #93c5fd; color: #1d4ed8;
+      i { color: #2563eb; }
+      .mes { color: #60a5fa; }
+    }
+  }
+`;
+
 const Line = styled.div` font-size: 0.85rem; color: #475569; `;
 const Muted = styled.p` margin: 0; color: #94a3b8; font-size: 0.85rem; font-style: italic; `;
 const Hint = styled.p` margin: 2px 0 0; color: #94a3b8; font-size: 0.72rem; `;

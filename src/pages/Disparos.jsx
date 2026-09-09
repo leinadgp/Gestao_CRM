@@ -8,6 +8,7 @@ import { Header } from '../componentes/Header.jsx';
 import { temPermissao, primeiraRotaPermitida } from '../utils/permissoes';
 import { exportarLinhasComoCsv } from '../utils/exportarCsv.js';
 import { campanhaEstaAtiva } from '../utils/campanhaStatus.js';
+import { formatarDataBR, formatarDataHoraBR } from '../utils/data.js';
 import {
   MULTIPLOS_FUNIS_DISPARO,
   TIPO_FUNIL_UNICO,
@@ -990,7 +991,7 @@ export function Disparos() {
                               <td>{item.campanha_nome}</td>
                               <td>{item.ordem_etapa}</td>
                               <td>{item.tipo_funil_email}</td>
-                              <td>{item.data_disparo_exata ? new Date(item.data_disparo_exata).toLocaleDateString('pt-BR') : '—'}</td>
+                              <td>{formatarDataBR(item.data_disparo_exata, '—')}</td>
                               <td>
                                 {item.dias_atraso > 0 ? (
                                   <BadgeAtraso>{item.dias_atraso}d</BadgeAtraso>
@@ -1047,7 +1048,7 @@ export function Disparos() {
                 <>
                   <StatusBadge $color="yellow">
                     <i className="fa-solid fa-pause-circle"></i> Pausada
-                    {campanhaSelecionada.retomar_em && ` · volta ${new Date(campanhaSelecionada.retomar_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`}
+                    {campanhaSelecionada.retomar_em && ` · volta ${formatarDataHoraBR(campanhaSelecionada.retomar_em, '')}`}
                   </StatusBadge>
                   <MotorButton $color="green" onClick={retomarMotorAgora}><i className="fa-solid fa-play"></i> Retomar agora</MotorButton>
                   <MotorButton $color="yellow" onClick={abrirPausarMotor}><i className="fa-regular fa-clock"></i> {campanhaSelecionada.retomar_em ? 'Reagendar' : 'Agendar retomada'}</MotorButton>

@@ -7,6 +7,8 @@ import { InscritosOportunidadeEditor } from '../componentes/InscritosOportunidad
 import { exportarLinhasComoCsv, flattenExportInscritosDashboard } from '../utils/exportarCsv.js';
 import { temPermissaoEspecial } from '../utils/permissoes.js';
 import { campanhaEstaAtiva } from '../utils/campanhaStatus.js';
+import { formatarDataBR, formatarDataHoraBR, formatarDataHoraCurtaBR } from '../utils/data.js';
+import { contarInscritosDaLinha, somarInscritos } from '../utils/contagemInscritos.js';
 
 // --- UTILITÁRIOS ---
 const parseJSONSeguro = (dado, fallback = []) => {
@@ -165,24 +167,11 @@ export function Dashboard() {
   // --- FUNÇÕES DE FORMATAÇÃO ---
   const formatarMoeda = (valor) => Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   
-  const formatarData = (dataIso) => {
-    if (!dataIso) return '-';
-    // Uma data "pura" (ex: "2026-07-15", sem hora) não deve passar por
-    // conversão de fuso — new Date("2026-07-15") é interpretado como meia-noite
-    // UTC, e convertendo pra America/Sao_Paulo (UTC-3) isso vira 21h do dia
-    // ANTERIOR, jogando a data um dia pra trás. Só reformata o texto direto.
-    const somenteData = /^\d{4}-\d{2}-\d{2}$/.exec(dataIso);
-    if (somenteData) {
-      const [ano, mes, dia] = dataIso.split('-');
-      return `${dia}/${mes}/${ano}`;
-    }
-    return new Date(dataIso).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-  };
-
-  const formatarDataHora = (dataIso) => {
-    if (!dataIso) return '-';
-    return new Date(dataIso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-  };
+  // Toda formatação de data/hora vem de utils/data.js, com o fuso de Brasília
+  // fixado — ver o comentário lá sobre por que não dá pra confiar no fuso do
+  // navegador de quem abre a tela.
+  const formatarData = formatarDataBR;
+  const formatarDataHora = formatarDataHoraBR;
 
   const formatarMesApresentacao = (yyyyMM) => {
     if(!yyyyMM) return 'Todos os Meses';
@@ -324,6 +313,9 @@ export function Dashboard() {
     return {
       totalGanho,
       qtdGanhaCompetencia: vendasNoMes.length,
+      // Pessoas inscritas — diferente de qtdGanhaCompetencia, que conta
+      // negociações fechadas. Uma prefeitura com 3 inscritos são 3 pessoas.
+      qtdInscritosCompetencia: somarInscritos(vendasNoMes),
       totalAberto,
       qtdAberto,
       totalPerdido,
@@ -347,12 +339,20 @@ export function Dashboard() {
       const nomeVendedor = (v.vendedor_nome && String(v.vendedor_nome).trim())
         ? v.vendedor_nome
         : 'Automático (Landing Page)';
-      if (!ranking[nomeVendedor]) ranking[nomeVendedor] = { nome: nomeVendedor, total: 0, quantidade: 0 };
-      
+      if (!ranking[nomeVendedor]) {
+        ranking[nomeVendedor] = { nome: nomeVendedor, total: 0, inscritos: 0, negociacoesIds: new Set() };
+      }
+
       ranking[nomeVendedor].total += v.valorContabil;
-      ranking[nomeVendedor].quantidade += 1;
+      // Conta PESSOAS, não negociações: uma prefeitura com 3 inscritos vale 3.
+      // A contagem respeita o módulo escolhido por cada inscrito, então quem se
+      // inscreveu no módulo de outro mês não aparece neste.
+      ranking[nomeVendedor].inscritos += contarInscritosDaLinha(v);
+      ranking[nomeVendedor].negociacoesIds.add(v.id);
     });
-    return Object.values(ranking).sort((a, b) => b.total - a.total);
+    return Object.values(ranking)
+      .map(({ negociacoesIds, ...resto }) => ({ ...resto, negociacoes: negociacoesIds.size }))
+      .sort((a, b) => b.total - a.total);
   }, [vendasNoMes]);
 
   // Produtividade da equipe (Bloco 10): contatos, conversões e vendas por vendedora,
@@ -581,7 +581,10 @@ export function Dashboard() {
               </KpiIconBox>
               <div className="kpi-label">RECEITA FRACIONADA</div>
               <div className="kpi-value">{formatarMoeda(kpis.totalGanho)}</div>
-              <div className="kpi-subtitle" style={{ color: '#28a745' }}>{kpis.qtdGanhaCompetencia} inscrições no mês</div>
+              <div className="kpi-subtitle" style={{ color: '#28a745' }}>
+                {kpis.qtdInscritosCompetencia} inscri{kpis.qtdInscritosCompetencia === 1 ? 'ção' : 'ções'} no mês
+                {kpis.qtdInscritosCompetencia !== kpis.qtdGanhaCompetencia && ` · ${kpis.qtdGanhaCompetencia} negociações`}
+              </div>
             </KpiCard>
 
             <KpiCard>
@@ -685,7 +688,11 @@ export function Dashboard() {
                           <RankingBarraFundo>
                             <RankingBarraPreenchida $index={index} style={{ width: `${percentual}%` }} />
                           </RankingBarraFundo>
-                          <span className="qtd">{v.quantidade} inscrição{v.quantidade > 1 ? 'ões' : ''}</span>
+                          <span className="qtd">
+                            {v.inscritos} inscri{v.inscritos === 1 ? 'ção' : 'ções'}
+                            {' · '}
+                            {v.negociacoes} {v.negociacoes === 1 ? 'prefeitura' : 'prefeituras'}
+                          </span>
                         </RankingInfo>
                       </RankingItem>
                     );
@@ -852,9 +859,7 @@ export function Dashboard() {
                     const listaInsc = parseJSONSeguro(ins.inscritos_json, []).filter((p) => p.nome || p.email);
                     const qtd = Math.max(Number(ins.qtd_inscritos) || 0, listaInsc.length);
                     const origem = ins.origem_lead || ins.origem_venda || '—';
-                    const dataHora = ins.data_inscricao
-                      ? new Date(ins.data_inscricao).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
-                      : '—';
+                    const dataHora = formatarDataHoraCurtaBR(ins.data_inscricao);
                     // Nome de quem de fato se inscreveu nesta campanha (inscritos_json), não o
                     // contato titular da negociação — a mesma prefeitura pode ter um titular
                     // antigo (do funil de prospecção) vinculado a várias campanhas, e mostrar
@@ -929,7 +934,10 @@ export function Dashboard() {
                   </DetalheItem>
                   <DetalheItem>
                     <label>Data</label>
-                    <div>{formatarData(inscritoDetalhe.data_inscricao)}</div>
+                    {/* Data + hora pra bater com a coluna "Data/Hora" da lista —
+                        mostrar só a data aqui fazia parecer que eram informações
+                        diferentes. */}
+                    <div>{formatarDataHora(inscritoDetalhe.data_inscricao)}</div>
                   </DetalheItem>
                   <DetalheItem>
                     <label>E-mail do lead</label>
