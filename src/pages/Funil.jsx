@@ -1238,10 +1238,12 @@ export function Funil() {
       setOportunidades(prev => prev.map(o =>
         o.id === editandoId ? { ...o, ultima_interacao: res.data.ultima_interacao } : o
       ));
-      // Uma ligação de verdade não se repete em segundos — trava o botão por
-      // 1 min (mesmo cooldown do backend) pra clique duplo/repetido não inflar
-      // a contagem de produtividade.
-      setCooldownContato(60);
+      // Uma ligação de verdade não se repete em segundos — trava o botão pra
+      // clique duplo/repetido não inflar a contagem de produtividade. Tem que
+      // ser o MESMO valor do cooldown do backend (SEGUNDOS_COOLDOWN_CONTATO em
+      // server.js): se o botão liberar antes, o registro é descartado lá e a
+      // pessoa clica achando que contou.
+      setCooldownContato(30);
     } catch (e) {
       console.error('Erro ao registrar interação', e);
     } finally {
