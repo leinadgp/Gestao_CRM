@@ -29,12 +29,16 @@ Push na `main` **já publica sozinho**. Por isso nada entra na `main` sem aprova
 Backend rodando em `http://localhost:3001` (repositório do backend, `npm run dev`), que por
 sua vez usa o banco `crm_dev` em `localhost:5433`.
 
-O `.env` (fora do git) mantém o padrão de comentar as URLs em vez de apagá-las:
+O `.env` mantém o padrão de comentar as URLs em vez de apagá-las:
 
 ```bash
-# VITE_API_URL=https://api.danieltech-automa.shop   # producao
+# VITE_API_URL=https://api.gestao.srv.br            # producao (definitivo)
 VITE_API_URL=http://localhost:3001                  # local (ativo)
 ```
+
+> **Atenção:** este `.env` **está versionado** neste repositório, que é público
+> (`github.com/leinadgp/Gestao_CRM`). Nunca colocar segredo nele. O valor que vale em
+> produção é o `VITE_API_URL` configurado na Vercel, não este arquivo.
 
 Para trabalhar, o backend local precisa estar no ar — senão as telas quebram por falha de
 rede, não por bug do frontend.
@@ -52,8 +56,11 @@ ainda não existe em produção, e o usuário vê erro em algo que "funcionava n
 
 ## Atenção
 
-- **CORS é controlado pelo backend** (`server.js:44`). Uma origem nova — domínio novo, preview
-  da Vercel — precisa ser liberada lá, senão o navegador bloqueia a chamada.
-- **O domínio `api.danieltech-automa.shop` vai expirar** e não será renovado. Quando trocar,
-  o `VITE_API_URL` na Vercel é **um** dos 4 lugares a atualizar; os outros três estão listados
-  no `CLAUDE.md` do backend.
+- **CORS é controlado pelo backend**, pela variável `CORS_DOMINIOS_CURINGA` no EasyPanel — não
+  por código. Uma origem nova — domínio novo, preview da Vercel — precisa ser liberada lá,
+  senão o navegador bloqueia a chamada.
+- **Domínio definitivo da API: `https://api.gestao.srv.br`.** O antigo
+  (`api.danieltech-automa.shop`) expira e não será renovado; segue aceito só como rede de
+  segurança. O `.easypanel.host` é grátis e não expira, mas depende do painel.
+- Trocar de domínio exige **4 lugares**: EasyPanel, as variáveis do backend, `VITE_API_URL` na
+  Vercel e os nós do n8n. A lista completa está no `CLAUDE.md` do backend.
