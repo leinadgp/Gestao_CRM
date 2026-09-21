@@ -139,6 +139,7 @@ export function Funil() {
   const [vendedorOriginal, setVendedorOriginal] = useState('');
   const [desconto, setDesconto] = useState(0);
   const [descontoReais, setDescontoReais] = useState(0);
+  const [formaPagamento, setFormaPagamento] = useState('');
 
   // --- ESTADOS DE MÓDULOS ---
   const [modulosCampanha, setModulosCampanha] = useState([]);
@@ -1130,7 +1131,7 @@ export function Funil() {
     setModoPacoteInscricao('igual');
     setStatusOp('aberto'); setMotivoPerda(''); setEtapaId(etapas.length > 0 ? etapas[0].id : '');
     setVendedorId(meuUsuarioId || ''); setVendedorOriginal(meuUsuarioId || '');
-    setDesconto(0); setDescontoReais(0);
+    setDesconto(0); setDescontoReais(0); setFormaPagamento('');
 
     if (modulosCampanha.length > 0) {
       const todosIds = modulosCampanha.map(m => Number(m.id));
@@ -1152,7 +1153,7 @@ export function Funil() {
     setModoPacoteInscricao('igual');
     setStatusOp('aberto'); setMotivoPerda(''); setEtapaId('');
     setVendedorId(''); setVendedorOriginal('');
-    setDesconto(0); setDescontoReais(0);
+    setDesconto(0); setDescontoReais(0); setFormaPagamento('');
     setModulosSelecionados([]);
     setBuscaEmpresaNoModal(''); setBuscaContatoNoModal('');
     if (recarregar && filtroCampanha) carregarFunilDaCampanha(filtroCampanha, true);
@@ -1202,6 +1203,7 @@ export function Funil() {
     setStatusOp(op.status || 'aberto'); setMotivoPerda(op.motivo_perda || ''); setVendedorId(op.vendedor_id || '');
     setVendedorOriginal(op.vendedor_id || '');
     setDesconto(op.desconto || 0);
+    setFormaPagamento(op.forma_pagamento || '');
 
     // Lógica para resgatar os módulos e descobrir o desconto em Reais
     const sub = calcularTotaisPacote({
@@ -1342,6 +1344,7 @@ export function Funil() {
       vendedor_id: vendedorId || null,
       modulos_ids: modulosGravacao,
       desconto: modulosSelecionados.length > 0 ? Number(desconto) : 0,
+      forma_pagamento: formaPagamento || null,
     };
 
     setSalvandoOportunidade(true);
@@ -2512,6 +2515,15 @@ export function Funil() {
                           </option>
                         ))
                       }
+                    </Select>
+                  </FormGroup>
+
+                  <FormGroup>
+                    <label><i className="fa-solid fa-money-check-dollar text-purple"></i> Forma de Pagamento</label>
+                    <Select value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value)}>
+                      <option value="">-- Não informado --</option>
+                      <option value="Empenho">Empenho</option>
+                      <option value="Depósito bancário">Depósito bancário</option>
                     </Select>
                   </FormGroup>
 
