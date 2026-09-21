@@ -558,65 +558,131 @@ export function LandingPages() {
         label: '<i class="fa-solid fa-address-card fa-2x"></i><br/>Form. Inscrição',
         category: 'Elementos',
         content: `
-          <section id="inscricao" style="padding: 80px 20px; background-color: #ffffff; font-family: Arial, sans-serif;">
+          <style>
+            .lpfrm-field-half { flex: 1 1 calc(50% - 10px); min-width: 250px; }
+            .lpfrm-field-full { flex: 1 1 100%; }
+            .lpfrm-section-inscricao { padding: 80px 20px; }
+            .lpfrm-download-link { min-width: 260px; }
+            @media (max-width: 640px) {
+              .lpfrm-field-half { flex: 1 1 100%; min-width: 0; }
+              .lpfrm-section-inscricao { padding: 40px 16px; }
+              .lpfrm-download-link { min-width: 0; width: 100%; }
+            }
+          </style>
+          <section id="inscricao" class="lpfrm-section-inscricao" style="background-color: #ffffff; font-family: Arial, sans-serif;">
             <div style="max-width: 1100px; margin: 0 auto;">
-                
+
                 <div style="text-align: center; margin-bottom: 40px;">
                     <p style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.2em; color: #F59E0B; margin-bottom: 10px;">Investimento e Inscrição</p>
                     <h2 style="font-size: 32px; font-weight: bold; color: #0B192C; margin: 0;">Garanta sua Vaga</h2>
                 </div>
 
                 <div style="max-width: 800px; margin: 0 auto; background: linear-gradient(135deg, #0B192C, #1E293B); border-radius: 24px; padding: 40px; box-shadow: 0 10px 40px -10px rgba(0,0,0,0.1); border: 1px solid rgba(245, 158, 11, 0.3);">
-                    
+
                     <div style="text-align: center; margin-bottom: 30px;">
                         <h3 style="font-size: 24px; font-weight: bold; color: #F59E0B; margin: 0;">Preencha seus dados</h3>
                         <p style="color: #cbd5e1; font-size: 15px; margin-top: 5px;">Seus dados serão enviados diretamente para nosso sistema seguro.</p>
                     </div>
-                    
+
                     <form id="formInscricaoCRM" style="display: flex; flex-wrap: wrap; gap: 20px;">
-                        
-                        <div style="flex: 1 1 100%;">
+
+                        <div class="lpfrm-field-full">
+                            <label for="qtdInscritos" style="display: block; font-size: 14px; font-weight: 500; color: #f8fafc; margin-bottom: 5px;">Quantidade de inscrições*</label>
+                            <select id="qtdInscritos" name="qtdInscritos" required style="width: 100%; border-radius: 6px; border: 1px solid rgba(248,250,252,0.2); background: rgba(15,25,48,0.95); padding: 12px 16px; font-size: 14px; color: #ffffff; outline: none;">
+                              <option value="1" style="background:#0f1930;color:#fff;">1 inscrição</option>
+                              <option value="2" style="background:#0f1930;color:#fff;">2 inscrições</option>
+                              <option value="3" style="background:#0f1930;color:#fff;">3 inscrições</option>
+                              <option value="4" style="background:#0f1930;color:#fff;">4 inscrições</option>
+                              <option value="5" style="background:#0f1930;color:#fff;">5 inscrições</option>
+                            </select>
+                        </div>
+
+                        <div class="lpfrm-field-full">
                             <label for="nome" style="display: block; font-size: 14px; font-weight: 500; color: #f8fafc; margin-bottom: 5px;">Nome Completo*</label>
                             <input type="text" id="nome" name="nome" required style="width: 100%; border-radius: 6px; border: 1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding: 12px 16px; font-size: 14px; color: #ffffff; outline: none;" placeholder="Seu nome completo">
                         </div>
 
-                        <div style="flex: 1 1 calc(50% - 10px); min-width: 250px;">
+                        <div class="lpfrm-field-half">
                             <label for="email" style="display: block; font-size: 14px; font-weight: 500; color: #f8fafc; margin-bottom: 5px;">Email*</label>
                             <input type="email" id="email" name="email" required style="width: 100%; border-radius: 6px; border: 1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding: 12px 16px; font-size: 14px; color: #ffffff; outline: none;" placeholder="seu@email.com">
                         </div>
 
-                        <div style="flex: 1 1 calc(50% - 10px); min-width: 250px;">
+                        <div class="lpfrm-field-half">
                             <label for="whatsapp" style="display: block; font-size: 14px; font-weight: 500; color: #f8fafc; margin-bottom: 5px;">Telefone*</label>
                             <input type="tel" id="whatsapp" name="whatsapp" required style="width: 100%; border-radius: 6px; border: 1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding: 12px 16px; font-size: 14px; color: #ffffff; outline: none;" placeholder="(00) 00000-0000">
                         </div>
 
-                        <div style="flex: 1 1 calc(50% - 10px); min-width: 250px;">
+                        <div class="lpfrm-field-half">
                             <label for="formacao" style="display: block; font-size: 14px; font-weight: 500; color: #f8fafc; margin-bottom: 5px;">Formação*</label>
                             <input type="text" id="formacao" name="formacao" required style="width: 100%; border-radius: 6px; border: 1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding: 12px 16px; font-size: 14px; color: #ffffff; outline: none;" placeholder="Sua formação acadêmica">
                         </div>
 
-                        <div style="flex: 1 1 calc(50% - 10px); min-width: 250px;">
+                        <div class="lpfrm-field-half">
                             <label for="cargo" style="display: block; font-size: 14px; font-weight: 500; color: #f8fafc; margin-bottom: 5px;">Cargo*</label>
                             <input type="text" id="cargo" name="cargo" required style="width: 100%; border-radius: 6px; border: 1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding: 12px 16px; font-size: 14px; color: #ffffff; outline: none;" placeholder="Seu cargo atual">
                         </div>
 
-                        <div style="flex: 1 1 calc(50% - 10px); min-width: 250px;">
+                        <div class="lpfrm-field-half">
                             <label for="uf" style="display: block; font-size: 14px; font-weight: 500; color: #f8fafc; margin-bottom: 5px;">Estado*</label>
                             <select id="uf" name="uf" required style="width: 100%; border-radius: 6px; border: 1px solid rgba(248,250,252,0.2); background: rgba(15,25,48,0.95); padding: 12px 16px; font-size: 14px; color: #ffffff; outline: none;">
                               <option value="" style="background:#0f1930;color:#fff;">Selecione o estado...</option>
                             </select>
                         </div>
 
-                        <div style="flex: 1 1 calc(50% - 10px); min-width: 250px;">
+                        <div class="lpfrm-field-half">
                             <label for="cidade" style="display: block; font-size: 14px; font-weight: 500; color: #f8fafc; margin-bottom: 5px;">Município*</label>
                             <select id="cidade" name="cidade" required disabled style="width: 100%; border-radius: 6px; border: 1px solid rgba(248,250,252,0.2); background: rgba(15,25,48,0.95); padding: 12px 16px; font-size: 14px; color: #ffffff; outline: none;">
                               <option value="" style="background:#0f1930;color:#fff;">Primeiro selecione o estado...</option>
                             </select>
                         </div>
 
-                        <div style="flex: 1 1 100%;">
+                        <div class="lpfrm-field-full" data-participante="2" style="display:none; border-top: 1px dashed rgba(245,158,11,0.35); padding-top: 20px; margin-top: 4px;">
+                            <p style="margin:0 0 14px; color:#F59E0B; font-weight:700; font-size:14px;">Participante 2</p>
+                            <div style="display:flex; flex-wrap:wrap; gap:20px;">
+                                <div class="lpfrm-field-full"><label style="display:block; font-size:14px; font-weight:500; color:#f8fafc; margin-bottom:5px;">Nome Completo*</label><input type="text" id="nome_2" name="nome_2" placeholder="Nome completo do participante 2" style="width:100%; border-radius:6px; border:1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding:12px 16px; font-size:14px; color:#ffffff; outline:none;"></div>
+                                <div class="lpfrm-field-half"><label style="display:block; font-size:14px; font-weight:500; color:#f8fafc; margin-bottom:5px;">Email*</label><input type="email" id="email_2" name="email_2" placeholder="email@participante2.com" style="width:100%; border-radius:6px; border:1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding:12px 16px; font-size:14px; color:#ffffff; outline:none;"></div>
+                                <div class="lpfrm-field-half"><label style="display:block; font-size:14px; font-weight:500; color:#f8fafc; margin-bottom:5px;">Telefone*</label><input type="tel" id="telefone_2" name="telefone_2" placeholder="(00) 00000-0000" style="width:100%; border-radius:6px; border:1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding:12px 16px; font-size:14px; color:#ffffff; outline:none;"></div>
+                                <div class="lpfrm-field-half"><label style="display:block; font-size:14px; font-weight:500; color:#f8fafc; margin-bottom:5px;">Formação*</label><input type="text" id="formacao_2" name="formacao_2" placeholder="Formação acadêmica" style="width:100%; border-radius:6px; border:1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding:12px 16px; font-size:14px; color:#ffffff; outline:none;"></div>
+                                <div class="lpfrm-field-half"><label style="display:block; font-size:14px; font-weight:500; color:#f8fafc; margin-bottom:5px;">Cargo*</label><input type="text" id="cargo_2" name="cargo_2" placeholder="Cargo atual" style="width:100%; border-radius:6px; border:1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding:12px 16px; font-size:14px; color:#ffffff; outline:none;"></div>
+                            </div>
+                        </div>
+
+                        <div class="lpfrm-field-full" data-participante="3" style="display:none; border-top: 1px dashed rgba(245,158,11,0.35); padding-top: 20px; margin-top: 4px;">
+                            <p style="margin:0 0 14px; color:#F59E0B; font-weight:700; font-size:14px;">Participante 3</p>
+                            <div style="display:flex; flex-wrap:wrap; gap:20px;">
+                                <div class="lpfrm-field-full"><label style="display:block; font-size:14px; font-weight:500; color:#f8fafc; margin-bottom:5px;">Nome Completo*</label><input type="text" id="nome_3" name="nome_3" placeholder="Nome completo do participante 3" style="width:100%; border-radius:6px; border:1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding:12px 16px; font-size:14px; color:#ffffff; outline:none;"></div>
+                                <div class="lpfrm-field-half"><label style="display:block; font-size:14px; font-weight:500; color:#f8fafc; margin-bottom:5px;">Email*</label><input type="email" id="email_3" name="email_3" placeholder="email@participante3.com" style="width:100%; border-radius:6px; border:1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding:12px 16px; font-size:14px; color:#ffffff; outline:none;"></div>
+                                <div class="lpfrm-field-half"><label style="display:block; font-size:14px; font-weight:500; color:#f8fafc; margin-bottom:5px;">Telefone*</label><input type="tel" id="telefone_3" name="telefone_3" placeholder="(00) 00000-0000" style="width:100%; border-radius:6px; border:1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding:12px 16px; font-size:14px; color:#ffffff; outline:none;"></div>
+                                <div class="lpfrm-field-half"><label style="display:block; font-size:14px; font-weight:500; color:#f8fafc; margin-bottom:5px;">Formação*</label><input type="text" id="formacao_3" name="formacao_3" placeholder="Formação acadêmica" style="width:100%; border-radius:6px; border:1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding:12px 16px; font-size:14px; color:#ffffff; outline:none;"></div>
+                                <div class="lpfrm-field-half"><label style="display:block; font-size:14px; font-weight:500; color:#f8fafc; margin-bottom:5px;">Cargo*</label><input type="text" id="cargo_3" name="cargo_3" placeholder="Cargo atual" style="width:100%; border-radius:6px; border:1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding:12px 16px; font-size:14px; color:#ffffff; outline:none;"></div>
+                            </div>
+                        </div>
+
+                        <div class="lpfrm-field-full" data-participante="4" style="display:none; border-top: 1px dashed rgba(245,158,11,0.35); padding-top: 20px; margin-top: 4px;">
+                            <p style="margin:0 0 14px; color:#F59E0B; font-weight:700; font-size:14px;">Participante 4</p>
+                            <div style="display:flex; flex-wrap:wrap; gap:20px;">
+                                <div class="lpfrm-field-full"><label style="display:block; font-size:14px; font-weight:500; color:#f8fafc; margin-bottom:5px;">Nome Completo*</label><input type="text" id="nome_4" name="nome_4" placeholder="Nome completo do participante 4" style="width:100%; border-radius:6px; border:1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding:12px 16px; font-size:14px; color:#ffffff; outline:none;"></div>
+                                <div class="lpfrm-field-half"><label style="display:block; font-size:14px; font-weight:500; color:#f8fafc; margin-bottom:5px;">Email*</label><input type="email" id="email_4" name="email_4" placeholder="email@participante4.com" style="width:100%; border-radius:6px; border:1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding:12px 16px; font-size:14px; color:#ffffff; outline:none;"></div>
+                                <div class="lpfrm-field-half"><label style="display:block; font-size:14px; font-weight:500; color:#f8fafc; margin-bottom:5px;">Telefone*</label><input type="tel" id="telefone_4" name="telefone_4" placeholder="(00) 00000-0000" style="width:100%; border-radius:6px; border:1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding:12px 16px; font-size:14px; color:#ffffff; outline:none;"></div>
+                                <div class="lpfrm-field-half"><label style="display:block; font-size:14px; font-weight:500; color:#f8fafc; margin-bottom:5px;">Formação*</label><input type="text" id="formacao_4" name="formacao_4" placeholder="Formação acadêmica" style="width:100%; border-radius:6px; border:1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding:12px 16px; font-size:14px; color:#ffffff; outline:none;"></div>
+                                <div class="lpfrm-field-half"><label style="display:block; font-size:14px; font-weight:500; color:#f8fafc; margin-bottom:5px;">Cargo*</label><input type="text" id="cargo_4" name="cargo_4" placeholder="Cargo atual" style="width:100%; border-radius:6px; border:1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding:12px 16px; font-size:14px; color:#ffffff; outline:none;"></div>
+                            </div>
+                        </div>
+
+                        <div class="lpfrm-field-full" data-participante="5" style="display:none; border-top: 1px dashed rgba(245,158,11,0.35); padding-top: 20px; margin-top: 4px;">
+                            <p style="margin:0 0 14px; color:#F59E0B; font-weight:700; font-size:14px;">Participante 5</p>
+                            <div style="display:flex; flex-wrap:wrap; gap:20px;">
+                                <div class="lpfrm-field-full"><label style="display:block; font-size:14px; font-weight:500; color:#f8fafc; margin-bottom:5px;">Nome Completo*</label><input type="text" id="nome_5" name="nome_5" placeholder="Nome completo do participante 5" style="width:100%; border-radius:6px; border:1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding:12px 16px; font-size:14px; color:#ffffff; outline:none;"></div>
+                                <div class="lpfrm-field-half"><label style="display:block; font-size:14px; font-weight:500; color:#f8fafc; margin-bottom:5px;">Email*</label><input type="email" id="email_5" name="email_5" placeholder="email@participante5.com" style="width:100%; border-radius:6px; border:1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding:12px 16px; font-size:14px; color:#ffffff; outline:none;"></div>
+                                <div class="lpfrm-field-half"><label style="display:block; font-size:14px; font-weight:500; color:#f8fafc; margin-bottom:5px;">Telefone*</label><input type="tel" id="telefone_5" name="telefone_5" placeholder="(00) 00000-0000" style="width:100%; border-radius:6px; border:1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding:12px 16px; font-size:14px; color:#ffffff; outline:none;"></div>
+                                <div class="lpfrm-field-half"><label style="display:block; font-size:14px; font-weight:500; color:#f8fafc; margin-bottom:5px;">Formação*</label><input type="text" id="formacao_5" name="formacao_5" placeholder="Formação acadêmica" style="width:100%; border-radius:6px; border:1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding:12px 16px; font-size:14px; color:#ffffff; outline:none;"></div>
+                                <div class="lpfrm-field-half"><label style="display:block; font-size:14px; font-weight:500; color:#f8fafc; margin-bottom:5px;">Cargo*</label><input type="text" id="cargo_5" name="cargo_5" placeholder="Cargo atual" style="width:100%; border-radius:6px; border:1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding:12px 16px; font-size:14px; color:#ffffff; outline:none;"></div>
+                            </div>
+                        </div>
+
+                        <div class="lpfrm-field-full">
                             <label style="display: block; font-size: 14px; font-weight: 500; color: #f8fafc; margin-bottom: 8px;">Escolha o curso de seu interesse*</label>
-                            
+
                             <div id="containerModulos" style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 6px; padding: 16px;">
                                 <div style="color: #F59E0B; font-size: 14px; font-style: italic; text-align: center;">
                                   (Os módulos definidos na campanha aparecerão automaticamente aqui quando a página for publicada)
@@ -624,7 +690,7 @@ export function LandingPages() {
                             </div>
                         </div>
 
-                        <div style="flex: 1 1 100%;">
+                        <div class="lpfrm-field-full">
                             <label for="origem" style="display: block; font-size: 14px; font-weight: 500; color: #f8fafc; margin-bottom: 5px;">Como você nos conheceu?*</label>
                             <select id="origem" name="origem" required style="width: 100%; border-radius: 6px; border: 1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding: 12px 16px; font-size: 14px; color: #ffffff; outline: none;">
                                 <option value="" style="background:#0f1930; color:#fff;">Selecione...</option>
@@ -639,12 +705,21 @@ export function LandingPages() {
                             </select>
                         </div>
 
-                        <div style="flex: 1 1 100%;">
+                        <div class="lpfrm-field-full">
+                            <label for="forma_pagamento" style="display: block; font-size: 14px; font-weight: 500; color: #f8fafc; margin-bottom: 5px;">Forma de pagamento*</label>
+                            <select id="forma_pagamento" name="forma_pagamento" required style="width: 100%; border-radius: 6px; border: 1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding: 12px 16px; font-size: 14px; color: #ffffff; outline: none;">
+                                <option value="" style="background:#0f1930; color:#fff;">Selecione...</option>
+                                <option value="Empenho" style="background:#0f1930; color:#fff;">Empenho</option>
+                                <option value="Depósito bancário" style="background:#0f1930; color:#fff;">Depósito bancário</option>
+                            </select>
+                        </div>
+
+                        <div class="lpfrm-field-full">
                             <label for="captchaCalc" style="display: block; font-size: 14px; font-weight: 500; color: #f8fafc; margin-bottom: 5px;">4 + 3 = ? *</label>
                             <input type="number" id="captchaCalc" name="captchaCalc" required style="width: 100%; border-radius: 6px; border: 1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding: 12px 16px; font-size: 14px; color: #ffffff; outline: none;" placeholder="Soma matemática">
                         </div>
 
-                        <div style="flex: 1 1 100%; text-align: center; margin-top: 10px;">
+                        <div class="lpfrm-field-full" style="text-align: center; margin-top: 10px;">
                             <button type="submit" id="btnSubmit" style="width: 100%; background: linear-gradient(to right, #FCD34D, #F59E0B); color: #0B192C; padding: 16px 32px; font-size: 16px; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; box-shadow: 0 4px 14px 0 rgba(245, 158, 11, 0.4);">
                                 Enviar meus dados
                             </button>
@@ -652,7 +727,7 @@ export function LandingPages() {
                             <p style="margin-top: 16px; font-size: 12px; color: rgba(248,250,252,0.6);">Seus dados estão protegidos conosco.</p>
                               <div style="margin-top: 24px; border-radius: 30px; background: linear-gradient(90deg, #FCD34D 0%, #F59E0B 100%); padding: 15px 28px; text-align: center; box-shadow: 0 25px 50px -25px rgba(0,0,0,0.35);">
               <p style="margin: 0; font-size: 0.95rem; font-weight: 700; color: #0B192C;">Consulte o conteúdo programático do curso.</p>
-              <a href="https://drive.google.com/file/d/1y6HPl8eV1tm0kckkYCoKnexFIOJOoeqi/view?usp=drive_link" target="_blank" rel="noopener noreferrer" style="display:inline-flex; align-items:center; justify-content:center; gap:10px; margin-top: 18px; padding: 16px 24px; min-width: 260px; border-radius: 14px; background: #0B192C; color: #ffffff; text-decoration: none; font-weight: 700; text-transform: uppercase; font-size: 0.9rem; box-shadow: 0 15px 30px rgba(0,0,0,0.18);">
+              <a href="https://drive.google.com/file/d/1y6HPl8eV1tm0kckkYCoKnexFIOJOoeqi/view?usp=drive_link" target="_blank" rel="noopener noreferrer" class="lpfrm-download-link" style="display:inline-flex; align-items:center; justify-content:center; gap:10px; margin-top: 18px; padding: 16px 24px; border-radius: 14px; background: #0B192C; color: #ffffff; text-decoration: none; font-weight: 700; text-transform: uppercase; font-size: 0.9rem; box-shadow: 0 15px 30px rgba(0,0,0,0.18);">
                 <span style="display: inline-flex; align-items: center; gap: 10px;">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">
                     <path d="M12 16.5V3" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
