@@ -952,6 +952,10 @@ export function Dashboard() {
                     <div><strong>{qtd}</strong></div>
                   </DetalheItem>
                   <DetalheItem>
+                    <label>Forma de pagamento</label>
+                    <div>{inscritoDetalhe.forma_pagamento || '—'}</div>
+                  </DetalheItem>
+                  <DetalheItem>
                     <label>Canal de aquisição</label>
                     <div>{inscritoDetalhe.origem_lead || '—'}</div>
                   </DetalheItem>
