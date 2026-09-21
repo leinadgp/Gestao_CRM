@@ -60,7 +60,15 @@ export function LandingPages() {
   const fileInputRef = useRef(null);
 
   const getMarkupFormularioCRM = () => `
-    <section id="inscricao" style="padding: 80px 20px; background: #0B192C; border-radius: 24px; color: #f8fafc; font-family: Arial, sans-serif;">
+    <style>
+      .lpfrm-row2 { display: grid; gap: 18px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .lpfrm-section-inscricao { padding: 80px 20px; }
+      @media (max-width: 640px) {
+        .lpfrm-row2 { grid-template-columns: 1fr; }
+        .lpfrm-section-inscricao { padding: 40px 16px; }
+      }
+    </style>
+    <section id="inscricao" class="lpfrm-section-inscricao" style="background: #0B192C; border-radius: 24px; color: #f8fafc; font-family: Arial, sans-serif;">
       <div style="max-width: 1100px; margin: 0 auto;">
         <div style="margin-bottom: 40px; text-align: center;">
           <p style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2em; color: #F59E0B; margin: 0 0 10px;">Capacitação aplicada</p>
@@ -70,7 +78,17 @@ export function LandingPages() {
 
         <div style="background: rgba(15, 25, 48, 0.92); border: 1px solid rgba(245, 158, 11, 0.18); border-radius: 24px; padding: 36px; box-shadow: 0 30px 60px -30px rgba(0,0,0,0.45);">
           <form id="formInscricaoCRM" style="display: grid; gap: 18px;" autocomplete="on">
-            <div style="display: grid; gap: 18px; grid-template-columns: repeat(2, minmax(0, 1fr));">
+            <div>
+              <label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Quantidade de inscrições*</label>
+              <select id="qtdInscritos" name="qtdInscritos" required style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(15,25,48,0.95); color: #f8fafc; padding: 14px 16px; outline:none; font-size:0.9rem;">
+                <option value="1" style="background:#0f1930;color:#fff;">1 inscrição</option>
+                <option value="2" style="background:#0f1930;color:#fff;">2 inscrições</option>
+                <option value="3" style="background:#0f1930;color:#fff;">3 inscrições</option>
+                <option value="4" style="background:#0f1930;color:#fff;">4 inscrições</option>
+                <option value="5" style="background:#0f1930;color:#fff;">5 inscrições</option>
+              </select>
+            </div>
+            <div class="lpfrm-row2">
               <div>
                 <label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Nome completo*</label>
                 <input type="text" id="nome" name="nome" autocomplete="name" required placeholder="Seu nome completo" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" />
@@ -80,7 +98,7 @@ export function LandingPages() {
                 <input type="tel" id="telefone" name="telefone" autocomplete="tel" required placeholder="(00) 00000-0000" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" />
               </div>
             </div>
-            <div style="display: grid; gap: 18px; grid-template-columns: repeat(2, minmax(0, 1fr));">
+            <div class="lpfrm-row2">
               <div>
                 <label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Formação*</label>
                 <input type="text" id="formacao" name="formacao" autocomplete="organization-title" required placeholder="Sua formação acadêmica" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" />
@@ -90,7 +108,7 @@ export function LandingPages() {
                 <input type="text" id="cargo" name="cargo" autocomplete="job-title" required placeholder="Seu cargo atual" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" />
               </div>
             </div>
-            <div style="display: grid; gap: 18px; grid-template-columns: repeat(2, minmax(0, 1fr));">
+            <div class="lpfrm-row2">
               <div>
                 <label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Estado*</label>
                 <select id="uf" name="uf" required style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(15,25,48,0.95); color: #f8fafc; padding: 14px 16px; outline:none; font-size:0.9rem;">
@@ -104,7 +122,7 @@ export function LandingPages() {
                 </select>
               </div>
             </div>
-            <div style="display: grid; gap: 18px; grid-template-columns: repeat(2, minmax(0, 1fr));">
+            <div class="lpfrm-row2">
               <div>
                 <label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Email*</label>
                 <input type="email" id="email" name="email" autocomplete="email" required placeholder="seu@email.com" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" />
@@ -113,6 +131,54 @@ export function LandingPages() {
                 <label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">WhatsApp*</label>
                 <input type="tel" id="whatsapp" name="whatsapp" autocomplete="tel" required placeholder="(00) 00000-0000" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" />
               </div>
+            </div>
+
+            <div data-participante="2" style="display:none; border-top: 1px dashed rgba(245,158,11,0.35); padding-top: 18px; margin-top: 4px;">
+              <p style="margin:0 0 14px; color:#F59E0B; font-weight:700; font-size:0.9rem;">Participante 2</p>
+              <div style="display:grid; gap:18px;">
+                <div><label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Nome completo*</label><input type="text" id="nome_2" name="nome_2" placeholder="Nome completo do participante 2" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" /></div>
+                <div><label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Email*</label><input type="email" id="email_2" name="email_2" placeholder="email@participante2.com" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" /></div>
+                <div><label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Telefone*</label><input type="tel" id="telefone_2" name="telefone_2" placeholder="(00) 00000-0000" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" /></div>
+                <div><label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Formação*</label><input type="text" id="formacao_2" name="formacao_2" placeholder="Formação acadêmica" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" /></div>
+                <div><label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Cargo*</label><input type="text" id="cargo_2" name="cargo_2" placeholder="Cargo atual" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" /></div>
+              </div>
+            </div>
+
+            <div data-participante="3" style="display:none; border-top: 1px dashed rgba(245,158,11,0.35); padding-top: 18px; margin-top: 4px;">
+              <p style="margin:0 0 14px; color:#F59E0B; font-weight:700; font-size:0.9rem;">Participante 3</p>
+              <div style="display:grid; gap:18px;">
+                <div><label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Nome completo*</label><input type="text" id="nome_3" name="nome_3" placeholder="Nome completo do participante 3" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" /></div>
+                <div><label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Email*</label><input type="email" id="email_3" name="email_3" placeholder="email@participante3.com" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" /></div>
+                <div><label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Telefone*</label><input type="tel" id="telefone_3" name="telefone_3" placeholder="(00) 00000-0000" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" /></div>
+                <div><label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Formação*</label><input type="text" id="formacao_3" name="formacao_3" placeholder="Formação acadêmica" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" /></div>
+                <div><label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Cargo*</label><input type="text" id="cargo_3" name="cargo_3" placeholder="Cargo atual" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" /></div>
+              </div>
+            </div>
+
+            <div data-participante="4" style="display:none; border-top: 1px dashed rgba(245,158,11,0.35); padding-top: 18px; margin-top: 4px;">
+              <p style="margin:0 0 14px; color:#F59E0B; font-weight:700; font-size:0.9rem;">Participante 4</p>
+              <div style="display:grid; gap:18px;">
+                <div><label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Nome completo*</label><input type="text" id="nome_4" name="nome_4" placeholder="Nome completo do participante 4" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" /></div>
+                <div><label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Email*</label><input type="email" id="email_4" name="email_4" placeholder="email@participante4.com" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" /></div>
+                <div><label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Telefone*</label><input type="tel" id="telefone_4" name="telefone_4" placeholder="(00) 00000-0000" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" /></div>
+                <div><label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Formação*</label><input type="text" id="formacao_4" name="formacao_4" placeholder="Formação acadêmica" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" /></div>
+                <div><label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Cargo*</label><input type="text" id="cargo_4" name="cargo_4" placeholder="Cargo atual" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" /></div>
+              </div>
+            </div>
+
+            <div data-participante="5" style="display:none; border-top: 1px dashed rgba(245,158,11,0.35); padding-top: 18px; margin-top: 4px;">
+              <p style="margin:0 0 14px; color:#F59E0B; font-weight:700; font-size:0.9rem;">Participante 5</p>
+              <div style="display:grid; gap:18px;">
+                <div><label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Nome completo*</label><input type="text" id="nome_5" name="nome_5" placeholder="Nome completo do participante 5" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" /></div>
+                <div><label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Email*</label><input type="email" id="email_5" name="email_5" placeholder="email@participante5.com" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" /></div>
+                <div><label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Telefone*</label><input type="tel" id="telefone_5" name="telefone_5" placeholder="(00) 00000-0000" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" /></div>
+                <div><label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Formação*</label><input type="text" id="formacao_5" name="formacao_5" placeholder="Formação acadêmica" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" /></div>
+                <div><label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Cargo*</label><input type="text" id="cargo_5" name="cargo_5" placeholder="Cargo atual" style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;" /></div>
+              </div>
+            </div>
+
+            <div id="containerModulos" style="border-radius: 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(248,250,252,0.12); padding: 18px; color: #f8fafc;">
+              <p style="margin: 0; font-size: 0.95rem; color: #f8fafc; opacity: 0.9;">(Os módulos definidos na campanha aparecerão automaticamente aqui quando a página estiver publicada)</p>
             </div>
             <div>
               <label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Como você nos conheceu?*</label>
@@ -128,8 +194,13 @@ export function LandingPages() {
                 <option value="Outros" style="background:#0f1930; color:#f8fafc;">Outros</option>
               </select>
             </div>
-            <div id="containerModulos" style="border-radius: 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(248,250,252,0.12); padding: 18px; color: #f8fafc;">
-              <p style="margin: 0; font-size: 0.95rem; color: #f8fafc; opacity: 0.9;">(Os módulos definidos na campanha aparecerão automaticamente aqui quando a página estiver publicada)</p>
+            <div>
+              <label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Forma de pagamento*</label>
+              <select id="forma_pagamento" name="forma_pagamento" required style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;">
+                <option value="" style="background:#0f1930; color:#f8fafc;">Selecione...</option>
+                <option value="Empenho" style="background:#0f1930; color:#f8fafc;">Empenho</option>
+                <option value="Depósito bancário" style="background:#0f1930; color:#f8fafc;">Depósito bancário</option>
+              </select>
             </div>
             <div>
               <label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">4 + 3 = ? *</label>
