@@ -38,6 +38,15 @@ export function Configuracoes() {
   // --- ESTADOS DE SETORES / CARGOS ---
   const [cargosLista, setCargosLista] = useState([]);
   const [carregandoCargos, setCarregandoCargos] = useState(false);
+  const [faixasDesconto, setFaixasDesconto] = useState([]);
+  const [carregandoFaixas, setCarregandoFaixas] = useState(false);
+  const [novaQtdMinima, setNovaQtdMinima] = useState('');
+  const [novoPercentualFaixa, setNovoPercentualFaixa] = useState('');
+  const [salvandoFaixa, setSalvandoFaixa] = useState(false);
+  const [faixaEditandoId, setFaixaEditandoId] = useState(null);
+  const [qtdMinimaEditando, setQtdMinimaEditando] = useState('');
+  const [percentualEditando, setPercentualEditando] = useState('');
+  const [processandoFaixa, setProcessandoFaixa] = useState(false);
   const [novoCargoNome, setNovoCargoNome] = useState('');
   const [salvandoCargo, setSalvandoCargo] = useState(false);
   const [cargoEditandoId, setCargoEditandoId] = useState(null);
@@ -98,11 +107,80 @@ export function Configuracoes() {
     }
   }, [API_URL, getHeaders]);
 
+  const carregarFaixasDesconto = useCallback(async () => {
+    setCarregandoFaixas(true);
+    try {
+      const res = await axios.get(`${API_URL}/faixas-desconto`);
+      setFaixasDesconto(res.data);
+    } catch (error) {
+      console.error('Erro ao carregar faixas de desconto', error);
+    } finally {
+      setCarregandoFaixas(false);
+    }
+  }, [API_URL]);
+
   useEffect(() => {
     if (abaAtiva === 'perfil') carregarMeuPerfil();
     if (abaAtiva === 'equipe') carregarEquipe();
     if (abaAtiva === 'setores') carregarCargos();
-  }, [abaAtiva, carregarMeuPerfil, carregarEquipe, carregarCargos]);
+    if (abaAtiva === 'desconto') carregarFaixasDesconto();
+  }, [abaAtiva, carregarMeuPerfil, carregarEquipe, carregarCargos, carregarFaixasDesconto]);
+
+  async function handleCriarFaixa(e) {
+    e.preventDefault();
+    const qtd = parseInt(novaQtdMinima, 10);
+    const pct = parseFloat(novoPercentualFaixa);
+    if (!Number.isInteger(qtd) || qtd < 1 || !Number.isFinite(pct)) return;
+    setSalvandoFaixa(true);
+    try {
+      await axios.post(`${API_URL}/faixas-desconto`, { qtd_minima_campanhas: qtd, percentual: pct }, getHeaders());
+      setNovaQtdMinima('');
+      setNovoPercentualFaixa('');
+      carregarFaixasDesconto();
+    } catch (error) {
+      alert(error.response?.data?.erro || 'Erro ao criar faixa de desconto.');
+    } finally {
+      setSalvandoFaixa(false);
+    }
+  }
+
+  function iniciarEdicaoFaixa(faixa) {
+    setFaixaEditandoId(faixa.id);
+    setQtdMinimaEditando(String(faixa.qtd_minima_campanhas));
+    setPercentualEditando(String(faixa.percentual));
+  }
+
+  async function salvarEdicaoFaixa(faixa) {
+    const qtd = parseInt(qtdMinimaEditando, 10);
+    const pct = parseFloat(percentualEditando);
+    if (!Number.isInteger(qtd) || qtd < 1 || !Number.isFinite(pct)) {
+      setFaixaEditandoId(null);
+      return;
+    }
+    setProcessandoFaixa(true);
+    try {
+      await axios.put(`${API_URL}/faixas-desconto/${faixa.id}`, { qtd_minima_campanhas: qtd, percentual: pct }, getHeaders());
+      setFaixaEditandoId(null);
+      carregarFaixasDesconto();
+    } catch (error) {
+      alert(error.response?.data?.erro || 'Erro ao editar faixa de desconto.');
+    } finally {
+      setProcessandoFaixa(false);
+    }
+  }
+
+  async function excluirFaixa(faixa) {
+    if (!window.confirm(`Remover a faixa de ${faixa.qtd_minima_campanhas}+ campanhas?`)) return;
+    setProcessandoFaixa(true);
+    try {
+      await axios.delete(`${API_URL}/faixas-desconto/${faixa.id}`, getHeaders());
+      carregarFaixasDesconto();
+    } catch (error) {
+      alert(error.response?.data?.erro || 'Erro ao excluir faixa de desconto.');
+    } finally {
+      setProcessandoFaixa(false);
+    }
+  }
 
   async function handleCriarCargo(e) {
     e.preventDefault();
@@ -331,6 +409,11 @@ export function Configuracoes() {
               {perfilUsuario === 'admin' && (
                 <TabButton $active={abaAtiva === 'setores'} onClick={() => setAbaAtiva('setores')}>
                   <i className="fa-solid fa-sitemap"></i> Setores / Cargos
+                </TabButton>
+              )}
+              {perfilUsuario === 'admin' && (
+                <TabButton $active={abaAtiva === 'desconto'} onClick={() => setAbaAtiva('desconto')}>
+                  <i className="fa-solid fa-percent"></i> Desconto por Pacote
                 </TabButton>
               )}
             </TabsContainer>
@@ -574,6 +657,117 @@ export function Configuracoes() {
                                   style={{ color: cargo.uso > 0 ? '#cbd5e1' : '#dc3545', cursor: cargo.uso > 0 ? 'not-allowed' : 'pointer' }}
                                   disabled={processandoCargo}
                                 >
+                                  <i className="fa-solid fa-trash-can" />
+                                </ActionButton>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </Table>
+            </TabelaResponsiva>
+          </Panel>
+        )}
+
+        {abaAtiva === 'desconto' && perfilUsuario === 'admin' && (
+          <Panel>
+            <PanelHeader>
+              <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#2c3e50' }}><i className="fa-solid fa-percent text-blue"></i> Desconto por Pacote</h3>
+            </PanelHeader>
+            <p style={{ padding: '0 20px', color: '#64748b', fontSize: '0.85rem', marginTop: 0 }}>
+              Desconto automático quando um visitante (ou grupo) de uma landing page com várias campanhas escolhe mais de uma. Vale pra empresa toda.
+            </p>
+            <form onSubmit={handleCriarFaixa} style={{ display: 'flex', gap: 10, padding: '0 20px 16px', flexWrap: 'wrap' }}>
+              <Input
+                type="number"
+                min="1"
+                step="1"
+                placeholder="A partir de quantas campanhas"
+                value={novaQtdMinima}
+                onChange={(e) => setNovaQtdMinima(e.target.value)}
+                style={{ width: 220 }}
+              />
+              <Input
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                placeholder="% de desconto"
+                value={novoPercentualFaixa}
+                onChange={(e) => setNovoPercentualFaixa(e.target.value)}
+                style={{ width: 160 }}
+              />
+              <PrimaryButton type="submit" disabled={salvandoFaixa || !novaQtdMinima || !novoPercentualFaixa}>
+                <i className="fa-solid fa-plus"></i> Adicionar
+              </PrimaryButton>
+            </form>
+            <TabelaResponsiva>
+              <Table>
+                <thead>
+                  <tr>
+                    <th>A partir de quantas campanhas</th>
+                    <th style={{ width: '160px', textAlign: 'center' }}>Desconto</th>
+                    <th style={{ width: '120px', textAlign: 'center' }}>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {carregandoFaixas ? (
+                    <tr><td colSpan="3" className="text-center text-muted"><i className="fa-solid fa-spinner fa-spin"></i> Carregando...</td></tr>
+                  ) : faixasDesconto.length === 0 ? (
+                    <tr><td colSpan="3" className="text-center text-muted">Nenhuma faixa cadastrada — desconto por pacote fica em 0%.</td></tr>
+                  ) : (
+                    faixasDesconto.map((faixa) => (
+                      <tr key={faixa.id}>
+                        <td data-label="A partir de quantas campanhas">
+                          {faixaEditandoId === faixa.id ? (
+                            <Input
+                              type="number"
+                              min="1"
+                              step="1"
+                              autoFocus
+                              value={qtdMinimaEditando}
+                              onChange={(e) => setQtdMinimaEditando(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === 'Enter') salvarEdicaoFaixa(faixa); if (e.key === 'Escape') setFaixaEditandoId(null); }}
+                            />
+                          ) : (
+                            <strong>{faixa.qtd_minima_campanhas}+ campanhas</strong>
+                          )}
+                        </td>
+                        <td data-label="Desconto" style={{ textAlign: 'center' }}>
+                          {faixaEditandoId === faixa.id ? (
+                            <Input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.01"
+                              value={percentualEditando}
+                              onChange={(e) => setPercentualEditando(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === 'Enter') salvarEdicaoFaixa(faixa); if (e.key === 'Escape') setFaixaEditandoId(null); }}
+                            />
+                          ) : (
+                            <Badge className="badge-admin">{Number(faixa.percentual)}%</Badge>
+                          )}
+                        </td>
+                        <td data-label="Ações" style={{ textAlign: 'center' }} className="actions-cell">
+                          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                            {faixaEditandoId === faixa.id ? (
+                              <>
+                                <ActionButton $isAtivo onClick={() => salvarEdicaoFaixa(faixa)} disabled={processandoFaixa} title="Salvar" style={{ color: '#28a745' }}>
+                                  <i className="fa-solid fa-check" />
+                                </ActionButton>
+                                <ActionButton $isAtivo onClick={() => setFaixaEditandoId(null)} title="Cancelar" style={{ color: '#64748b' }}>
+                                  <i className="fa-solid fa-xmark" />
+                                </ActionButton>
+                              </>
+                            ) : (
+                              <>
+                                <ActionButton $isAtivo onClick={() => iniciarEdicaoFaixa(faixa)} title="Editar" style={{ color: '#007bff' }}>
+                                  <i className="fa-solid fa-pen" />
+                                </ActionButton>
+                                <ActionButton $isAtivo onClick={() => excluirFaixa(faixa)} title="Excluir" style={{ color: '#dc3545' }} disabled={processandoFaixa}>
                                   <i className="fa-solid fa-trash-can" />
                                 </ActionButton>
                               </>
