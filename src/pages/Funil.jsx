@@ -2346,7 +2346,14 @@ export function Funil() {
                     {inscritos.map((ins, idx) => (
                       <div key={idx} style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, marginBottom: 12, background: '#fff' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                          <strong>Inscrito {idx + 1}</strong>
+                          <strong>
+                            Inscrito {idx + 1}
+                            {Number(ins.desconto_percentual) > 0 && (
+                              <span style={{ fontWeight: 600, color: '#fd7e14', marginLeft: 8 }}>
+                                · {Number(ins.desconto_percentual)}% de desconto (vindo da landing page)
+                              </span>
+                            )}
+                          </strong>
                           {contatosVinculadosIds.length > 0 && (
                             <Select
                               style={{ maxWidth: 220, fontSize: '0.8rem' }}
@@ -2390,11 +2397,6 @@ export function Funil() {
                               <span style={{ fontWeight: 400, color: '#64748b', marginLeft: 6 }}>
                                 ({formatarMoeda(somarValorModulos(ins.modulos_ids, modulosCampanha))})
                               </span>
-                              {Number(ins.desconto_percentual) > 0 && (
-                                <span style={{ fontWeight: 600, color: '#fd7e14', marginLeft: 8 }}>
-                                  · {Number(ins.desconto_percentual)}% de desconto (vindo da landing page)
-                                </span>
-                              )}
                             </label>
                             <ModulesGrid $compact>
                               {modulosCampanha.map((mod) => {
