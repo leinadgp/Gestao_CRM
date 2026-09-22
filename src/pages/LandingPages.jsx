@@ -1371,7 +1371,6 @@ export function LandingPages() {
         const text = e.target.result;
         const parser = new DOMParser();
         const doc = parser.parseFromString(text, 'text/html');
-        const { bodyHtml, extraMarkup, plainCssText, bodyScripts, htmlAttrs, bodyAttrs } = extractHtmlAssets(text);
 
         const pageTitle = doc.querySelector('title')?.textContent || file.name.replace(/\.[^.]+$/, '');
         const pageSlug = pageTitle.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
@@ -1382,6 +1381,14 @@ export function LandingPages() {
           const placeholder = doc.querySelector('#CRM_FORM_INJECT_ZONE');
           placeholder.outerHTML = getMarkupFormularioCRM();
         }
+
+        // extractHtmlAssets faz seu próprio parse interno da string recebida.
+        // Quando o placeholder foi substituído, precisamos passar o HTML já
+        // atualizado (serializado de `doc`), senão a substituição se perde
+        // num parse-tree descartado. Sem placeholder, mantemos `text` original
+        // intacto para não alterar em nada o caminho de importação padrão.
+        const htmlParaExtrair = hasCrmPlaceholder ? doc.documentElement.outerHTML : text;
+        const { bodyHtml, extraMarkup, plainCssText, bodyScripts, htmlAttrs, bodyAttrs } = extractHtmlAssets(htmlParaExtrair);
 
         setHtmlInicial(bodyHtml);
         setCssInicial(plainCssText);
