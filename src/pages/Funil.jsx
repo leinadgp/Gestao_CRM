@@ -2390,6 +2390,11 @@ export function Funil() {
                               <span style={{ fontWeight: 400, color: '#64748b', marginLeft: 6 }}>
                                 ({formatarMoeda(somarValorModulos(ins.modulos_ids, modulosCampanha))})
                               </span>
+                              {Number(ins.desconto_percentual) > 0 && (
+                                <span style={{ fontWeight: 600, color: '#fd7e14', marginLeft: 8 }}>
+                                  · {Number(ins.desconto_percentual)}% de desconto (vindo da landing page)
+                                </span>
+                              )}
                             </label>
                             <ModulesGrid $compact>
                               {modulosCampanha.map((mod) => {
