@@ -15,6 +15,7 @@ export function LandingPages() {
   const [campanhas, setCampanhas] = useState([]);
   const [campanhasIds, setCampanhasIds] = useState([]);
   const [dropdownCampanhasAberto, setDropdownCampanhasAberto] = useState(false);
+  const [modoDesconto, setModoDesconto] = useState('por_pessoa');
   const chipInputRef = useRef(null);
   const [carregando, setCarregando] = useState(true);
   const [buscaGeral, setBuscaGeral] = useState('');
@@ -1349,7 +1350,7 @@ export function LandingPages() {
   }
 
   function abrirModalNovo() {
-    setEditandoId(null); setNome(''); setSlug(''); setStatusLP('rascunho'); setCampanhaId(''); setCampanhasIds([]); setHtmlInicial(''); setCssInicial(''); setExtraHtmlHead(''); setExtraBodyScripts(''); setHtmlAttributes(''); setBodyAttributes(''); setImportErro(''); setMostrarModal(true);
+    setEditandoId(null); setNome(''); setSlug(''); setStatusLP('rascunho'); setCampanhaId(''); setCampanhasIds([]); setModoDesconto('por_pessoa'); setHtmlInicial(''); setCssInicial(''); setExtraHtmlHead(''); setExtraBodyScripts(''); setHtmlAttributes(''); setBodyAttributes(''); setImportErro(''); setMostrarModal(true);
   }
 
   function selecionarArquivoLovable() {
@@ -1401,6 +1402,7 @@ export function LandingPages() {
         setStatusLP('rascunho');
         setCampanhaId('');
         setCampanhasIds([]);
+        setModoDesconto('por_pessoa');
         setEditandoId(null);
         setImportErro('');
         setMostrarModal(true);
@@ -1434,6 +1436,7 @@ export function LandingPages() {
         ? (typeof lpCompleta.campanhas_ids === 'string' ? JSON.parse(lpCompleta.campanhas_ids) : lpCompleta.campanhas_ids)
         : (lpCompleta.campanha_id ? [Number(lpCompleta.campanha_id)] : []);
       setCampanhasIds(Array.isArray(cIds) ? cIds.map(Number) : []);
+      setModoDesconto(lpCompleta.modo_desconto === 'por_organizacao' ? 'por_organizacao' : 'por_pessoa');
       const htmlParaEditar = lpCompleta.html_rascunho || lpCompleta.html_content || '';
       const cssParaEditar = lpCompleta.css_rascunho || lpCompleta.css_content || '';
       const parsed = extractHtmlAssets(htmlParaEditar);
@@ -1466,6 +1469,7 @@ export function LandingPages() {
       slug: slugFormatado,
       campanha_id: campanhasIds.length > 0 ? (campanhasIds[0] || null) : (campanhaId || null),
       campanhas_ids: campanhasIds.length > 1 ? campanhasIds : null,
+      modo_desconto: modoDesconto,
       html_content: htmlComExtras,
       css_content: cssGerado,
     };
@@ -1812,6 +1816,16 @@ export function LandingPages() {
                     <small style={{ color: '#94a3b8', fontSize: '0.78rem', marginTop: 3 }}>Nenhuma campanha — formulário sem vínculo</small>
                   )}
                 </FormGroupInline>
+
+                {campanhasIds.length > 1 && (
+                  <FormGroupInline style={{ flex: '1 1 180px' }}>
+                    <label>Modo de desconto do pacote</label>
+                    <Select value={modoDesconto} onChange={(e) => setModoDesconto(e.target.value)}>
+                      <option value="por_pessoa">Por pessoa (cada um com seu desconto)</option>
+                      <option value="por_organizacao">Por organização (desconto único pro grupo)</option>
+                    </Select>
+                  </FormGroupInline>
+                )}
 
                 {!editandoId && (
                   <FormGroupInline style={{ flex: '1 1 130px' }}>
