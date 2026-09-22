@@ -34,6 +34,7 @@ export function LandingPages() {
 
   // === ESTADOS DO SUPER MODAL DO GRAPESJS ===
   const [mostrarModal, setMostrarModal] = useState(false);
+  const [mostrarConfigModal, setMostrarConfigModal] = useState(false);
   const [editandoId, setEditandoId] = useState(null);
   const { tentarAbrir: tentarAbrirTravaLandingPage, liberar: liberarTravaLandingPage } = useBloqueioEdicao('landing_page', {
     onTravaPerdida: () => {
@@ -1368,7 +1369,7 @@ export function LandingPages() {
   }
 
   function abrirModalNovo() {
-    setEditandoId(null); setNome(''); setSlug(''); setStatusLP('rascunho'); setCampanhaId(''); setCampanhasIds([]); setModoDesconto('por_pessoa'); setHtmlInicial(''); setCssInicial(''); setExtraHtmlHead(''); setExtraBodyScripts(''); setHtmlAttributes(''); setBodyAttributes(''); setImportErro(''); setMostrarModal(true);
+    setEditandoId(null); setNome(''); setSlug(''); setStatusLP('rascunho'); setCampanhaId(''); setCampanhasIds([]); setModoDesconto('por_pessoa'); setHtmlInicial(''); setCssInicial(''); setExtraHtmlHead(''); setExtraBodyScripts(''); setHtmlAttributes(''); setBodyAttributes(''); setImportErro(''); setMostrarConfigModal(false); setMostrarModal(true);
   }
 
   function selecionarArquivoLovable() {
@@ -1423,6 +1424,7 @@ export function LandingPages() {
         setModoDesconto('por_pessoa');
         setEditandoId(null);
         setImportErro('');
+        setMostrarConfigModal(false);
         setMostrarModal(true);
       } catch (err) {
         console.error('Importação de HTML falhou', err);
@@ -1465,6 +1467,7 @@ export function LandingPages() {
       setHtmlAttributes(parsed.htmlAttrs || '');
       setBodyAttributes(parsed.bodyAttrs || '');
       setImportErro('');
+      setMostrarConfigModal(false);
       setMostrarModal(true);
     } catch (e) {
       console.error(e);
@@ -1725,6 +1728,9 @@ export function LandingPages() {
                 </StatusPill>
               </div>
               <div className="acoes">
+                <TopBarBtn title="Configurações da página" type="button" onClick={() => setMostrarConfigModal(true)}>
+                  <i className="fa-solid fa-gear"></i>
+                </TopBarBtn>
                 {editandoId && (
                   <TopBarBtn $danger title="Excluir página" type="button" onClick={() => deletarPagina(editandoId)}>
                     <i className="fa-solid fa-trash-can"></i>
@@ -1759,9 +1765,15 @@ export function LandingPages() {
               </div>
             </BuilderTopBar>
 
-            {/* === FAIXA DE CONFIGURAÇÃO CLARA === */}
-            <BuilderConfigBar>
-              <form id="lpForm" onSubmit={salvarPagina} style={{ display: 'flex', gap: 20, alignItems: 'flex-end', flex: 1, flexWrap: 'wrap' }}>
+            {/* === MODAL DE CONFIGURAÇÕES DA PÁGINA (nome, slug, campanhas, desconto, status) === */}
+            <ConfigModalOverlay $show={mostrarConfigModal} onClick={() => setMostrarConfigModal(false)}>
+              <BuilderConfigBar id="lpForm" onSubmit={salvarPagina} onClick={(e) => e.stopPropagation()}>
+                <ConfigModalHeader>
+                  <h3><i className="fa-solid fa-gear"></i> Configurações da página</h3>
+                  <button type="button" onClick={() => setMostrarConfigModal(false)} title="Fechar">
+                    <i className="fa-solid fa-xmark"></i>
+                  </button>
+                </ConfigModalHeader>
                 <FormGroupInline style={{ flex: '2 1 200px' }}>
                   <label>Nome da Página</label>
                   <Input type="text" value={nome} onChange={(e) => setNome(e.target.value)} required placeholder="Ex: Inscrição Módulo B" />
@@ -1857,8 +1869,8 @@ export function LandingPages() {
                     </Select>
                   </FormGroupInline>
                 )}
-              </form>
-            </BuilderConfigBar>
+              </BuilderConfigBar>
+            </ConfigModalOverlay>
 
             {/* Container do GrapesJS */}
             <div id="gjs" style={{ flex: 1, overflow: 'hidden' }}></div>
@@ -2135,13 +2147,61 @@ const TopBarPublishBtn = styled(TopBarBtn)`
   &:hover { background: rgba(34,197,94,0.25); color: #86efac; }
 `;
 
-/* === FAIXA DE CONFIGURAÇÃO CLARA === */
-const BuilderConfigBar = styled.div`
-  background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
-  padding: 10px 24px 12px;
-  flex-shrink: 0;
-  z-index: 100;
+/* === MODAL DE CONFIGURAÇÕES DA PÁGINA ===
+   O <form id="lpForm"> precisa continuar sempre montado (não só quando o
+   modal está aberto): o botão "Salvar" da barra de topo aponta pra ele via
+   atributo form="lpForm" de fora da árvore — se o form desmontasse ao fechar
+   o modal, esse botão pararia de saber onde mandar o submit. Por isso o
+   overlay alterna visibilidade por CSS ($show), nunca por render condicional. */
+const ConfigModalOverlay = styled.div`
+  display: ${(p) => (p.$show ? 'flex' : 'none')};
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  z-index: 1200;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 60px 20px;
+  overflow-y: auto;
+`;
+
+const ConfigModalHeader = styled.div`
+  flex: 1 1 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  h3 {
+    margin: 0;
+    font-size: 1.05rem;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  button {
+    background: none;
+    border: none;
+    font-size: 1.15rem;
+    color: #64748b;
+    cursor: pointer;
+    padding: 4px 8px;
+    line-height: 1;
+  }
+  button:hover { color: #1e293b; }
+`;
+
+const BuilderConfigBar = styled.form`
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 25px 70px -20px rgba(0, 0, 0, 0.4);
+  padding: 24px 28px 20px;
+  width: 100%;
+  max-width: 760px;
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  align-items: flex-end;
 `;
 
 const FormGroupInline = styled.div`
