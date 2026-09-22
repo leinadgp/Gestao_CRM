@@ -10,10 +10,22 @@ import ptLocale from 'grapesjs/locale/pt';
 import { campanhaEstaAtiva } from '../utils/campanhaStatus.js';
 import { useBloqueioEdicao } from '../hooks/useBloqueioEdicao.js';
 
+function resolverDescontoPacote(qtd, faixas) {
+  let melhor = null;
+  (faixas || []).forEach((f) => {
+    const minima = Number(f.qtd_minima_campanhas);
+    if (qtd >= minima && (!melhor || minima > melhor.minima)) {
+      melhor = { minima, percentual: Number(f.percentual) };
+    }
+  });
+  return melhor ? melhor.percentual : 0;
+}
+
 export function LandingPages() {
   const [paginas, setPaginas] = useState([]);
   const [campanhas, setCampanhas] = useState([]);
   const [campanhasIds, setCampanhasIds] = useState([]);
+  const [faixasDesconto, setFaixasDesconto] = useState([]);
   const [dropdownCampanhasAberto, setDropdownCampanhasAberto] = useState(false);
   const [modoDesconto, setModoDesconto] = useState('por_pessoa');
   const chipInputRef = useRef(null);
@@ -466,6 +478,12 @@ export function LandingPages() {
   useEffect(() => {
     carregarDados();
   }, [carregarDados]);
+
+  useEffect(() => {
+    axios.get(`${API_URL}/faixas-desconto`)
+      .then((res) => setFaixasDesconto(res.data))
+      .catch(() => setFaixasDesconto([]));
+  }, [API_URL]);
 
   function fecharMenu() { setMenuAbertoId(null); setMenuPos(null); }
 
@@ -1760,12 +1778,15 @@ export function LandingPages() {
                 <FormGroupInline style={{ flex: '3 1 260px' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     Campanhas do Formulário
-                    {campanhasIds.length >= 2 && (
-                      <DescontoBadge>
-                        <i className="fa-solid fa-tag"></i>
-                        {campanhasIds.length >= 3 ? '15%' : '10%'} desconto
-                      </DescontoBadge>
-                    )}
+                    {(() => {
+                      const descontoAtual = resolverDescontoPacote(campanhasIds.length, faixasDesconto);
+                      return campanhasIds.length >= 2 && descontoAtual > 0 && (
+                        <DescontoBadge>
+                          <i className="fa-solid fa-tag"></i>
+                          {descontoAtual}% desconto
+                        </DescontoBadge>
+                      );
+                    })()}
                   </label>
                   <ChipInputWrapper ref={chipInputRef}>
                     <div className="chips-area">
