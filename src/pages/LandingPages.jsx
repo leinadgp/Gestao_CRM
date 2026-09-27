@@ -1488,7 +1488,7 @@ export function LandingPages() {
     const payload = {
       nome,
       slug: slugFormatado,
-      campanha_id: campanhasIds.length > 0 ? (campanhasIds[0] || null) : (campanhaId || null),
+      campanha_id: campanhasIds.length > 0 ? (campanhasIds.includes(Number(campanhaId)) ? Number(campanhaId) : campanhasIds[0]) : null,
       campanhas_ids: campanhasIds.length > 1 ? campanhasIds : null,
       modo_desconto: modoDesconto,
       html_content: htmlComExtras,
@@ -1810,7 +1810,11 @@ export function LandingPages() {
                             <span className="chip-text" title={c.nome}>{c.nome}</span>
                             <button
                               type="button"
-                              onClick={() => setCampanhasIds(prev => prev.filter(x => x !== id))}
+                              onClick={() => {
+                                const novos = campanhasIds.filter(x => x !== id);
+                                setCampanhasIds(novos);
+                                if (Number(campanhaId) === id) setCampanhaId(novos[0] ? String(novos[0]) : '');
+                              }}
                               title={`Remover: ${c.nome}`}
                             >×</button>
                           </CampanhaChip>
@@ -1836,6 +1840,7 @@ export function LandingPages() {
                               className="item"
                               onMouseDown={() => {
                                 setCampanhasIds(prev => [...prev, Number(c.id)]);
+                                if (!campanhaId) setCampanhaId(String(c.id));
                                 setDropdownCampanhasAberto(false);
                               }}
                             >
@@ -1849,6 +1854,22 @@ export function LandingPages() {
                     <small style={{ color: '#94a3b8', fontSize: '0.78rem', marginTop: 3 }}>Nenhuma campanha — formulário sem vínculo</small>
                   )}
                 </FormGroupInline>
+
+                {campanhasIds.length > 0 && (
+                  <FormGroupInline style={{ flex: '1 1 220px' }}>
+                    <label>Campanha principal da Landing Page</label>
+                    <Select
+                      value={campanhasIds.includes(Number(campanhaId)) ? String(campanhaId) : String(campanhasIds[0] || '')}
+                      onChange={(e) => setCampanhaId(e.target.value)}
+                    >
+                      {campanhasIds.map(id => {
+                        const c = campanhas.find(x => Number(x.id) === id);
+                        return c ? <option key={id} value={id}>{c.nome}</option> : null;
+                      })}
+                    </Select>
+                    <small style={{ color: '#64748b', fontSize: '0.78rem', marginTop: 3 }}>Usada automaticamente nos links dos e-mails desta campanha.</small>
+                  </FormGroupInline>
+                )}
 
                 {campanhasIds.length > 1 && (
                   <FormGroupInline style={{ flex: '1 1 180px' }}>
