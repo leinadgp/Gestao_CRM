@@ -1,9 +1,18 @@
 /** Pesos para ordenação no funil (maior = mais prioritário). */
 export const PESOS_CLASSIFICACAO = {
-  assessorada: 3,
-  lead_quente: 2,
+  assessorada: 4,
+  lead_quente: 3,
+  lead_morno: 2,
   nao_assessorada: 1,
 };
+
+/** Opções de classificação, na ordem de exibição em selects (frio → quente → VIP). */
+export const OPCOES_CLASSIFICACAO = [
+  { valor: 'nao_assessorada', emoji: '❄️', label: 'Frio' },
+  { valor: 'lead_morno', emoji: '🌤️', label: 'Morno' },
+  { valor: 'lead_quente', emoji: '🔥', label: 'Quente' },
+  { valor: 'assessorada', emoji: '👑', label: 'Assessorada' },
+];
 
 export function normalizarClassificacoesPorCargo(dado) {
   if (dado == null) return [];
@@ -94,5 +103,6 @@ export function resolverScoringEmpresa(empresa = {}, cargosAlvoCampanha = [], ca
 export function labelClassificacao(classificacao) {
   if (classificacao === 'assessorada') return '👑 VIP (Assessorada)';
   if (classificacao === 'lead_quente') return '🔥 Lead Quente';
+  if (classificacao === 'lead_morno') return '🌤️ Lead Morno';
   return '❄️ Frio';
 }

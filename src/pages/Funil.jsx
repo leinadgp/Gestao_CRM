@@ -9,7 +9,7 @@ import { HorarioSemanalInput } from '../componentes/HorarioSemanalInput.jsx';
 import { listarMinhasTarefas, classificarTarefa } from '../utils/tarefasService.js';
 
 import { normalizarCargosJson, normalizarListaJson, cargosParaTexto } from '../utils/jsonHelpers.js';
-import { normalizarClassificacoesPorCargo, resolverScoringEmpresa, PESOS_CLASSIFICACAO } from '../utils/classificacaoEmpresa.js';
+import { normalizarClassificacoesPorCargo, resolverScoringEmpresa, PESOS_CLASSIFICACAO, OPCOES_CLASSIFICACAO } from '../utils/classificacaoEmpresa.js';
 import { estaForaDoHorarioDaEmpresa, semanaTemAlgum } from '../utils/horarioSemanal.js';
 import {
   calcularTotaisPacote,
@@ -1753,6 +1753,7 @@ export function Funil() {
                               </span>
                             )}
                             {op.classificacao === 'lead_quente' && <span className="badge-hot" title="Lead Quente e Engajado"><i className="fa-solid fa-fire"></i></span>}
+                            {op.classificacao === 'lead_morno' && <span className="badge-warm" title="Lead Morno"><i className="fa-solid fa-cloud-sun"></i></span>}
                             {(op.classificacao === 'nao_assessorada' || !op.classificacao) && <span className="badge-cold" title="Lead Frio"><i className="fa-solid fa-snowflake text-blue"></i></span>}
                           </div>
                         )}
@@ -2983,6 +2984,8 @@ export function Funil() {
                           </span>
                         ) : empresaClassificacao === 'lead_quente' ? (
                           <span style={{ color: '#dc3545', fontWeight: 'bold' }}>🔥 Quente </span>
+                        ) : empresaClassificacao === 'lead_morno' ? (
+                          <span style={{ color: '#d97706', fontWeight: 'bold' }}>🌤️ Morno</span>
                         ) : (
                           <span style={{ color: '#475569', fontWeight: 'bold' }}>❄️ Frio</span>
                         )}
@@ -3031,9 +3034,9 @@ export function Funil() {
                     <FormGroup>
                       <label><i className="fa-solid fa-fire"></i> Classificação Geral</label>
                       <Select value={empresaClassificacao} onChange={e => setEmpresaClassificacao(e.target.value)}>
-                        <option value="nao_assessorada">❄️ Frio</option>
-                        <option value="lead_quente">🔥 Quente</option>
-                        <option value="assessorada">👑 Assessorada</option>
+                        {OPCOES_CLASSIFICACAO.map((op) => (
+                          <option key={op.valor} value={op.valor}>{op.emoji} {op.label}</option>
+                        ))}
                       </Select>
                     </FormGroup>
                     <FormGroup>
@@ -3074,9 +3077,9 @@ export function Funil() {
                               ))}
                             </Select>
                             <Select style={{ flex: '1 1 120px' }} value={item.classificacao} onChange={(e) => atualizarEmpresaClassificacaoPorCargo(idx, 'classificacao', e.target.value)}>
-                              <option value="nao_assessorada">❄️ Frio</option>
-                              <option value="lead_quente">🔥 Quente</option>
-                              <option value="assessorada">👑 Assessorada</option>
+                              {OPCOES_CLASSIFICACAO.map((op) => (
+                                <option key={op.valor} value={op.valor}>{op.emoji} {op.label}</option>
+                              ))}
                             </Select>
                             <Input
                               style={{ flex: '0 1 100px' }}
@@ -3459,9 +3462,10 @@ const KanbanCard = styled.div`
   
   .card-company { font-size: 0.8rem; color: #6c757d; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   .card-company span { display: inline-flex; align-items: center; gap: 4px; }
-  .badge-vip, .badge-hot, .badge-cold { display: inline-flex; align-items: center; gap: 4px; font-size: 0.65rem; padding: 2px 6px; border-radius: 10px; }
+  .badge-vip, .badge-hot, .badge-warm, .badge-cold { display: inline-flex; align-items: center; gap: 4px; font-size: 0.65rem; padding: 2px 6px; border-radius: 10px; }
   .badge-vip { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
   .badge-hot { background: #fdf2f2; color: #dc3545; border: 1px solid #f8d7da; }
+  .badge-warm { background: #fff7ed; color: #d97706; border: 1px solid #fed7aa; }
   .badge-cold { background: #f0f7ff; color: #1F4E79; border: 1px solid #b8daff; }
 `;
 
@@ -3615,6 +3619,7 @@ const Select = styled.select`
       case 'perdido': return '#fdecea';
       case 'assessorada': return '#fff3cd';
       case 'lead_quente': return '#fdf2f2';
+      case 'lead_morno': return '#fff7ed';
       case 'nao_assessorada': return '#f8fafc';
       default: return '#fff';
     }

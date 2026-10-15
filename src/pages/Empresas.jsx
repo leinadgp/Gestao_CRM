@@ -5,7 +5,7 @@ import { Header } from '../componentes/Header.jsx';
 
 // --- UTILITÁRIO DE SEGURANÇA PARA JSON ---
 import { normalizarCargosJson, normalizarListaJson, cargosParaTexto } from '../utils/jsonHelpers.js';
-import { normalizarClassificacoesPorCargo, labelClassificacao, resolverScoringEmpresa } from '../utils/classificacaoEmpresa.js';
+import { normalizarClassificacoesPorCargo, labelClassificacao, resolverScoringEmpresa, OPCOES_CLASSIFICACAO } from '../utils/classificacaoEmpresa.js';
 import { BotaoExportar } from '../componentes/BotaoExportar.jsx';
 import { ModalImportarCsv } from '../componentes/ModalImportarCsv.jsx';
 import { normalizarTexto } from '../utils/normalizarTexto.js';
@@ -513,7 +513,7 @@ export function Empresas() {
             )}
             {filtroClassificacao && (
               <FiltroChip onClick={() => { setFiltroClassificacao(''); setPaginaAtual(1); }}>
-                {filtroClassificacao === 'assessorada' ? 'Assessoradas' : filtroClassificacao === 'lead_quente' ? 'Leads Quentes' : 'Frios'}
+                {filtroClassificacao === 'assessorada' ? 'Assessoradas' : filtroClassificacao === 'lead_quente' ? 'Leads Quentes' : filtroClassificacao === 'lead_morno' ? 'Leads Mornos' : 'Frios'}
                 {' '}<i className="fa-solid fa-times" />
               </FiltroChip>
             )}
@@ -581,7 +581,9 @@ export function Empresas() {
                             ? `👑 ${buscarCargoAssessorado(empresa) || 'Assessorada'}`
                             : empresa.classificacao === 'lead_quente'
                               ? '🔥 Lead Quente'
-                              : '❄️ Frio'}
+                              : empresa.classificacao === 'lead_morno'
+                                ? '🌤️ Lead Morno'
+                                : '❄️ Frio'}
                         </StatusBadge>
                       </td>
                       <td data-label="Temperatura" onClick={() => abrirModalDetalhes(empresa)}>
@@ -633,6 +635,7 @@ export function Empresas() {
                     <div className="subtitle">
                       {classificacao === 'assessorada' && <span className="vip-badge" style={{fontSize: '0.85rem'}}><i className="fa-solid fa-crown"></i> Assessorada VIP</span>}
                       {classificacao === 'lead_quente' && <span className="vip-badge text-red" style={{fontSize: '0.85rem'}}><i className="fa-solid fa-fire"></i> Lead Quente</span>}
+                      {classificacao === 'lead_morno' && <span className="vip-badge" style={{fontSize: '0.85rem', color: '#d97706'}}><i className="fa-solid fa-cloud-sun"></i> Lead Morno</span>}
                       <span><i className="fa-solid fa-landmark"></i> {labelTipoOrgao(tipoOrgao)}</span>
                       <span><i className="fa-solid fa-location-dot"></i> {cidade} - {estado}</span>
                     </div>
@@ -677,6 +680,7 @@ export function Empresas() {
                             <strong>Padrão geral:</strong>
                             {detalhesEmpresa.empresa.classificacao === 'assessorada' ? <span className="text-yellow font-bold">👑 VIP</span> :
                              detalhesEmpresa.empresa.classificacao === 'lead_quente' ? <span className="text-red font-bold">🔥 Quente</span> :
+                             detalhesEmpresa.empresa.classificacao === 'lead_morno' ? <span style={{ color: '#d97706', fontWeight: 'bold' }}>🌤️ Morno</span> :
                              <span className="text-muted font-bold">❄️ Frio</span>}
                             <span style={{ marginLeft: '10px' }}>{renderStars(detalhesEmpresa.empresa.estrelas || 0, true)}</span>
                           </div>
@@ -856,9 +860,9 @@ export function Empresas() {
                               onChange={(e) => atualizarClassificacaoCargo(idx, 'classificacao', e.target.value)}
                               $status={row.classificacao}
                             >
-                              <option value="nao_assessorada">❄️ Frio</option>
-                              <option value="lead_quente">🔥 Quente</option>
-                              <option value="assessorada">👑 VIP</option>
+                              {OPCOES_CLASSIFICACAO.map((op) => (
+                                <option key={op.valor} value={op.valor}>{op.emoji} {op.label === 'Assessorada' ? 'VIP' : op.label}</option>
+                              ))}
                             </Select>
                           </FormGroup>
                           <FormGroup>
@@ -883,9 +887,9 @@ export function Empresas() {
                         <FormGroup>
                           <label>Classificação geral</label>
                           <Select value={classificacao} onChange={(e) => setClassificacao(e.target.value)} $status={classificacao}>
-                            <option value="nao_assessorada">❄️ Frio</option>
-                            <option value="lead_quente">🔥 Quente</option>
-                            <option value="assessorada">👑 VIP</option>
+                            {OPCOES_CLASSIFICACAO.map((op) => (
+                              <option key={op.valor} value={op.valor}>{op.emoji} {op.label === 'Assessorada' ? 'VIP' : op.label}</option>
+                            ))}
                           </Select>
                         </FormGroup>
                         <FormGroup>
@@ -1135,6 +1139,7 @@ export function Empresas() {
                     <option value="">Todos os Tipos</option>
                     <option value="assessorada">👑 Assessoradas (VIP)</option>
                     <option value="lead_quente">🔥 Leads Quentes</option>
+                    <option value="lead_morno">🌤️ Leads Mornos</option>
                     <option value="nao_assessorada">❄️ Frios (Padrão)</option>
                   </Select>
                 </FiltroModalCampo>
@@ -1349,6 +1354,7 @@ const StatusBadge = styled.span`
   padding: 6px 12px; border-radius: 10px; font-size: 0.8rem; font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center;
   &.assessorada { background: #fff3cd; color: #856404; border: 1px solid #ffeeba;}
   &.lead_quente { background: #fdf2f2; color: #dc3545; border: 1px solid #f8d7da;}
+  &.lead_morno { background: #fff7ed; color: #d97706; border: 1px solid #fed7aa;}
   &.nao_assessorada { background: #e2e8f0; color: #475569; border: 1px solid #cbd5e1;}
 `;
 
@@ -1447,9 +1453,9 @@ const Input = styled.input`
 `;
 const Select = styled.select`
   padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; outline: none; transition: 0.2s; font-size: 0.95rem; cursor: pointer; box-sizing: border-box;
-  background-color: ${props => props.$status === 'assessorada' ? '#fff3cd' : props.$status === 'lead_quente' ? '#fdf2f2' : '#f8fafc'};
+  background-color: ${props => props.$status === 'assessorada' ? '#fff3cd' : props.$status === 'lead_quente' ? '#fdf2f2' : props.$status === 'lead_morno' ? '#fff7ed' : '#f8fafc'};
   font-weight: 600;
-  color: ${props => props.$status === 'assessorada' ? '#856404' : props.$status === 'lead_quente' ? '#dc3545' : '#475569'};
+  color: ${props => props.$status === 'assessorada' ? '#856404' : props.$status === 'lead_quente' ? '#dc3545' : props.$status === 'lead_morno' ? '#d97706' : '#475569'};
   &:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.1); }
 `;
 
