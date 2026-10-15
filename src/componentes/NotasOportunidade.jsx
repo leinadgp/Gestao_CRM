@@ -86,6 +86,11 @@ export function NotasOportunidade({ oportunidadeId }) {
                     </div>
                   </NoteHeader>
                   <NoteBody>{n.nota}</NoteBody>
+                  {n.editado_por_nome && (
+                    <NoteEditedMeta>
+                      <i className="fa-solid fa-pen-clip"></i> Editado por {n.editado_por_nome} em {new Date(n.atualizado_em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+                    </NoteEditedMeta>
+                  )}
                 </>
               )}
             </NoteItem>
@@ -145,6 +150,9 @@ const NoteHeader = styled.div`
 `;
 const NoteBody = styled.div`
   color: #475569; font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap;
+`;
+const NoteEditedMeta = styled.div`
+  margin-top: 8px; color: #94a3b8; font-size: 0.75rem; font-style: italic;
 `;
 
 const AddNoteBox = styled.div`
