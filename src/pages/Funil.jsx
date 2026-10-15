@@ -119,6 +119,7 @@ export function Funil() {
   // --- ESTADOS DA OPORTUNIDADE (MODAL PRINCIPAL) ---
   const [mostrarModal, setMostrarModal] = useState(false);
   const [editandoId, setEditandoId] = useState(null);
+  const [auditoriaEdicao, setAuditoriaEdicao] = useState(null); // { nome, em } | null — quem editou essa negociação por último
   const [titulo, setTitulo] = useState('');
   const [valor, setValor] = useState('');
   const [empresaId, setEmpresaId] = useState('');
@@ -1126,6 +1127,7 @@ export function Funil() {
   function abrirModalNovo() {
     if (!filtroCampanha) return alert("Selecione uma campanha no topo da tela antes de criar uma negociação!");
 
+    setAuditoriaEdicao(null);
     setEditandoId(null); setTitulo(''); setEmpresaId(''); setEmpresaTelefones(''); setEmpresaHorario(''); setContatoId(''); setObservacoes('');
     setContatosVinculadosIds([]); setQtdInscritos(0); setInscritos([]);
     setModoPacoteInscricao('igual');
@@ -1173,6 +1175,7 @@ export function Funil() {
       return;
     }
 
+    setAuditoriaEdicao(op.atualizado_por_nome ? { nome: op.atualizado_por_nome, em: op.atualizado_em } : null);
     setEditandoId(op.id); setTitulo(op.titulo); setValor(op.valor);
     setEmpresaId(op.empresa_id || '');
     if (!op.empresa_id) {
@@ -2023,6 +2026,11 @@ export function Funil() {
                 <div className="subtitle" title={campanhaSelecionadaObj?.nome}>
                   <i className="fa-solid fa-bullhorn"></i> Vinculado à campanha: {campanhaSelecionadaObj?.nome}
                 </div>
+                {auditoriaEdicao && (
+                  <div className="subtitle" style={{ color: '#94a3b8' }} title={`Última edição por ${auditoriaEdicao.nome}`}>
+                    <i className="fa-solid fa-pen-clip"></i> Editado por {auditoriaEdicao.nome} em {new Date(auditoriaEdicao.em).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                )}
               </div>
               <CloseButton onClick={() => fecharModalPrincipal()}>&times;</CloseButton>
             </ModalHeader>
