@@ -39,6 +39,15 @@ export function getLembreteAntecedenciaMs() {
   return LEMBRETE_ANTECEDENCIA_MS;
 }
 
+export async function listarTiposTarefa() {
+  try {
+    const res = await axios.get(`${getApiUrl()}/tipos-tarefa`, getHeaders());
+    return res.data;
+  } catch {
+    return [];
+  }
+}
+
 export async function listarTarefasOportunidade(oportunidadeId) {
   const opId = Number(oportunidadeId);
   try {

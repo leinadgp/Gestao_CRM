@@ -11,6 +11,7 @@ import {
   formatarDataHoraTarefa,
   paraInputDatetimeLocal,
   deInputDatetimeLocal,
+  listarTiposTarefa,
 } from '../utils/tarefasService.js';
 
 export function Tarefas() {
@@ -20,6 +21,8 @@ export function Tarefas() {
   const [tarefas, setTarefas] = useState([]);
   const [carregando, setCarregando] = useState(false);
   const [titulo, setTitulo] = useState('');
+  const [tipoSelecionado, setTipoSelecionado] = useState('');
+  const [tiposTarefa, setTiposTarefa] = useState([]);
   const [descricao, setDescricao] = useState('');
   const [dataHora, setDataHora] = useState('');
   const [salvando, setSalvando] = useState(false);
@@ -51,6 +54,15 @@ export function Tarefas() {
     return () => window.removeEventListener('tarefasAtualizadas', handler);
   }, [carregarTarefas]);
 
+  useEffect(() => {
+    listarTiposTarefa().then(setTiposTarefa);
+  }, []);
+
+  function selecionarTipoRapido(nome) {
+    setTipoSelecionado(nome);
+    if (nome) setTitulo(nome);
+  }
+
   const colaboradores = useMemo(() => {
     const mapa = {};
     tarefas.forEach((t) => {
@@ -75,6 +87,7 @@ export function Tarefas() {
 
   function abrirModalNova() {
     setTitulo('');
+    setTipoSelecionado('');
     setDescricao('');
     setDataHora('');
     setMostrarModalNova(true);
@@ -83,6 +96,7 @@ export function Tarefas() {
   function fecharModalNova() {
     setMostrarModalNova(false);
     setTitulo('');
+    setTipoSelecionado('');
     setDescricao('');
     setDataHora('');
   }
@@ -326,6 +340,14 @@ export function Tarefas() {
               <BtnClose onClick={fecharModalNova}>&times;</BtnClose>
             </ModalHeader>
             <ModalBody>
+              {tiposTarefa.length > 0 && (
+                <FormField>
+                  <select value={tipoSelecionado} onChange={(e) => selecionarTipoRapido(e.target.value)}>
+                    <option value="">Tipo rápido…</option>
+                    {tiposTarefa.map((t) => <option key={t.id} value={t.nome}>{t.nome}</option>)}
+                  </select>
+                </FormField>
+              )}
               <FormField>
                 <input
                   type="text"
@@ -642,7 +664,7 @@ const ModalBody = styled.div`
 `;
 
 const FormField = styled.div`
-  input, textarea {
+  input, textarea, select {
     width: 100%;
     border: 1px solid #cbd5e1;
     border-radius: 12px;

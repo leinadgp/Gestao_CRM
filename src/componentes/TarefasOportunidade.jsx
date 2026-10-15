@@ -10,17 +10,26 @@ import {
   formatarDataHoraTarefa,
   deInputDatetimeLocal,
   paraInputDatetimeLocal,
+  listarTiposTarefa,
 } from '../utils/tarefasService';
 
 export function TarefasOportunidade({ oportunidadeId, oportunidadeTitulo }) {
   const [tarefas, setTarefas] = useState([]);
   const [carregando, setCarregando] = useState(false);
   const [titulo, setTitulo] = useState('');
+  const [tipoSelecionado, setTipoSelecionado] = useState('');
+  const [observacao, setObservacao] = useState('');
+  const [tiposTarefa, setTiposTarefa] = useState([]);
   const [dataHora, setDataHora] = useState('');
   const [salvando, setSalvando] = useState(false);
   const [editandoId, setEditandoId] = useState(null);
   const [editTitulo, setEditTitulo] = useState('');
+  const [editObservacao, setEditObservacao] = useState('');
   const [editDataHora, setEditDataHora] = useState('');
+
+  useEffect(() => {
+    listarTiposTarefa().then(setTiposTarefa);
+  }, []);
 
   const carregar = useCallback(async () => {
     if (!oportunidadeId) return;
@@ -48,13 +57,20 @@ export function TarefasOportunidade({ oportunidadeId, oportunidadeTitulo }) {
   function cancelarEdicao() {
     setEditandoId(null);
     setEditTitulo('');
+    setEditObservacao('');
     setEditDataHora('');
   }
 
   function iniciarEdicao(t) {
     setEditandoId(t.id);
     setEditTitulo(t.titulo || '');
+    setEditObservacao(t.descricao || '');
     setEditDataHora(paraInputDatetimeLocal(t.data_hora));
+  }
+
+  function selecionarTipoRapido(nome) {
+    setTipoSelecionado(nome);
+    if (nome) setTitulo(nome);
   }
 
   async function handleCriar() {
@@ -75,9 +91,12 @@ export function TarefasOportunidade({ oportunidadeId, oportunidadeTitulo }) {
         oportunidade_id: oportunidadeId,
         oportunidade_titulo: oportunidadeTitulo,
         titulo,
+        descricao: observacao,
         data_hora: iso,
       });
       setTitulo('');
+      setTipoSelecionado('');
+      setObservacao('');
       setDataHora('');
       await carregar();
     } catch (erro) {
@@ -104,6 +123,7 @@ export function TarefasOportunidade({ oportunidadeId, oportunidadeTitulo }) {
     try {
       await atualizarTarefa(editandoId, {
         titulo: editTitulo,
+        descricao: editObservacao,
         data_hora: iso,
       });
       cancelarEdicao();
@@ -156,6 +176,12 @@ export function TarefasOportunidade({ oportunidadeId, oportunidadeTitulo }) {
               autoFocus
             />
             <input
+              type="text"
+              value={editObservacao}
+              onChange={e => setEditObservacao(e.target.value)}
+              placeholder="Observação (opcional)"
+            />
+            <input
               type="datetime-local"
               value={editDataHora}
               onChange={e => setEditDataHora(e.target.value)}
@@ -177,6 +203,7 @@ export function TarefasOportunidade({ oportunidadeId, oportunidadeTitulo }) {
       <TarefaItem key={t.id} $status={status}>
         <TarefaInfo>
           <strong>{t.titulo}</strong>
+          {t.descricao && <span className="obs">{t.descricao}</span>}
           <span className={concluida ? 'meta done' : 'meta'}>
             <i className={concluida ? 'fa-solid fa-check-circle' : 'fa-regular fa-clock'}></i>
             {formatarDataHoraTarefa(t.data_hora)}
@@ -210,11 +237,24 @@ export function TarefasOportunidade({ oportunidadeId, oportunidadeTitulo }) {
       </SectionLabel>
 
       <FormNova>
+        {tiposTarefa.length > 0 && (
+          <select value={tipoSelecionado} onChange={e => selecionarTipoRapido(e.target.value)}>
+            <option value="">Tipo rápido…</option>
+            {tiposTarefa.map(t => <option key={t.id} value={t.nome}>{t.nome}</option>)}
+          </select>
+        )}
         <input
           type="text"
           placeholder="Ex: Ligar para o secretário..."
           value={titulo}
           onChange={e => setTitulo(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleCriar(); } }}
+        />
+        <input
+          type="text"
+          placeholder="Observação (opcional)"
+          value={observacao}
+          onChange={e => setObservacao(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleCriar(); } }}
         />
         <input
@@ -268,12 +308,12 @@ const SectionLabel = styled.label`
 `;
 
 const FormNova = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 180px 44px;
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 14px;
 
-  input {
+  input, select {
     padding: 10px 12px;
     border: 1px solid #cbd5e1;
     border-radius: 8px;
@@ -282,7 +322,12 @@ const FormNova = styled.div`
     &:focus { border-color: #6f42c1; box-shadow: 0 0 0 3px rgba(111, 66, 193, 0.15); }
   }
 
+  select { flex: 1 1 140px; }
+  input[type="text"] { flex: 2 1 180px; }
+  input[type="datetime-local"] { flex: 1 1 180px; }
+
   button {
+    flex: 0 0 44px;
     background: #6f42c1;
     color: #fff;
     border: none;
@@ -294,7 +339,7 @@ const FormNova = styled.div`
   }
 
   @media (max-width: 600px) {
-    grid-template-columns: 1fr;
+    select, input, button { flex: 1 1 100%; }
   }
 `;
 
@@ -387,6 +432,12 @@ const TarefaInfo = styled.div`
     display: block;
     font-size: 0.92rem;
     color: #2c3e50;
+  }
+  .obs {
+    display: block;
+    font-size: 0.8rem;
+    color: #94a3b8;
+    margin-top: 2px;
   }
   .meta {
     display: flex;

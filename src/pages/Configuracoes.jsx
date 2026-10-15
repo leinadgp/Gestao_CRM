@@ -55,6 +55,15 @@ export function Configuracoes() {
   const [destinoMesclarId, setDestinoMesclarId] = useState('');
   const [processandoCargo, setProcessandoCargo] = useState(false);
 
+  // --- ESTADOS DE TIPOS DE TAREFA ---
+  const [tiposTarefa, setTiposTarefa] = useState([]);
+  const [carregandoTiposTarefa, setCarregandoTiposTarefa] = useState(false);
+  const [novoTipoTarefaNome, setNovoTipoTarefaNome] = useState('');
+  const [salvandoTipoTarefa, setSalvandoTipoTarefa] = useState(false);
+  const [tipoTarefaEditandoId, setTipoTarefaEditandoId] = useState(null);
+  const [nomeTipoTarefaEditando, setNomeTipoTarefaEditando] = useState('');
+  const [processandoTipoTarefa, setProcessandoTipoTarefa] = useState(false);
+
   // --- ESTADOS DE SENHA ---
   const [senhaAtual, setSenhaAtual] = useState('');
   const [novaSenha, setNovaSenha] = useState('');
@@ -119,12 +128,25 @@ export function Configuracoes() {
     }
   }, [API_URL]);
 
+  const carregarTiposTarefa = useCallback(async () => {
+    setCarregandoTiposTarefa(true);
+    try {
+      const res = await axios.get(`${API_URL}/tipos-tarefa`, getHeaders());
+      setTiposTarefa(res.data);
+    } catch (error) {
+      console.error('Erro ao carregar tipos de tarefa', error);
+    } finally {
+      setCarregandoTiposTarefa(false);
+    }
+  }, [API_URL, getHeaders]);
+
   useEffect(() => {
     if (abaAtiva === 'perfil') carregarMeuPerfil();
     if (abaAtiva === 'equipe') carregarEquipe();
     if (abaAtiva === 'setores') carregarCargos();
     if (abaAtiva === 'desconto') carregarFaixasDesconto();
-  }, [abaAtiva, carregarMeuPerfil, carregarEquipe, carregarCargos, carregarFaixasDesconto]);
+    if (abaAtiva === 'tarefas') carregarTiposTarefa();
+  }, [abaAtiva, carregarMeuPerfil, carregarEquipe, carregarCargos, carregarFaixasDesconto, carregarTiposTarefa]);
 
   async function handleCriarFaixa(e) {
     e.preventDefault();
@@ -179,6 +201,57 @@ export function Configuracoes() {
       alert(error.response?.data?.erro || 'Erro ao excluir faixa de desconto.');
     } finally {
       setProcessandoFaixa(false);
+    }
+  }
+
+  async function handleCriarTipoTarefa(e) {
+    e.preventDefault();
+    if (!novoTipoTarefaNome.trim()) return;
+    setSalvandoTipoTarefa(true);
+    try {
+      await axios.post(`${API_URL}/tipos-tarefa`, { nome: novoTipoTarefaNome.trim() }, getHeaders());
+      setNovoTipoTarefaNome('');
+      carregarTiposTarefa();
+    } catch (error) {
+      alert(error.response?.data?.erro || 'Erro ao criar tipo de tarefa.');
+    } finally {
+      setSalvandoTipoTarefa(false);
+    }
+  }
+
+  function iniciarEdicaoTipoTarefa(tipo) {
+    setTipoTarefaEditandoId(tipo.id);
+    setNomeTipoTarefaEditando(tipo.nome);
+  }
+
+  async function salvarEdicaoTipoTarefa(tipo) {
+    const nomeNovo = nomeTipoTarefaEditando.trim();
+    if (!nomeNovo || nomeNovo === tipo.nome) {
+      setTipoTarefaEditandoId(null);
+      return;
+    }
+    setProcessandoTipoTarefa(true);
+    try {
+      await axios.put(`${API_URL}/tipos-tarefa/${tipo.id}`, { nome: nomeNovo }, getHeaders());
+      setTipoTarefaEditandoId(null);
+      carregarTiposTarefa();
+    } catch (error) {
+      alert(error.response?.data?.erro || 'Erro ao renomear tipo de tarefa.');
+    } finally {
+      setProcessandoTipoTarefa(false);
+    }
+  }
+
+  async function excluirTipoTarefa(tipo) {
+    if (!window.confirm(`Excluir o tipo de tarefa "${tipo.nome}"?`)) return;
+    setProcessandoTipoTarefa(true);
+    try {
+      await axios.delete(`${API_URL}/tipos-tarefa/${tipo.id}`, getHeaders());
+      carregarTiposTarefa();
+    } catch (error) {
+      alert(error.response?.data?.erro || 'Erro ao excluir tipo de tarefa.');
+    } finally {
+      setProcessandoTipoTarefa(false);
     }
   }
 
@@ -414,6 +487,11 @@ export function Configuracoes() {
               {perfilUsuario === 'admin' && (
                 <TabButton $active={abaAtiva === 'desconto'} onClick={() => setAbaAtiva('desconto')}>
                   <i className="fa-solid fa-percent"></i> Desconto por Pacote
+                </TabButton>
+              )}
+              {perfilUsuario === 'admin' && (
+                <TabButton $active={abaAtiva === 'tarefas'} onClick={() => setAbaAtiva('tarefas')}>
+                  <i className="fa-solid fa-list-check"></i> Tipos de Tarefa
                 </TabButton>
               )}
             </TabsContainer>
@@ -768,6 +846,88 @@ export function Configuracoes() {
                                   <i className="fa-solid fa-pen" />
                                 </ActionButton>
                                 <ActionButton $isAtivo onClick={() => excluirFaixa(faixa)} title="Excluir" style={{ color: '#dc3545' }} disabled={processandoFaixa}>
+                                  <i className="fa-solid fa-trash-can" />
+                                </ActionButton>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </Table>
+            </TabelaResponsiva>
+          </Panel>
+        )}
+
+        {/* === ABA: TIPOS DE TAREFA === */}
+        {abaAtiva === 'tarefas' && perfilUsuario === 'admin' && (
+          <Panel>
+            <PanelHeader>
+              <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#2c3e50' }}><i className="fa-solid fa-list-check text-blue"></i> Tipos de Tarefa</h3>
+            </PanelHeader>
+            <p style={{ padding: '0 20px', color: '#64748b', fontSize: '0.85rem', marginTop: 0 }}>
+              Opções rápidas ao criar uma tarefa (ex.: "Ligar", "Enviar e-mail"). Quem cria a tarefa também pode escrever um título próprio — isso só define a lista de atalhos.
+            </p>
+            <form onSubmit={handleCriarTipoTarefa} style={{ display: 'flex', gap: 10, padding: '0 20px 16px', flexWrap: 'wrap' }}>
+              <Input
+                type="text"
+                placeholder="Ex: Enviar contrato"
+                value={novoTipoTarefaNome}
+                onChange={(e) => setNovoTipoTarefaNome(e.target.value)}
+                style={{ width: 260 }}
+              />
+              <PrimaryButton type="submit" disabled={salvandoTipoTarefa || !novoTipoTarefaNome.trim()}>
+                <i className="fa-solid fa-plus"></i> Adicionar
+              </PrimaryButton>
+            </form>
+            <TabelaResponsiva>
+              <Table>
+                <thead>
+                  <tr>
+                    <th>Tipo de tarefa</th>
+                    <th style={{ width: '120px', textAlign: 'center' }}>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {carregandoTiposTarefa ? (
+                    <tr><td colSpan="2" className="text-center text-muted"><i className="fa-solid fa-spinner fa-spin"></i> Carregando...</td></tr>
+                  ) : tiposTarefa.length === 0 ? (
+                    <tr><td colSpan="2" className="text-center text-muted">Nenhum tipo cadastrado — o campo de tarefa fica só com texto livre.</td></tr>
+                  ) : (
+                    tiposTarefa.map((tipo) => (
+                      <tr key={tipo.id}>
+                        <td data-label="Tipo de tarefa">
+                          {tipoTarefaEditandoId === tipo.id ? (
+                            <Input
+                              type="text"
+                              autoFocus
+                              value={nomeTipoTarefaEditando}
+                              onChange={(e) => setNomeTipoTarefaEditando(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === 'Enter') salvarEdicaoTipoTarefa(tipo); if (e.key === 'Escape') setTipoTarefaEditandoId(null); }}
+                            />
+                          ) : (
+                            <strong>{tipo.nome}</strong>
+                          )}
+                        </td>
+                        <td data-label="Ações" style={{ textAlign: 'center' }} className="actions-cell">
+                          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                            {tipoTarefaEditandoId === tipo.id ? (
+                              <>
+                                <ActionButton $isAtivo onClick={() => salvarEdicaoTipoTarefa(tipo)} disabled={processandoTipoTarefa} title="Salvar" style={{ color: '#28a745' }}>
+                                  <i className="fa-solid fa-check" />
+                                </ActionButton>
+                                <ActionButton $isAtivo onClick={() => setTipoTarefaEditandoId(null)} title="Cancelar" style={{ color: '#64748b' }}>
+                                  <i className="fa-solid fa-xmark" />
+                                </ActionButton>
+                              </>
+                            ) : (
+                              <>
+                                <ActionButton $isAtivo onClick={() => iniciarEdicaoTipoTarefa(tipo)} title="Editar" style={{ color: '#007bff' }}>
+                                  <i className="fa-solid fa-pen" />
+                                </ActionButton>
+                                <ActionButton $isAtivo onClick={() => excluirTipoTarefa(tipo)} title="Excluir" style={{ color: '#dc3545' }} disabled={processandoTipoTarefa}>
                                   <i className="fa-solid fa-trash-can" />
                                 </ActionButton>
                               </>
