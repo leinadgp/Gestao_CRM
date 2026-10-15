@@ -277,6 +277,7 @@ export function flattenExportInscritosDashboard(items, parseJsonExterno) {
       contato_nome:    ins.contato_nome || '',
       prefeitura:      ins.empresa_nome || '',
       curso:           ins.curso_nome || '',
+      vendedor:        ins.vendedor_nome || '',
       qtd_inscritos:   qtd,
       data_inscricao:  ins.data_inscricao || '',
       origem:          ins.origem_lead || ins.origem_venda || '',
