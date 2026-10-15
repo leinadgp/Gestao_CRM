@@ -71,6 +71,8 @@ export function Funil() {
   const [abaDiagnostico, setAbaDiagnostico] = useState('criadas');
   const [buscaDiagnostico, setBuscaDiagnostico] = useState('');
   const [estadoDiagnostico, setEstadoDiagnostico] = useState('');
+  const [contatosCongelados, setContatosCongelados] = useState([]);
+  const [carregandoCongelados, setCarregandoCongelados] = useState(false);
   const [buscaGeral, setBuscaGeral] = useState('');
   const [mostrarSugestoesBusca, setMostrarSugestoesBusca] = useState(false);
   const [ultimasBuscasGeral, setUltimasBuscasGeral] = useState(() => {
@@ -484,6 +486,18 @@ export function Funil() {
     }
   }
 
+  async function carregarContatosCongelados() {
+    setCarregandoCongelados(true);
+    try {
+      const res = await axios.get(`${API_URL}/contatos/congelados`, getHeaders());
+      setContatosCongelados(res.data);
+    } catch {
+      alert('Erro ao carregar contatos congelados.');
+    } finally {
+      setCarregandoCongelados(false);
+    }
+  }
+
   function motivoDiagnostico(row) {
     if (row.total_contatos === 0) return 'Sem contatos cadastrados';
     if (row.contatos_com_cargo === 0) return 'Sem contato com cargo alvo';
@@ -492,6 +506,17 @@ export function Funil() {
   }
 
   function exportarDiagnosticoCsv() {
+    if (abaDiagnostico === 'congelados') {
+      if (!contatosCongelados.length) return alert('Nenhum dado para exportar.');
+      exportarLinhasComoCsv(contatosCongelados.map(c => ({
+        contato: c.nome,
+        empresa: c.empresa_nome,
+        estado: c.estado,
+        descongela_em: formatarData(c.congelado_ate),
+        dias_restantes: calcularDiasRestantes(c.congelado_ate),
+      })), 'contatos_congelados');
+      return;
+    }
     const aba = abaDiagnostico === 'criadas' ? diagnostico.com_negociacao : diagnostico.sem_negociacao;
     if (!aba.length) return alert('Nenhum dado para exportar.');
     if (abaDiagnostico === 'criadas') {
@@ -1588,7 +1613,7 @@ export function Funil() {
           )}
 
           {filtroCampanha && (
-            <DiagnosticoBtn onClick={() => { setMostrarModalDiagnostico(true); carregarDiagnostico(); }}>
+            <DiagnosticoBtn onClick={() => { setMostrarModalDiagnostico(true); carregarDiagnostico(); carregarContatosCongelados(); }}>
               <i className="fa-solid fa-chart-pie"></i> Diagnóstico
             </DiagnosticoBtn>
           )}
@@ -1913,26 +1938,69 @@ export function Funil() {
                 <DiagTab $active={abaDiagnostico === 'nao_criadas'} onClick={() => setAbaDiagnostico('nao_criadas')}>
                   <i className="fa-solid fa-circle-xmark"></i> Não Criadas ({diagnostico.sem_negociacao.length})
                 </DiagTab>
+                <DiagTab $active={abaDiagnostico === 'congelados'} onClick={() => setAbaDiagnostico('congelados')}>
+                  <i className="fa-solid fa-snowflake"></i> Congelados ({contatosCongelados.length})
+                </DiagTab>
               </div>
 
               {/* Filtros */}
-              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                <DiagInput
-                  type="text"
-                  placeholder="Buscar por nome..."
-                  value={buscaDiagnostico}
-                  onChange={e => setBuscaDiagnostico(e.target.value)}
-                />
-                <DiagSelect
-                  value={estadoDiagnostico}
-                  onChange={e => { setEstadoDiagnostico(e.target.value); carregarDiagnostico(e.target.value); }}
-                >
-                  <option value="">Todos os estados</option>
-                  {UFS_BRASIL.map(uf => <option key={uf} value={uf}>{uf}</option>)}
-                </DiagSelect>
-              </div>
+              {abaDiagnostico !== 'congelados' && (
+                <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                  <DiagInput
+                    type="text"
+                    placeholder="Buscar por nome..."
+                    value={buscaDiagnostico}
+                    onChange={e => setBuscaDiagnostico(e.target.value)}
+                  />
+                  <DiagSelect
+                    value={estadoDiagnostico}
+                    onChange={e => { setEstadoDiagnostico(e.target.value); carregarDiagnostico(e.target.value); }}
+                  >
+                    <option value="">Todos os estados</option>
+                    {UFS_BRASIL.map(uf => <option key={uf} value={uf}>{uf}</option>)}
+                  </DiagSelect>
+                </div>
+              )}
 
-              {carregandoDiagnostico ? (
+              {abaDiagnostico === 'congelados' ? (
+                carregandoCongelados ? (
+                  <div style={{ textAlign: 'center', padding: 40, color: '#666' }}>
+                    <i className="fa-solid fa-spinner fa-spin"></i> Carregando...
+                  </div>
+                ) : !contatosCongelados.length ? (
+                  <div style={{ textAlign: 'center', padding: 30, color: '#999' }}>
+                    Nenhum contato congelado no momento.
+                  </div>
+                ) : (
+                  <DiagTabela>
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Contato</th>
+                        <th>Órgão</th>
+                        <th>UF</th>
+                        <th>Descongela em</th>
+                        <th>Faltam</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {contatosCongelados.map((c, i) => {
+                        const dias = calcularDiasRestantes(c.congelado_ate);
+                        return (
+                          <tr key={c.id}>
+                            <td style={{ color: '#999', fontSize: '0.78rem' }}>{i + 1}</td>
+                            <td><strong>{c.nome}</strong></td>
+                            <td>{c.empresa_nome || '—'}</td>
+                            <td><span style={{ background: '#e2e8f0', borderRadius: 4, padding: '2px 6px', fontSize: '0.78rem', fontWeight: 600 }}>{c.estado || '—'}</span></td>
+                            <td style={{ fontSize: '0.82rem', color: '#555' }}>{formatarData(c.congelado_ate)}</td>
+                            <td style={{ fontSize: '0.82rem', color: '#1e3a8a', fontWeight: 600 }}>{dias} dia{dias === 1 ? '' : 's'}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </DiagTabela>
+                )
+              ) : carregandoDiagnostico ? (
                 <div style={{ textAlign: 'center', padding: 40, color: '#666' }}>
                   <i className="fa-solid fa-spinner fa-spin"></i> Carregando...
                 </div>
@@ -2002,7 +2070,9 @@ export function Funil() {
               <span style={{ fontSize: '0.82rem', color: '#888' }}>
                 {abaDiagnostico === 'criadas'
                   ? `${diagnostico.com_negociacao.length} negociações criadas`
-                  : `${diagnostico.sem_negociacao.length} empresas sem negociação`}
+                  : abaDiagnostico === 'nao_criadas'
+                    ? `${diagnostico.sem_negociacao.length} empresas sem negociação`
+                    : `${contatosCongelados.length} contato(s) congelado(s)`}
               </span>
               <button
                 type="button"
@@ -2195,22 +2265,17 @@ export function Funil() {
                         <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>Selecione a prefeitura para listar os contatos.</p>
                       ) : (
                         <>
-                          {contatosDisponiveisDaEmpresa.length === 0 ? (
-                            <>
-                              <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 8px' }}>
-                                Nenhum contato disponível nesta prefeitura para vincular — todos os contatos estão congelados ou indisponíveis.
-                              </p>
-                              {contatosDaEmpresa.length > 0 && (
-                                <p style={{ fontSize: '0.8rem', color: '#475569', margin: '0' }}>
-                                  {contatosDaEmpresa.length} contato(s) cadastrado(s), mas nenhum está disponível no momento.
-                                </p>
-                              )}
-                            </>
+                          {contatosDaEmpresa.length === 0 ? (
+                            <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 8px' }}>
+                              Nenhum contato cadastrado nesta prefeitura.
+                            </p>
                           ) : (
                             <ContatosNegociacaoLista>
-                              {contatosDisponiveisDaEmpresa.map((cont) => {
+                              {contatosDaEmpresa.map((cont) => {
                                 const vinculado = contatosVinculadosIds.includes(cont.id);
                                 const isPrincipal = Number(contatoId) === cont.id;
+                                const diasRestantesCongelamento = cont.congelado_ate ? calcularDiasRestantes(cont.congelado_ate) : null;
+                                const estaCongelado = diasRestantesCongelamento !== null && diasRestantesCongelamento > 0;
                                 const contatoNumeroPrincipal = cont.whatsapp_pessoal
                                   ? cont.whatsapp_pessoal
                                   : (cont.telefones_json && cont.telefones_json.length ? cont.telefones_json[0] : '');
@@ -2244,6 +2309,11 @@ export function Funil() {
                                       )}
                                       {isPrincipal && vinculado && (
                                         <span className="badge-principal"><i className="fa-solid fa-star" /> Principal</span>
+                                      )}
+                                      {estaCongelado && (
+                                        <span className="badge-congelado" title={`Congelado até ${formatarData(cont.congelado_ate)}`}>
+                                          <i className="fa-solid fa-snowflake" /> Congelado até {formatarData(cont.congelado_ate)} (faltam {diasRestantesCongelamento} dia{diasRestantesCongelamento === 1 ? '' : 's'})
+                                        </span>
                                       )}
                                       {cont.observacoes && (
                                         <small style={{ display: 'block', marginTop: 4, padding: '4px 8px', background: '#fffbeb', color: '#92400e', borderRadius: 6, whiteSpace: 'pre-wrap' }}>
@@ -3799,6 +3869,20 @@ const ContatoNegociacaoRow = styled.div`
     font-weight: 700;
     color: #b45309;
     margin-top: 2px;
+  }
+  .badge-congelado {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #1e3a8a;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 6px;
+    padding: 2px 6px;
+    margin-top: 4px;
+    white-space: normal;
   }
 `;
 
