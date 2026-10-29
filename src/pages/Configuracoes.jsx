@@ -38,10 +38,15 @@ export function Configuracoes() {
   // --- ESTADOS DE SETORES / CARGOS ---
   const [cargosLista, setCargosLista] = useState([]);
   const [carregandoCargos, setCarregandoCargos] = useState(false);
-  const [faixasDesconto, setFaixasDesconto] = useState([]);
-  const [carregandoFaixas, setCarregandoFaixas] = useState(false);
-  const [novaQtdMinima, setNovaQtdMinima] = useState('');
-  const [novoPercentualFaixa, setNovoPercentualFaixa] = useState('');
+  const [regrasDesconto, setRegrasDesconto] = useState([]);
+  const [carregandoRegras, setCarregandoRegras] = useState(false);
+  const [novaRegraNome, setNovaRegraNome] = useState('');
+  const [salvandoRegra, setSalvandoRegra] = useState(false);
+  const [regraEditandoId, setRegraEditandoId] = useState(null);
+  const [nomeRegraEditando, setNomeRegraEditando] = useState('');
+  const [processandoRegra, setProcessandoRegra] = useState(false);
+  // Formulário de "nova faixa" separado por regra: { [regraId]: { qtd, pct } }
+  const [novaFaixaPorRegra, setNovaFaixaPorRegra] = useState({});
   const [salvandoFaixa, setSalvandoFaixa] = useState(false);
   const [faixaEditandoId, setFaixaEditandoId] = useState(null);
   const [qtdMinimaEditando, setQtdMinimaEditando] = useState('');
@@ -116,17 +121,17 @@ export function Configuracoes() {
     }
   }, [API_URL, getHeaders]);
 
-  const carregarFaixasDesconto = useCallback(async () => {
-    setCarregandoFaixas(true);
+  const carregarRegrasDesconto = useCallback(async () => {
+    setCarregandoRegras(true);
     try {
-      const res = await axios.get(`${API_URL}/faixas-desconto`);
-      setFaixasDesconto(res.data);
+      const res = await axios.get(`${API_URL}/regras-desconto`, getHeaders());
+      setRegrasDesconto(res.data);
     } catch (error) {
-      console.error('Erro ao carregar faixas de desconto', error);
+      console.error('Erro ao carregar regras de desconto', error);
     } finally {
-      setCarregandoFaixas(false);
+      setCarregandoRegras(false);
     }
-  }, [API_URL]);
+  }, [API_URL, getHeaders]);
 
   const carregarTiposTarefa = useCallback(async () => {
     setCarregandoTiposTarefa(true);
@@ -144,21 +149,79 @@ export function Configuracoes() {
     if (abaAtiva === 'perfil') carregarMeuPerfil();
     if (abaAtiva === 'equipe') carregarEquipe();
     if (abaAtiva === 'setores') carregarCargos();
-    if (abaAtiva === 'desconto') carregarFaixasDesconto();
+    if (abaAtiva === 'desconto') carregarRegrasDesconto();
     if (abaAtiva === 'tarefas') carregarTiposTarefa();
-  }, [abaAtiva, carregarMeuPerfil, carregarEquipe, carregarCargos, carregarFaixasDesconto, carregarTiposTarefa]);
+  }, [abaAtiva, carregarMeuPerfil, carregarEquipe, carregarCargos, carregarRegrasDesconto, carregarTiposTarefa]);
 
-  async function handleCriarFaixa(e) {
+  async function handleCriarRegra(e) {
     e.preventDefault();
-    const qtd = parseInt(novaQtdMinima, 10);
-    const pct = parseFloat(novoPercentualFaixa);
+    if (!novaRegraNome.trim()) return;
+    setSalvandoRegra(true);
+    try {
+      await axios.post(`${API_URL}/regras-desconto`, { nome: novaRegraNome.trim() }, getHeaders());
+      setNovaRegraNome('');
+      carregarRegrasDesconto();
+    } catch (error) {
+      alert(error.response?.data?.erro || 'Erro ao criar regra de desconto.');
+    } finally {
+      setSalvandoRegra(false);
+    }
+  }
+
+  function iniciarEdicaoRegra(regra) {
+    setRegraEditandoId(regra.id);
+    setNomeRegraEditando(regra.nome);
+  }
+
+  async function salvarEdicaoRegra(regra) {
+    const nome = nomeRegraEditando.trim();
+    if (!nome || nome === regra.nome) {
+      setRegraEditandoId(null);
+      return;
+    }
+    setProcessandoRegra(true);
+    try {
+      await axios.put(`${API_URL}/regras-desconto/${regra.id}`, { nome }, getHeaders());
+      setRegraEditandoId(null);
+      carregarRegrasDesconto();
+    } catch (error) {
+      alert(error.response?.data?.erro || 'Erro ao renomear regra de desconto.');
+    } finally {
+      setProcessandoRegra(false);
+    }
+  }
+
+  async function excluirRegra(regra) {
+    const aviso = regra.qtd_landing_pages > 0
+      ? `A regra "${regra.nome}" está em uso em ${regra.qtd_landing_pages} landing page(s), que vão ficar sem desconto por pacote. Excluir mesmo assim?`
+      : `Excluir a regra "${regra.nome}" e todas as faixas dela?`;
+    if (!window.confirm(aviso)) return;
+    setProcessandoRegra(true);
+    try {
+      await axios.delete(`${API_URL}/regras-desconto/${regra.id}`, getHeaders());
+      carregarRegrasDesconto();
+    } catch (error) {
+      alert(error.response?.data?.erro || 'Erro ao excluir regra de desconto.');
+    } finally {
+      setProcessandoRegra(false);
+    }
+  }
+
+  function atualizarNovaFaixa(regraId, campo, valor) {
+    setNovaFaixaPorRegra((prev) => ({ ...prev, [regraId]: { ...prev[regraId], [campo]: valor } }));
+  }
+
+  async function handleCriarFaixa(e, regraId) {
+    e.preventDefault();
+    const nova = novaFaixaPorRegra[regraId] || {};
+    const qtd = parseInt(nova.qtd, 10);
+    const pct = parseFloat(nova.pct);
     if (!Number.isInteger(qtd) || qtd < 1 || !Number.isFinite(pct)) return;
     setSalvandoFaixa(true);
     try {
-      await axios.post(`${API_URL}/faixas-desconto`, { qtd_minima_campanhas: qtd, percentual: pct }, getHeaders());
-      setNovaQtdMinima('');
-      setNovoPercentualFaixa('');
-      carregarFaixasDesconto();
+      await axios.post(`${API_URL}/regras-desconto/${regraId}/faixas`, { qtd_minima_campanhas: qtd, percentual: pct }, getHeaders());
+      setNovaFaixaPorRegra((prev) => ({ ...prev, [regraId]: { qtd: '', pct: '' } }));
+      carregarRegrasDesconto();
     } catch (error) {
       alert(error.response?.data?.erro || 'Erro ao criar faixa de desconto.');
     } finally {
@@ -183,7 +246,7 @@ export function Configuracoes() {
     try {
       await axios.put(`${API_URL}/faixas-desconto/${faixa.id}`, { qtd_minima_campanhas: qtd, percentual: pct }, getHeaders());
       setFaixaEditandoId(null);
-      carregarFaixasDesconto();
+      carregarRegrasDesconto();
     } catch (error) {
       alert(error.response?.data?.erro || 'Erro ao editar faixa de desconto.');
     } finally {
@@ -196,7 +259,7 @@ export function Configuracoes() {
     setProcessandoFaixa(true);
     try {
       await axios.delete(`${API_URL}/faixas-desconto/${faixa.id}`, getHeaders());
-      carregarFaixasDesconto();
+      carregarRegrasDesconto();
     } catch (error) {
       alert(error.response?.data?.erro || 'Erro ao excluir faixa de desconto.');
     } finally {
@@ -751,114 +814,181 @@ export function Configuracoes() {
         )}
 
         {abaAtiva === 'desconto' && perfilUsuario === 'admin' && (
-          <Panel>
-            <PanelHeader>
-              <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#2c3e50' }}><i className="fa-solid fa-percent text-blue"></i> Desconto por Pacote</h3>
-            </PanelHeader>
-            <p style={{ padding: '0 20px', color: '#64748b', fontSize: '0.85rem', marginTop: 0 }}>
-              Desconto automático quando um visitante (ou grupo) de uma landing page com várias campanhas escolhe mais de uma. Vale pra empresa toda.
-            </p>
-            <form onSubmit={handleCriarFaixa} style={{ display: 'flex', gap: 10, padding: '0 20px 16px', flexWrap: 'wrap' }}>
-              <Input
-                type="number"
-                min="1"
-                step="1"
-                placeholder="A partir de quantas campanhas"
-                value={novaQtdMinima}
-                onChange={(e) => setNovaQtdMinima(e.target.value)}
-                style={{ width: 220 }}
-              />
-              <Input
-                type="number"
-                min="0"
-                max="100"
-                step="0.01"
-                placeholder="% de desconto"
-                value={novoPercentualFaixa}
-                onChange={(e) => setNovoPercentualFaixa(e.target.value)}
-                style={{ width: 160 }}
-              />
-              <PrimaryButton type="submit" disabled={salvandoFaixa || !novaQtdMinima || !novoPercentualFaixa}>
-                <i className="fa-solid fa-plus"></i> Adicionar
-              </PrimaryButton>
-            </form>
-            <TabelaResponsiva>
-              <Table>
-                <thead>
-                  <tr>
-                    <th>A partir de quantas campanhas</th>
-                    <th style={{ width: '160px', textAlign: 'center' }}>Desconto</th>
-                    <th style={{ width: '120px', textAlign: 'center' }}>Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {carregandoFaixas ? (
-                    <tr><td colSpan="3" className="text-center text-muted"><i className="fa-solid fa-spinner fa-spin"></i> Carregando...</td></tr>
-                  ) : faixasDesconto.length === 0 ? (
-                    <tr><td colSpan="3" className="text-center text-muted">Nenhuma faixa cadastrada — desconto por pacote fica em 0%.</td></tr>
-                  ) : (
-                    faixasDesconto.map((faixa) => (
-                      <tr key={faixa.id}>
-                        <td data-label="A partir de quantas campanhas">
-                          {faixaEditandoId === faixa.id ? (
-                            <Input
-                              type="number"
-                              min="1"
-                              step="1"
-                              autoFocus
-                              value={qtdMinimaEditando}
-                              onChange={(e) => setQtdMinimaEditando(e.target.value)}
-                              onKeyDown={(e) => { if (e.key === 'Enter') salvarEdicaoFaixa(faixa); if (e.key === 'Escape') setFaixaEditandoId(null); }}
-                            />
-                          ) : (
-                            <strong>{faixa.qtd_minima_campanhas}+ campanhas</strong>
-                          )}
-                        </td>
-                        <td data-label="Desconto" style={{ textAlign: 'center' }}>
-                          {faixaEditandoId === faixa.id ? (
-                            <Input
-                              type="number"
-                              min="0"
-                              max="100"
-                              step="0.01"
-                              value={percentualEditando}
-                              onChange={(e) => setPercentualEditando(e.target.value)}
-                              onKeyDown={(e) => { if (e.key === 'Enter') salvarEdicaoFaixa(faixa); if (e.key === 'Escape') setFaixaEditandoId(null); }}
-                            />
-                          ) : (
-                            <Badge className="badge-admin">{Number(faixa.percentual)}%</Badge>
-                          )}
-                        </td>
-                        <td data-label="Ações" style={{ textAlign: 'center' }} className="actions-cell">
-                          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                            {faixaEditandoId === faixa.id ? (
-                              <>
-                                <ActionButton $isAtivo onClick={() => salvarEdicaoFaixa(faixa)} disabled={processandoFaixa} title="Salvar" style={{ color: '#28a745' }}>
-                                  <i className="fa-solid fa-check" />
-                                </ActionButton>
-                                <ActionButton $isAtivo onClick={() => setFaixaEditandoId(null)} title="Cancelar" style={{ color: '#64748b' }}>
-                                  <i className="fa-solid fa-xmark" />
-                                </ActionButton>
-                              </>
-                            ) : (
-                              <>
-                                <ActionButton $isAtivo onClick={() => iniciarEdicaoFaixa(faixa)} title="Editar" style={{ color: '#007bff' }}>
-                                  <i className="fa-solid fa-pen" />
-                                </ActionButton>
-                                <ActionButton $isAtivo onClick={() => excluirFaixa(faixa)} title="Excluir" style={{ color: '#dc3545' }} disabled={processandoFaixa}>
-                                  <i className="fa-solid fa-trash-can" />
-                                </ActionButton>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+          <>
+            <Panel>
+              <PanelHeader>
+                <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#2c3e50' }}><i className="fa-solid fa-percent text-blue"></i> Desconto por Pacote</h3>
+                <form onSubmit={handleCriarRegra} style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <Input
+                    type="text"
+                    maxLength={100}
+                    placeholder="Nome da nova regra (ex.: Promo Outubro)"
+                    value={novaRegraNome}
+                    onChange={(e) => setNovaRegraNome(e.target.value)}
+                    style={{ width: 280 }}
+                  />
+                  <PrimaryButton type="submit" disabled={salvandoRegra || !novaRegraNome.trim()}>
+                    <i className="fa-solid fa-plus"></i> Nova regra
+                  </PrimaryButton>
+                </form>
+              </PanelHeader>
+              <p style={{ padding: '16px 20px', color: '#64748b', fontSize: '0.85rem', margin: 0 }}>
+                Cada regra é um conjunto de faixas: quanto mais campanhas o visitante (ou grupo) escolhe numa landing page com várias campanhas, maior o desconto.
+                Nas configurações de cada landing page você escolhe qual regra vale — ou nenhuma.
+              </p>
+              {carregandoRegras && regrasDesconto.length === 0 && (
+                <p className="text-center text-muted" style={{ padding: '0 20px 16px', margin: 0 }}><i className="fa-solid fa-spinner fa-spin"></i> Carregando...</p>
+              )}
+              {!carregandoRegras && regrasDesconto.length === 0 && (
+                <p className="text-center text-muted" style={{ padding: '0 20px 16px', margin: 0 }}>Nenhuma regra cadastrada — as landing pages ficam sem desconto por pacote.</p>
+              )}
+            </Panel>
+
+            {regrasDesconto.map((regra) => (
+              <Panel key={regra.id}>
+                <PanelHeader>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    {regraEditandoId === regra.id ? (
+                      <>
+                        <Input
+                          type="text"
+                          maxLength={100}
+                          autoFocus
+                          value={nomeRegraEditando}
+                          onChange={(e) => setNomeRegraEditando(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') salvarEdicaoRegra(regra); if (e.key === 'Escape') setRegraEditandoId(null); }}
+                          style={{ width: 260 }}
+                        />
+                        <ActionButton $isAtivo onClick={() => salvarEdicaoRegra(regra)} disabled={processandoRegra} title="Salvar" style={{ color: '#28a745' }}>
+                          <i className="fa-solid fa-check" />
+                        </ActionButton>
+                        <ActionButton $isAtivo onClick={() => setRegraEditandoId(null)} title="Cancelar" style={{ color: '#64748b' }}>
+                          <i className="fa-solid fa-xmark" />
+                        </ActionButton>
+                      </>
+                    ) : (
+                      <h4 style={{ margin: 0, fontSize: '1rem', color: '#2c3e50' }}>
+                        <i className="fa-solid fa-tags" style={{ color: '#94a3b8', marginRight: 6 }}></i>{regra.nome}
+                      </h4>
+                    )}
+                    <span style={{ color: '#64748b', fontSize: '0.8rem' }}>
+                      {regra.qtd_landing_pages > 0
+                        ? `Em uso em ${regra.qtd_landing_pages} landing page${regra.qtd_landing_pages > 1 ? 's' : ''}`
+                        : 'Nenhuma landing page usando'}
+                    </span>
+                  </div>
+                  {regraEditandoId !== regra.id && (
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <ActionButton $isAtivo onClick={() => iniciarEdicaoRegra(regra)} title="Renomear regra" style={{ color: '#007bff' }}>
+                        <i className="fa-solid fa-pen" />
+                      </ActionButton>
+                      <ActionButton $isAtivo onClick={() => excluirRegra(regra)} title="Excluir regra" style={{ color: '#dc3545' }} disabled={processandoRegra}>
+                        <i className="fa-solid fa-trash-can" />
+                      </ActionButton>
+                    </div>
                   )}
-                </tbody>
-              </Table>
-            </TabelaResponsiva>
-          </Panel>
+                </PanelHeader>
+                <form onSubmit={(e) => handleCriarFaixa(e, regra.id)} style={{ display: 'flex', gap: 10, padding: '16px 20px', flexWrap: 'wrap' }}>
+                  <Input
+                    type="number"
+                    min="1"
+                    step="1"
+                    placeholder="A partir de quantas campanhas"
+                    value={novaFaixaPorRegra[regra.id]?.qtd || ''}
+                    onChange={(e) => atualizarNovaFaixa(regra.id, 'qtd', e.target.value)}
+                    style={{ width: 220 }}
+                  />
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    placeholder="% de desconto"
+                    value={novaFaixaPorRegra[regra.id]?.pct || ''}
+                    onChange={(e) => atualizarNovaFaixa(regra.id, 'pct', e.target.value)}
+                    style={{ width: 160 }}
+                  />
+                  <PrimaryButton type="submit" disabled={salvandoFaixa || !novaFaixaPorRegra[regra.id]?.qtd || !novaFaixaPorRegra[regra.id]?.pct}>
+                    <i className="fa-solid fa-plus"></i> Adicionar faixa
+                  </PrimaryButton>
+                </form>
+                <TabelaResponsiva>
+                  <Table>
+                    <thead>
+                      <tr>
+                        <th>A partir de quantas campanhas</th>
+                        <th style={{ width: '160px', textAlign: 'center' }}>Desconto</th>
+                        <th style={{ width: '120px', textAlign: 'center' }}>Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {regra.faixas.length === 0 ? (
+                        <tr><td colSpan="3" className="text-center text-muted">Nenhuma faixa nesta regra — quem usar ela fica com 0% de desconto.</td></tr>
+                      ) : (
+                        regra.faixas.map((faixa) => (
+                          <tr key={faixa.id}>
+                            <td data-label="A partir de quantas campanhas">
+                              {faixaEditandoId === faixa.id ? (
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  step="1"
+                                  autoFocus
+                                  value={qtdMinimaEditando}
+                                  onChange={(e) => setQtdMinimaEditando(e.target.value)}
+                                  onKeyDown={(e) => { if (e.key === 'Enter') salvarEdicaoFaixa(faixa); if (e.key === 'Escape') setFaixaEditandoId(null); }}
+                                />
+                              ) : (
+                                <strong>{faixa.qtd_minima_campanhas}+ campanhas</strong>
+                              )}
+                            </td>
+                            <td data-label="Desconto" style={{ textAlign: 'center' }}>
+                              {faixaEditandoId === faixa.id ? (
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  step="0.01"
+                                  value={percentualEditando}
+                                  onChange={(e) => setPercentualEditando(e.target.value)}
+                                  onKeyDown={(e) => { if (e.key === 'Enter') salvarEdicaoFaixa(faixa); if (e.key === 'Escape') setFaixaEditandoId(null); }}
+                                />
+                              ) : (
+                                <Badge className="badge-admin">{Number(faixa.percentual)}%</Badge>
+                              )}
+                            </td>
+                            <td data-label="Ações" style={{ textAlign: 'center' }} className="actions-cell">
+                              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                                {faixaEditandoId === faixa.id ? (
+                                  <>
+                                    <ActionButton $isAtivo onClick={() => salvarEdicaoFaixa(faixa)} disabled={processandoFaixa} title="Salvar" style={{ color: '#28a745' }}>
+                                      <i className="fa-solid fa-check" />
+                                    </ActionButton>
+                                    <ActionButton $isAtivo onClick={() => setFaixaEditandoId(null)} title="Cancelar" style={{ color: '#64748b' }}>
+                                      <i className="fa-solid fa-xmark" />
+                                    </ActionButton>
+                                  </>
+                                ) : (
+                                  <>
+                                    <ActionButton $isAtivo onClick={() => iniciarEdicaoFaixa(faixa)} title="Editar" style={{ color: '#007bff' }}>
+                                      <i className="fa-solid fa-pen" />
+                                    </ActionButton>
+                                    <ActionButton $isAtivo onClick={() => excluirFaixa(faixa)} title="Excluir" style={{ color: '#dc3545' }} disabled={processandoFaixa}>
+                                      <i className="fa-solid fa-trash-can" />
+                                    </ActionButton>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </Table>
+                </TabelaResponsiva>
+              </Panel>
+            ))}
+          </>
         )}
 
         {/* === ABA: TIPOS DE TAREFA === */}

@@ -25,9 +25,11 @@ export function LandingPages() {
   const [paginas, setPaginas] = useState([]);
   const [campanhas, setCampanhas] = useState([]);
   const [campanhasIds, setCampanhasIds] = useState([]);
-  const [faixasDesconto, setFaixasDesconto] = useState([]);
+  const [regrasDesconto, setRegrasDesconto] = useState([]);
   const [dropdownCampanhasAberto, setDropdownCampanhasAberto] = useState(false);
   const [modoDesconto, setModoDesconto] = useState('por_pessoa');
+  // '' = nenhuma regra (página sem desconto por pacote)
+  const [regraDescontoId, setRegraDescontoId] = useState('');
   const chipInputRef = useRef(null);
   const [carregando, setCarregando] = useState(true);
   const [buscaGeral, setBuscaGeral] = useState('');
@@ -481,10 +483,10 @@ export function LandingPages() {
   }, [carregarDados]);
 
   useEffect(() => {
-    axios.get(`${API_URL}/faixas-desconto`)
-      .then((res) => setFaixasDesconto(res.data))
-      .catch(() => setFaixasDesconto([]));
-  }, [API_URL]);
+    axios.get(`${API_URL}/regras-desconto`, getHeaders())
+      .then((res) => setRegrasDesconto(res.data))
+      .catch(() => setRegrasDesconto([]));
+  }, [API_URL, getHeaders]);
 
   function fecharMenu() { setMenuAbertoId(null); setMenuPos(null); }
 
@@ -1369,7 +1371,7 @@ export function LandingPages() {
   }
 
   function abrirModalNovo() {
-    setEditandoId(null); setNome(''); setSlug(''); setStatusLP('rascunho'); setCampanhaId(''); setCampanhasIds([]); setModoDesconto('por_pessoa'); setHtmlInicial(''); setCssInicial(''); setExtraHtmlHead(''); setExtraBodyScripts(''); setHtmlAttributes(''); setBodyAttributes(''); setImportErro(''); setMostrarConfigModal(false); setMostrarModal(true);
+    setEditandoId(null); setNome(''); setSlug(''); setStatusLP('rascunho'); setCampanhaId(''); setCampanhasIds([]); setModoDesconto('por_pessoa'); setRegraDescontoId(''); setHtmlInicial(''); setCssInicial(''); setExtraHtmlHead(''); setExtraBodyScripts(''); setHtmlAttributes(''); setBodyAttributes(''); setImportErro(''); setMostrarConfigModal(false); setMostrarModal(true);
   }
 
   function selecionarArquivoLovable() {
@@ -1422,6 +1424,7 @@ export function LandingPages() {
         setCampanhaId('');
         setCampanhasIds([]);
         setModoDesconto('por_pessoa');
+        setRegraDescontoId('');
         setEditandoId(null);
         setImportErro('');
         setMostrarConfigModal(false);
@@ -1457,6 +1460,7 @@ export function LandingPages() {
         : (lpCompleta.campanha_id ? [Number(lpCompleta.campanha_id)] : []);
       setCampanhasIds(Array.isArray(cIds) ? cIds.map(Number) : []);
       setModoDesconto(lpCompleta.modo_desconto === 'por_organizacao' ? 'por_organizacao' : 'por_pessoa');
+      setRegraDescontoId(lpCompleta.regra_desconto_id ? String(lpCompleta.regra_desconto_id) : '');
       const htmlParaEditar = lpCompleta.html_rascunho || lpCompleta.html_content || '';
       const cssParaEditar = lpCompleta.css_rascunho || lpCompleta.css_content || '';
       const parsed = extractHtmlAssets(htmlParaEditar);
@@ -1491,6 +1495,7 @@ export function LandingPages() {
       campanha_id: campanhasIds.length > 0 ? (campanhasIds.includes(Number(campanhaId)) ? Number(campanhaId) : campanhasIds[0]) : null,
       campanhas_ids: campanhasIds.length > 1 ? campanhasIds : null,
       modo_desconto: modoDesconto,
+      regra_desconto_id: regraDescontoId ? Number(regraDescontoId) : null,
       html_content: htmlComExtras,
       css_content: cssGerado,
     };
@@ -1566,6 +1571,8 @@ export function LandingPages() {
           status: 'rascunho',
           campanha_id: lpCompleta.campanha_id || null,
           campanhas_ids: lpCompleta.campanhas_ids || null,
+          modo_desconto: lpCompleta.modo_desconto,
+          regra_desconto_id: lpCompleta.regra_desconto_id || null,
           html_content: lpCompleta.html_content || '',
           css_content: lpCompleta.css_content || ''
         };
@@ -1791,7 +1798,8 @@ export function LandingPages() {
                   <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     Campanhas do Formulário
                     {(() => {
-                      const descontoAtual = resolverDescontoPacote(campanhasIds.length, faixasDesconto);
+                      const regraAtual = regrasDesconto.find((r) => String(r.id) === regraDescontoId);
+                      const descontoAtual = resolverDescontoPacote(campanhasIds.length, regraAtual?.faixas);
                       return campanhasIds.length >= 2 && descontoAtual > 0 && (
                         <DescontoBadge>
                           <i className="fa-solid fa-tag"></i>
@@ -1872,6 +1880,21 @@ export function LandingPages() {
                 )}
 
                 {campanhasIds.length > 1 && (
+                  <FormGroupInline style={{ flex: '1 1 200px' }}>
+                    <label>Regra de desconto do pacote</label>
+                    <Select value={regraDescontoId} onChange={(e) => setRegraDescontoId(e.target.value)}>
+                      <option value="">Nenhuma (sem desconto)</option>
+                      {regrasDesconto.map((r) => (
+                        <option key={r.id} value={String(r.id)}>
+                          {r.nome}{r.faixas.length ? ` — ${r.faixas.map((f) => `${f.qtd_minima_campanhas}+: ${Number(f.percentual)}%`).join(', ')}` : ' — sem faixas'}
+                        </option>
+                      ))}
+                    </Select>
+                    <small style={{ color: '#64748b', fontSize: '0.78rem', marginTop: 3 }}>As regras são criadas em Configurações → Desconto por Pacote.</small>
+                  </FormGroupInline>
+                )}
+
+                {campanhasIds.length > 1 && regraDescontoId && (
                   <FormGroupInline style={{ flex: '1 1 180px' }}>
                     <label>Modo de desconto do pacote</label>
                     <Select value={modoDesconto} onChange={(e) => setModoDesconto(e.target.value)}>
