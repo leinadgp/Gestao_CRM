@@ -197,7 +197,7 @@ export function LandingPages() {
               <p style="margin: 0; font-size: 0.95rem; color: #f8fafc; opacity: 0.9;">(Os módulos definidos na campanha aparecerão automaticamente aqui quando a página estiver publicada)</p>
             </div>
             <div>
-              <label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Como você nos conheceu?*</label>
+              <label style="display:block; margin-bottom: 8px; color:#f8fafc; font-size: 0.9rem;">Como você conheceu a capacitação?*</label>
               <select id="origem" name="origem" required style="width:100%; border-radius: 12px; border: 1px solid rgba(248,250,252,0.12); background: rgba(248,250,252,0.04); color: #f8fafc; padding: 14px 16px; outline:none;">
                 <option value="" style="background:#0f1930; color:#f8fafc;">Selecione...</option>
                 <option value="Instagram" style="background:#0f1930; color:#f8fafc;">Instagram</option>
@@ -784,7 +784,7 @@ export function LandingPages() {
                         </div>
 
                         <div class="lpfrm-field-full">
-                            <label for="origem" style="display: block; font-size: 14px; font-weight: 500; color: #f8fafc; margin-bottom: 5px;">Como você nos conheceu?*</label>
+                            <label for="origem" style="display: block; font-size: 14px; font-weight: 500; color: #f8fafc; margin-bottom: 5px;">Como você conheceu a capacitação?*</label>
                             <select id="origem" name="origem" required style="width: 100%; border-radius: 6px; border: 1px solid rgba(248,250,252,0.2); background: rgba(248,250,252,0.05); padding: 12px 16px; font-size: 14px; color: #ffffff; outline: none;">
                                 <option value="" style="background:#0f1930; color:#fff;">Selecione...</option>
                                 <option value="Instagram" style="background:#0f1930; color:#fff;">Instagram</option>
