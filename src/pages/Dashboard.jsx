@@ -6,7 +6,7 @@ import { emailDoFunilDisparo, TIPOS_FUNIL_BROADCAST } from '../config/disparos.j
 import { InscritosOportunidadeEditor } from '../componentes/InscritosOportunidadeEditor.jsx';
 import { exportarLinhasComoCsv, flattenExportInscritosDashboard } from '../utils/exportarCsv.js';
 import { temPermissaoEspecial } from '../utils/permissoes.js';
-import { campanhaEstaAtiva } from '../utils/campanhaStatus.js';
+import { montarOpcoesFiltroCurso } from '../utils/filtroCursoDashboard.js';
 import { formatarDataBR, formatarDataHoraBR, formatarDataHoraCurtaBR } from '../utils/data.js';
 import { contarInscritosDaLinha, somarInscritos } from '../utils/contagemInscritos.js';
 
@@ -220,28 +220,21 @@ export function Dashboard() {
       || null;
   };
 
-  // Lista para o seletor de campanha na tela (só as em andamento, pra não poluir o filtro).
-  const campanhasAtivas = useMemo(() => campanhas.filter(campanhaEstaAtiva), [campanhas]);
-  // Só as campanhas ativas com pelo menos um módulo configurado pro mês selecionado
-  // (mesFiltro) — evita listar cursos de outros meses no seletor.
-  const campanhasDoMes = useMemo(() => {
-    if (!mesFiltro) return campanhasAtivas;
-    return campanhasAtivas.filter(c =>
-      todosModulos.some(m =>
-        Number(m.campanha_id) === Number(c.id) &&
-        ((m.data_evento && m.data_evento.substring(0, 7) === mesFiltro) ||
-         (m.data_evento_fim && m.data_evento_fim.substring(0, 7) === mesFiltro))
-      )
-    );
-  }, [campanhasAtivas, todosModulos, mesFiltro]);
+  // Seletor de curso: TODOS os cursos — ativos, encerrados e arquivados —, separados
+  // entre os que têm módulo no mês selecionado e os de outros meses. Nenhum some da
+  // lista: o Dashboard serve para consultar cursos que já aconteceram.
+  const opcoesCurso = useMemo(
+    () => montarOpcoesFiltroCurso(campanhas, todosModulos, mesFiltro),
+    [campanhas, todosModulos, mesFiltro]
+  );
 
-  // Se o mês mudar e a campanha selecionada não pertencer mais a ele, limpa o filtro
-  // (evita ficar com um filtro aplicado que sumiu da lista do seletor).
-  useEffect(() => {
-    if (filtroCampanha && !campanhasDoMes.some(c => String(c.id) === filtroCampanha)) {
-      setFiltroCampanha('');
-    }
-  }, [campanhasDoMes, filtroCampanha]);
+  function selecionarCurso(id, { deOutroMes = false } = {}) {
+    setFiltroCampanha(id);
+    // Curso sem módulo no mês selecionado: abre em "Todos os Meses", senão os
+    // números dele apareceriam zerados (filtrados por um mês em que não aconteceu).
+    if (deOutroMes) setMesFiltro('');
+    setDropdownCampanhaAberto(false);
+  }
   // Todas as campanhas conhecidas (incluindo arquivadas/encerradas) — usado para
   // NÃO perder o histórico de vendas/negociações fechadas quando uma campanha é
   // arquivada. Arquivar uma campanha não pode apagar o passado do dashboard.
@@ -384,11 +377,9 @@ export function Dashboard() {
 
   const listaInscritosFiltrada = useMemo(() => {
     return inscritos.filter(inscrito => {
-      let passaCampanha = true;
-      if (filtroCampanha) {
-        const campSelecionada = campanhas.find(c => c.id === parseInt(filtroCampanha));
-        if (campSelecionada && inscrito.curso_nome !== campSelecionada.nome) passaCampanha = false;
-      }
+      // Pelo id, não pelo nome: com cursos encerrados no seletor, duas turmas com o
+      // mesmo nome (ex.: o mesmo curso em meses diferentes) se misturariam.
+      const passaCampanha = !filtroCampanha || Number(inscrito.campanha_id) === Number(filtroCampanha);
       let passaMes = true;
       if (mesFiltro) {
         const idsMods = parseJSONSeguro(inscrito.modulos_ids, []);
@@ -406,7 +397,7 @@ export function Dashboard() {
       }
       return passaCampanha && passaMes;
     });
-  }, [inscritos, filtroCampanha, campanhas, mesFiltro, todosModulos]);
+  }, [inscritos, filtroCampanha, mesFiltro, todosModulos]);
 
   function recarregarInscritos() {
     const config = getHeaders();
@@ -481,7 +472,7 @@ export function Dashboard() {
     return rels.reduce((acc, r) => acc + (parseInt(r.total_cliques, 10) || 0), 0);
   }
 
-  const campanhaSelecionada = campanhasDoMes.find(c => c.id === parseInt(filtroCampanha));
+  const campanhaSelecionada = campanhas.find(c => c.id === parseInt(filtroCampanha));
 
   // --- RENDERIZAÇÃO ---
   if (erroGlobal) {
@@ -533,19 +524,41 @@ export function Dashboard() {
             
             {dropdownCampanhaAberto && (
               <CustomDropdownMenu>
-                <CustomDropdownItem 
-                  $active={filtroCampanha === ''} 
-                  onClick={() => { setFiltroCampanha(''); setDropdownCampanhaAberto(false); }}
+                <CustomDropdownItem
+                  $active={filtroCampanha === ''}
+                  onClick={() => selecionarCurso('')}
                 >
                   Visão Macro (Todos os Cursos)
                 </CustomDropdownItem>
-                {campanhasDoMes.map(c => (
+                {mesFiltro && (
+                  <DropdownGrupoTitulo>Cursos de {formatarMesApresentacao(mesFiltro)}</DropdownGrupoTitulo>
+                )}
+                {mesFiltro && opcoesCurso.doMes.length === 0 && (
+                  <DropdownVazio>Nenhum curso com módulo neste mês.</DropdownVazio>
+                )}
+                {opcoesCurso.doMes.map(c => (
                   <CustomDropdownItem
                     key={c.id}
                     $active={filtroCampanha === String(c.id)}
-                    onClick={() => { setFiltroCampanha(String(c.id)); setDropdownCampanhaAberto(false); }}
+                    onClick={() => selecionarCurso(String(c.id))}
                   >
-                    {c.nome}
+                    <OpcaoCursoNome>{c.nome}</OpcaoCursoNome>
+                    {c.situacao !== 'ativa' && <SituacaoCursoTag>{ROTULO_SITUACAO_CURSO[c.situacao]}</SituacaoCursoTag>}
+                  </CustomDropdownItem>
+                ))}
+                {opcoesCurso.outros.length > 0 && (
+                  <DropdownGrupoTitulo title="Ao escolher, a competência muda para Todos os Meses">
+                    Outros meses
+                  </DropdownGrupoTitulo>
+                )}
+                {opcoesCurso.outros.map(c => (
+                  <CustomDropdownItem
+                    key={c.id}
+                    $active={filtroCampanha === String(c.id)}
+                    onClick={() => selecionarCurso(String(c.id), { deOutroMes: true })}
+                  >
+                    <OpcaoCursoNome>{c.nome}</OpcaoCursoNome>
+                    {c.situacao !== 'ativa' && <SituacaoCursoTag>{ROTULO_SITUACAO_CURSO[c.situacao]}</SituacaoCursoTag>}
                   </CustomDropdownItem>
                 ))}
               </CustomDropdownMenu>
@@ -1143,8 +1156,29 @@ const CustomDropdownMenu = styled.ul`
 `;
 
 const CustomDropdownItem = styled.li`
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
   padding: 12px 20px; font-size: 0.95rem; color: ${props => props.$active ? '#007bff' : '#495057'}; background: ${props => props.$active ? '#f0f7ff' : 'transparent'}; font-weight: ${props => props.$active ? '700' : '500'}; cursor: pointer; transition: background 0.2s;
   &:hover { background: #f8fafc; color: #007bff; }
+`;
+
+const DropdownGrupoTitulo = styled.li`
+  padding: 10px 20px 4px; margin-top: 4px; border-top: 1px solid #f1f5f9;
+  font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; cursor: default;
+`;
+
+const DropdownVazio = styled.li`
+  padding: 8px 20px 10px; font-size: 0.85rem; color: #94a3b8; cursor: default;
+`;
+
+const OpcaoCursoNome = styled.span`
+  min-width: 0;
+`;
+
+const ROTULO_SITUACAO_CURSO = { encerrada: 'Encerrado', arquivada: 'Arquivado' };
+
+const SituacaoCursoTag = styled.span`
+  flex-shrink: 0; padding: 2px 8px; border-radius: 10px; background: #f1f5f9; color: #64748b;
+  font-size: 0.7rem; font-weight: 600;
 `;
 
 const LoadingContainer = styled.div`
